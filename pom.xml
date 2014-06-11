@@ -34,6 +34,7 @@
     <module>tso-server</module>
     <module>commit-table</module>
     <module>hbase-commit-table</module>
+    <module>yinst-omid-hbase-client</module>
   </modules>
 
   <build>
