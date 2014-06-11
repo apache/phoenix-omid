@@ -121,6 +121,8 @@
             <autoVersionSubmodules>true</autoVersionSubmodules>
 	    <resume>false</resume>
 	    <preparationGoals>clean test</preparationGoals>
+	    <goals>package</goals>
+	    <arguments>-DskipTests</arguments>
           </configuration>
         </plugin>
 
