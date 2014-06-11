@@ -14,5 +14,5 @@ YINST bug-component omid_client
 
 LIB_JARS = lib/jars
 
-f - - - $(LIB_JARS)/$(POM_ARTIFACT_ID).jar	target/$(POM_ARTIFACT_ID)-$(POM_VERSION).jar
+f - - - $(LIB_JARS)/$(POM_ARTIFACT_ID).jar	target/$(POM_ARTIFACT_ID).jar
 f - - - $(LIB_JARS)/$(POM_ARTIFACT_ID).pom	dependency-reduced-pom.xml
