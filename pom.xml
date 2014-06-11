@@ -6,9 +6,15 @@
   <groupId>com.yahoo.omid</groupId>
   <artifactId>omid</artifactId>
   <packaging>pom</packaging>
+  <!-- WARNING: do not update version manually, use mvn release:prepare //-->
   <version>2.1-SNAPSHOT</version>
   <name>Omid</name>
   <url>http://www.github.com/yahoo/omid</url>
+
+  <scm>
+    <connection>scm:git:git@git.corp.yahoo.com:scalable-computing/omid.git</connection>
+    <tag>omid2</tag>
+  </scm>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -34,6 +40,7 @@
     <module>tso-server</module>
     <module>commit-table</module>
     <module>hbase-commit-table</module>
+    <module>yinst-omid-hbase-client</module>
   </modules>
 
   <build>
@@ -60,8 +67,8 @@
           <target>1.6</target>
           <compilerArguments>
             <Werror />
-            <Xlint:deprecation />
-            <Xlint:unchecked />
+            <arg>-Xlint:deprecation</arg>
+            <arg>-Xlint:unchecked</arg>
           </compilerArguments>
         </configuration>
       </plugin>
@@ -99,11 +106,19 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore></ignore>
+                    <ignore />
                   </action>
                 </pluginExecution>
               </pluginExecutions>
             </lifecycleMappingMetadata>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.0</version>
+          <configuration>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
         </plugin>
 
