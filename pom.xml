@@ -120,6 +120,7 @@
           <configuration>
             <autoVersionSubmodules>true</autoVersionSubmodules>
 	    <resume>false</resume>
+	    <preparationGoals>clean test</preparationGoals>
           </configuration>
         </plugin>
 
