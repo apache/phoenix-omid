@@ -119,6 +119,7 @@
           <version>2.0</version>
           <configuration>
             <autoVersionSubmodules>true</autoVersionSubmodules>
+	    <resume>false</resume>
           </configuration>
         </plugin>
 
