@@ -1,6 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.apache</groupId>
+        <artifactId>apache</artifactId>
+        <version>18</version>
+    </parent>
 
     <!-- ========================================================================================================== -->
     <!-- Project description                                                                                        -->
@@ -109,17 +114,8 @@
     </scm>
 
     <distributionManagement>
-        <repository>
-            <id>bintray</id>
-            <url>https://api.bintray.com/maven/yahoo/maven/omid</url>
-        </repository>
-
         <site>
             <id>apache-omid-site</id>
-            <!-- Wagon-git URL format:
-                     protocol:branch://url
-                 Do not forget the 2 backslashes before the url
-            -->
             <url>git:asf-site://https://git-wip-us.apache.org/repos/asf/incubator-omid-site.git</url>
         </site>
     </distributionManagement>
