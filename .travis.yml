@@ -45,7 +45,7 @@ script:
       &&
       mvn coveralls:report
       &&
-      mvn -B clean release:prepare release:perform -Prelease_profile,hbase-0 --settings bintray-settings.xml ;
+      mvn -B clean release:prepare release:perform -Prelease_profile,hbase-0,bintray_repo --settings bintray-settings.xml ;
     else
       git checkout -b tmp-build-branch
       &&
