@@ -41,12 +41,12 @@ import java.util.Arrays;
  *
  * Please @see{BasicExample} first
  *
- * In the code below, two concurrent transactions (Tx1 & Tx2), try to update the same column in HBase. This will result
+ * In the code below, two concurrent transactions (Tx1 and Tx2), try to update the same column in HBase. This will result
  * in the rollback of Tx2 -the last one trying to commit- due to conflicts in the writeset with the previously
  * committed transaction Tx1. Also shows how Tx2 reads the right values from its own snapshot in HBase data.
  *
- * After building the package with 'mvn clean package' find the resulting examples-<version>-bin.tar.gz file in the
- * 'examples/target' folder. Copy it to the target host and expand with 'tar -zxvf examples-<version>-bin.tar.gz'.
+ * After building the package with 'mvn clean package' find the resulting examples-{version}-bin.tar.gz file in the
+ * 'examples/target' folder. Copy it to the target host and expand with 'tar -zxvf examples-{version}-bin.tar.gz'.
  *
  * Make sure that 'hbase-site.xml' and 'core-site.xml' are either in classpath (see run.sh) or explicitly referenced via
  * command line arguments. If a secure HBase deployment is needed, use also command line arguments to specify the
@@ -56,12 +56,12 @@ import java.util.Arrays;
  * the default configuration, and can be created with the following command using the 'hbase shell':
  *
  * <pre>
- * create 'MY_TX_TABLE', {NAME => 'MY_CF', VERSIONS => '2147483647', TTL => '2147483647'}
+ * create 'MY_TX_TABLE', {NAME =&gt; 'MY_CF', VERSIONS =&gt; '2147483647', TTL =&gt; '2147483647'}
  * </pre>
  *
  * Make sure that the principal/user has RW permissions for the given table using also the 'hbase shell':
  * <pre>
- * grant '<principal/user>', 'RW', 'MY_TX_TABLE'
+ * grant '{principal/user}', 'RW', 'MY_TX_TABLE'
  * </pre>
  *
  * Alternatively, a table with a column family already created can be used by specifying the table name and column
@@ -101,8 +101,7 @@ public class SnapshotIsolationExample {
 
         LOG.info("Creating access to Omid Transaction Manager & Transactional Table '{}'", userTableName);
         try (TransactionManager tm = HBaseTransactionManager.newInstance();
-             TTable txTable = new TTable(userTableName))
-        {
+             TTable txTable = new TTable(userTableName)) {
 
             // A transaction Tx0 sets an initial value to a particular column in an specific row
             Transaction tx0 = tm.begin();
@@ -132,9 +131,10 @@ public class SnapshotIsolationExample {
             // As Tx1 is not yet committed, it should read the value set by Tx0 not the value written by Tx1
             Result tx2GetResult = txTable.get(tx2, tx2Get);
             assert Arrays.equals(tx2GetResult.value(), initialData);
-            LOG.info("Concurrent Transaction {} should read base value in {}:{}/{}/{} from its Snapshot | Value read = {}",
-                     tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
-                     Bytes.toString(qualifier), Bytes.toString(tx2GetResult.value()));
+            LOG.info(
+                "Concurrent Transaction {} should read base value in {}:{}/{}/{} from its Snapshot | Value read = {}",
+                tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
+                Bytes.toString(qualifier), Bytes.toString(tx2GetResult.value()));
 
             // Transaction Tx1 tries to commit and as there're no conflicting changes, persists the new value in HBase
             tm.commit(tx1);
@@ -147,17 +147,19 @@ public class SnapshotIsolationExample {
             tx2Get.addColumn(family, qualifier);
             tx2GetResult = txTable.get(tx2, tx2Get);
             // ...so it must read the initial value written by Tx0
-            LOG.info("Concurrent Transaction {} should read again base value in {}:{}/{}/{} from its Snapshot | Value read = {}",
-                     tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
-                     Bytes.toString(qualifier), Bytes.toString(tx2GetResult.value()));
+            LOG.info(
+                "Concurrent Transaction {} should read again base value in {}:{}/{}/{} from its Snapshot | Value read = {}",
+                tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
+                Bytes.toString(qualifier), Bytes.toString(tx2GetResult.value()));
 
             // Tx2 tries to write the column written by the committed concurrent transaction Tx1...
             Put tx2Put = new Put(exampleRow);
             tx2Put.add(family, qualifier, dataValue2);
             txTable.put(tx2, tx2Put);
-            LOG.info("Concurrent Transaction {} updates {}:{}/{}/{} = {} in its own Snapshot (Will conflict with {} at commit time)",
-                     tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
-                     Bytes.toString(qualifier), Bytes.toString(dataValue1), tx1);
+            LOG.info(
+                "Concurrent Transaction {} updates {}:{}/{}/{} = {} in its own Snapshot (Will conflict with {} at commit time)",
+                tx2, userTableName, Bytes.toString(exampleRow), Bytes.toString(family),
+                Bytes.toString(qualifier), Bytes.toString(dataValue1), tx1);
 
             // ... and when committing, Tx2 has to abort due to concurrent conflicts with committed transaction Tx1
             try {
