@@ -69,7 +69,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
     private final Meter timestampMeter;
 
     @Inject
-    ReplyProcessorImpl(@Named("PersistenceStrategy") WaitStrategy strategy,
+    ReplyProcessorImpl(@Named("ReplyStrategy") WaitStrategy strategy,
             MetricsRegistry metrics, Panicker panicker, ObjectPool<Batch> batchPool) {
 
         // ------------------------------------------------------------------------------------------------------------

@@ -72,7 +72,7 @@ class RetryProcessorImpl implements EventHandler<RetryProcessorImpl.RetryEvent>,
     private final Meter noCTFoundMeter;
 
     @Inject
-    RetryProcessorImpl(@Named("PersistenceStrategy") WaitStrategy strategy,
+    RetryProcessorImpl(@Named("RetryStrategy") WaitStrategy strategy,
                        MetricsRegistry metrics,
                        CommitTable commitTable,
                        ReplyProcessor replyProc,
