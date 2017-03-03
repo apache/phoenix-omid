@@ -30,6 +30,7 @@ import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tso.client.CellId;
 import org.apache.omid.tso.client.TSOClient;
+import org.apache.omid.tso.client.TSOProtocol;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -73,40 +74,40 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
     }
 
     @VisibleForTesting
-    static class Builder {
+    public static class Builder {
 
         // Required parameters
         private final HBaseOmidClientConfiguration hbaseOmidClientConf;
 
         // Optional parameters - initialized to default values
-        private Optional<TSOClient> tsoClient = Optional.absent();
+        private Optional<TSOProtocol> tsoClient = Optional.absent();
         private Optional<CommitTable.Client> commitTableClient = Optional.absent();
         private Optional<PostCommitActions> postCommitter = Optional.absent();
 
-        private Builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
+        public Builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
             this.hbaseOmidClientConf = hbaseOmidClientConf;
         }
 
-        Builder tsoClient(TSOClient tsoClient) {
+        public Builder tsoClient(TSOProtocol tsoClient) {
             this.tsoClient = Optional.of(tsoClient);
             return this;
         }
 
-        Builder commitTableClient(CommitTable.Client client) {
+        public Builder commitTableClient(CommitTable.Client client) {
             this.commitTableClient = Optional.of(client);
             return this;
         }
 
-        Builder postCommitter(PostCommitActions postCommitter) {
+        public Builder postCommitter(PostCommitActions postCommitter) {
             this.postCommitter = Optional.of(postCommitter);
             return this;
         }
 
-        HBaseTransactionManager build() throws IOException, InterruptedException {
+        public HBaseTransactionManager build() throws IOException, InterruptedException {
 
             CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient()).get();
             PostCommitActions postCommitter = this.postCommitter.or(buildPostCommitter(commitTableClient)).get();
-            TSOClient tsoClient = this.tsoClient.or(buildTSOClient()).get();
+            TSOProtocol tsoClient = this.tsoClient.or(buildTSOClient()).get();
 
             return new HBaseTransactionManager(hbaseOmidClientConf,
                                                postCommitter,
@@ -115,8 +116,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                                new HBaseTransactionFactory());
         }
 
-        private Optional<TSOClient> buildTSOClient() throws IOException, InterruptedException {
-            return Optional.of(TSOClient.newInstance(hbaseOmidClientConf.getOmidClientConfiguration()));
+        private Optional<TSOProtocol> buildTSOClient() throws IOException, InterruptedException {
+            return Optional.of((TSOProtocol) TSOClient.newInstance(hbaseOmidClientConf.getOmidClientConfiguration()));
         }
 
 
@@ -151,13 +152,13 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
     }
 
     @VisibleForTesting
-    static Builder builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
+    public static Builder builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
         return new Builder(hbaseOmidClientConf);
     }
 
     private HBaseTransactionManager(HBaseOmidClientConfiguration hBaseOmidClientConfiguration,
                                     PostCommitActions postCommitter,
-                                    TSOClient tsoClient,
+                                    TSOProtocol tsoClient,
                                     CommitTable.Client commitTableClient,
                                     HBaseTransactionFactory hBaseTransactionFactory) {
 

@@ -236,9 +236,9 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     // ----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Used for high availability support.
-     * @return the epoch of the TSO server that initialized this transaction.
+     * @see TSOProtocol#getEpoch()
      */
+    @Override
     public long getEpoch() {
         return epoch;
     }
