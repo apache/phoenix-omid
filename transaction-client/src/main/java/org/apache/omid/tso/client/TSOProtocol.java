@@ -25,6 +25,13 @@ import java.util.Set;
 public interface TSOProtocol {
 
     /**
+     * Returns the epoch of the current TSO server. Used in HA mode.
+     *
+     * @return the epoch.
+     */
+    long getEpoch();
+
+    /**
      * Returns a new timestamp assigned by on the server-side
      * @return the newly assigned timestamp as a future. If an error was detected, the future will contain a
      * corresponding protocol exception
