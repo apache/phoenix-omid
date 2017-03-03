@@ -30,7 +30,7 @@ import org.apache.omid.tso.client.AbortException;
 import org.apache.omid.tso.client.CellId;
 import org.apache.omid.tso.client.ConnectionException;
 import org.apache.omid.tso.client.ServiceUnavailableException;
-import org.apache.omid.tso.client.TSOClient;
+import org.apache.omid.tso.client.TSOProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +63,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     }
 
     private final PostCommitActions postCommitter;
-    protected final TSOClient tsoClient;
+    protected final TSOProtocol tsoClient;
     protected final CommitTable.Client commitTableClient;
     private final TransactionFactory<? extends CellId> transactionFactory;
 
@@ -92,7 +92,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
      */
     public AbstractTransactionManager(MetricsRegistry metrics,
                                       PostCommitActions postCommitter,
-                                      TSOClient tsoClient,
+                                      TSOProtocol tsoClient,
                                       CommitTable.Client commitTableClient,
                                       TransactionFactory<? extends CellId> transactionFactory) {
 
@@ -352,6 +352,26 @@ public abstract class AbstractTransactionManager implements TransactionManager {
         } catch (ExecutionException e) {
             throw new IOException("Problem finding commit timestamp", e);
         }
+
+    }
+
+    /**
+     * This function returns the commit timestamp for a particular cell if the transaction was already committed in
+     * the system. In case the transaction was not committed and the cell was written by transaction initialized by a
+     * previous TSO server, an invalidation try occurs.
+     * Otherwise the function returns a value that indicates that the commit timestamp was not found.
+     * @param cellStartTimestamp
+     *          start timestamp of the cell to locate the commit timestamp for.
+     * @param locator
+     *          a locator to find the commit timestamp in the system.
+     * @return the commit timestamp joint with the location where it was found
+     *         or an object indicating that it was not found in the system
+     * @throws IOException  in case of any I/O issues
+     */
+    public CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp,
+                                                     CommitTimestampLocator locator) throws IOException {
+
+        return locateCellCommitTimestamp(cellStartTimestamp, tsoClient.getEpoch(), locator);
 
     }
 
