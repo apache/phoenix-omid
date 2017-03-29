@@ -65,6 +65,10 @@ public class HBaseOmidClientConfiguration extends SecureHBaseConfig {
         new YAMLUtils().loadSettings(configFileName, DEFAULT_CONFIG_FILE_NAME, this);
     }
 
+    public static HBaseOmidClientConfiguration loadFromString(String content) {
+        return new HBaseOmidClientConfiguration(new YAMLUtils().loadStringAsMap(content));
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // Getters and setters for config params
     // ----------------------------------------------------------------------------------------------------------------
