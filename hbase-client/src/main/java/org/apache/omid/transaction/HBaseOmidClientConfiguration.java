@@ -20,13 +20,17 @@ package org.apache.omid.transaction;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import org.apache.commons.beanutils.BeanUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.omid.YAMLUtils;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
-import org.apache.omid.tso.client.OmidClientConfiguration.PostCommitMode;
 import org.apache.omid.tso.client.OmidClientConfiguration;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.omid.tso.client.OmidClientConfiguration.PostCommitMode;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 
 /**
  * Configuration for HBase's Omid client side
@@ -46,6 +50,14 @@ public class HBaseOmidClientConfiguration extends SecureHBaseConfig {
     // ----------------------------------------------------------------------------------------------------------------
     public HBaseOmidClientConfiguration() {
         this(CONFIG_FILE_NAME);
+    }
+
+    public <K, V> HBaseOmidClientConfiguration(Map<K, V> properties) {
+        try {
+            BeanUtils.populate(this, properties);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @VisibleForTesting
