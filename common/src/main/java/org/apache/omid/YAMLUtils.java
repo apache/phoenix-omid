@@ -30,6 +30,7 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("WeakerAccess")
 public class YAMLUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(YAMLUtils.class);
@@ -53,7 +54,7 @@ public class YAMLUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private Map loadSettings(String resourcePath, String defaultResourcePath) throws IOException {
+    public Map loadSettings(String resourcePath, String defaultResourcePath) throws IOException {
         Map defaultSetting = loadAsMap(defaultResourcePath);
         Preconditions.checkState(defaultSetting.size() > 0, String.format("Failed to load file '%s' from classpath", defaultResourcePath));
         if (resourcePath != null) {
@@ -64,15 +65,21 @@ public class YAMLUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private Map loadAsMap(String path) throws IOException {
+    public Map loadAsMap(String path) throws IOException {
         try {
             String content = Resources.toString(Resources.getResource(path), Charset.forName("UTF-8"));
             LOG.debug("Loaded resource file '{}'\n{}", path, content);
+            return loadStringAsMap(content);
+        } catch (IllegalArgumentException e) {
+            return new HashMap();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map loadStringAsMap(String content) {
+        try {
             Map settings = new Yaml().loadAs(content, Map.class);
-            if (settings == null) {
-                settings = new HashMap(0);
-            }
-            return settings;
+            return (settings != null) ? settings : new HashMap(0);
         } catch (IllegalArgumentException e) {
             return new HashMap();
         }
