@@ -21,18 +21,35 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 public final class HBaseLogin {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseLogin.class);
 
+    private static volatile UserGroupInformation ugi;
+
+    @Nullable
     public static UserGroupInformation loginIfNeeded(SecureHBaseConfig config) throws IOException {
+
         if (UserGroupInformation.isSecurityEnabled()) {
-            LOG.info("Security is enabled, logging in with principal={}, keytab={}",
-                    config.getPrincipal(), config.getKeytab());
-            UserGroupInformation.loginUserFromKeytab(config.getPrincipal(), config.getKeytab());
+            LOG.info("Security enabled when connecting to HBase");
+            if (ugi == null) { // Use lazy initialization with double-checked locking
+                synchronized (HBaseLogin.class) {
+                    if (ugi == null) {
+                        LOG.info("Login with Kerberos. User={}, keytab={}", config.getPrincipal(), config.getKeytab());
+                        UserGroupInformation.loginUserFromKeytab(config.getPrincipal(), config.getKeytab());
+                        ugi = UserGroupInformation.getCurrentUser();
+                    }
+                }
+            } else {
+                LOG.info("User {}, already trusted (Kerberos). Avoiding 2nd login as it causes problems", ugi.toString());
+            }
+        } else {
+            LOG.warn("Security NOT enabled when connecting to HBase. Act at your own risk. NULL UGI returned");
         }
-        return UserGroupInformation.getCurrentUser();
+        return ugi;
     }
+
 }
