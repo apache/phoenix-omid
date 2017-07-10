@@ -59,6 +59,7 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -97,6 +98,9 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     private InetSocketAddress tsoAddr;
     private String zkCurrentTsoPath;
 
+
+    // Use to extract unique table identifiers from the modified cells list.
+    private final Set<Long> tableIDs;
     // Conflict detection level of the entire system. Can either be Row or Cell level.
     private ConflictDetectionLevel conflictDetectionLevel;
     private Set<Long> rowLevelWriteSet;
@@ -169,6 +173,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         bootstrap.setOption("reuseAddress", true);
         bootstrap.setOption("connectTimeoutMillis", 100);
 
+        this.tableIDs = new HashSet<Long>();
+
         conflictDetectionLevel = omidConf.getConflictAnalysisLevel();
         rowLevelWriteSet = new HashSet<Long>();
     }
@@ -221,8 +227,25 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             }
 
             commitbuilder.addCellId(id);
+            tableIDs.add(cell.getTableId());
         }
+        commitbuilder.addAllTableId(tableIDs);
+        tableIDs.clear();
         builder.setCommitRequest(commitbuilder.build());
+        RequestEvent request = new RequestEvent(builder.build(), requestMaxRetries);
+        fsm.sendEvent(request);
+        return new ForwardingTSOFuture<>(request);
+    }
+
+    /**
+     * @see TSOProtocol#getFence()
+     */
+    @Override
+    public TSOFuture<Long> getFence(long tableId) {
+        TSOProto.Request.Builder builder = TSOProto.Request.newBuilder();
+        TSOProto.FenceRequest.Builder fenceReqBuilder = TSOProto.FenceRequest.newBuilder();
+        fenceReqBuilder.setTableId(tableId);
+        builder.setFenceRequest(fenceReqBuilder.build());
         RequestEvent request = new RequestEvent(builder.build(), requestMaxRetries);
         fsm.sendEvent(request);
         return new ForwardingTSOFuture<>(request);
@@ -376,6 +399,19 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
         public long getStartTimestamp() {
             return startTimestamp;
+        }
+    }
+
+    private static class FenceRequestTimeoutEvent implements StateMachine.Event {
+
+        final long tableID;
+
+        FenceRequestTimeoutEvent(long tableID) {
+            this.tableID = tableID;
+        }
+
+        public long getTableID() {
+            return tableID;
         }
     }
 
@@ -648,6 +684,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
         final Queue<RequestAndTimeout> timestampRequests;
         final Map<Long, RequestAndTimeout> commitRequests;
+        final Map<Long, RequestAndTimeout> fenceRequests;
         final Channel channel;
 
         final HashedWheelTimer timeoutExecutor;
@@ -659,6 +696,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             this.timeoutExecutor = timeoutExecutor;
             timestampRequests = new ArrayDeque<>();
             commitRequests = new HashMap<>();
+            fenceRequests = new HashMap<>();
         }
 
         private Timeout newTimeout(final StateMachine.Event timeoutEvent) {
@@ -683,6 +721,10 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 TSOProto.CommitRequest commitReq = req.getCommitRequest();
                 commitRequests.put(commitReq.getStartTimestamp(), new RequestAndTimeout(
                         request, newTimeout(new CommitRequestTimeoutEvent(commitReq.getStartTimestamp()))));
+            } else if (req.hasFenceRequest()) {
+                TSOProto.FenceRequest fenceReq = req.getFenceRequest();
+                fenceRequests.put(fenceReq.getTableId(), new RequestAndTimeout(
+                        request, newTimeout(new FenceRequestTimeoutEvent(fenceReq.getTableId()))));
             } else {
                 request.error(new IllegalArgumentException("Unknown request type"));
                 return;
@@ -726,6 +768,18 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 } else {
                     e.getRequest().success(resp.getCommitResponse().getCommitTimestamp());
                 }
+            } else if (resp.hasFenceResponse()) {
+                long tableID = resp.getFenceResponse().getTableId();
+                RequestAndTimeout e = fenceRequests.remove(tableID);
+                if (e == null) {
+                    LOG.debug("Received fence response for request that doesn't exist. Table ID: {}", tableID);
+                    return;
+                }
+                if (e.getTimeout() != null) {
+                    e.getTimeout().cancel();
+                }
+
+                e.getRequest().success(resp.getFenceResponse().getFenceId());
             }
         }
 
@@ -744,6 +798,18 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             long startTimestamp = e.getStartTimestamp();
             if (commitRequests.containsKey(startTimestamp)) {
                 RequestAndTimeout r = commitRequests.remove(startTimestamp);
+                if (r.getTimeout() != null) {
+                    r.getTimeout().cancel();
+                }
+                queueRetryOrError(fsm, r.getRequest());
+            }
+            return this;
+        }
+
+        public StateMachine.State handleEvent(FenceRequestTimeoutEvent e) {
+            long tableID = e.getTableID();
+            if (fenceRequests.containsKey(tableID)) {
+                RequestAndTimeout r = fenceRequests.remove(tableID);
                 if (r.getTimeout() != null) {
                     r.getTimeout().cancel();
                 }
@@ -795,6 +861,15 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 queueRetryOrError(fsm, r.getRequest());
                 iter.remove();
             }
+            iter = fenceRequests.entrySet().iterator();
+            while (iter.hasNext()) {
+                RequestAndTimeout r = iter.next().getValue();
+                if (r.getTimeout() != null) {
+                    r.getTimeout().cancel();
+                }
+                queueRetryOrError(fsm, r.getRequest());
+                iter.remove();
+            }
             channel.close();
         }
 
@@ -833,6 +908,12 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 }
                 r.getRequest().error(new ClosingException());
             }
+            for (RequestAndTimeout r : fenceRequests.values()) {
+                if (r.getTimeout() != null) {
+                    r.getTimeout().cancel();
+                }
+                r.getRequest().error(new ClosingException());
+            }
         }
     }
 
@@ -849,6 +930,11 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         }
 
         public StateMachine.State handleEvent(CommitRequestTimeoutEvent e) {
+            // Ignored. They will be retried or errored
+            return this;
+        }
+
+        public StateMachine.State handleEvent(FenceRequestTimeoutEvent e) {
             // Ignored. They will be retried or errored
             return this;
         }

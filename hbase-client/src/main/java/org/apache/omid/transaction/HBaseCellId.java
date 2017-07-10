@@ -69,10 +69,6 @@ public class HBaseCellId implements CellId {
                 + ":" + timestamp;
     }
 
-    private Hasher getHasher() {
-        return Hashing.murmur3_128().newHasher();
-    }
-
     @Override
     public long getCellId() {
         return getHasher()
@@ -84,10 +80,21 @@ public class HBaseCellId implements CellId {
     }
 
     @Override
+    public long getTableId() {
+        return getHasher()
+                .putBytes(table.getTableName())
+                .hash().asLong();
+    }
+
+    @Override
     public long getRowId() {
         return getHasher()
                 .putBytes(table.getTableName())
                 .putBytes(row)
                 .hash().asLong();
+    }
+
+    public static Hasher getHasher() {
+        return Hashing.murmur3_128().newHasher();
     }
 }

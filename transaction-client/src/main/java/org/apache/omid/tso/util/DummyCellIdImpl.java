@@ -39,6 +39,11 @@ public class DummyCellIdImpl implements CellId {
     }
 
     @Override
+    public long getTableId() {
+        return cellId;
+    }
+
+    @Override
     public long getRowId() {
         return rowId;
     }
