@@ -66,7 +66,8 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
                 Put put = new Put(cell.getRow());
                 put.add(cell.getFamily(),
                         CellUtils.addShadowCellSuffix(cell.getQualifier(), 0, cell.getQualifier().length),
-                        tx.getStartTimestamp(),
+                        cell.getTimestamp(),
+//                        tx.getStartTimestamp(),
                         Bytes.toBytes(tx.getCommitTimestamp()));
                 try {
                     cell.getTable().put(put);

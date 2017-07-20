@@ -58,7 +58,7 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-transaction-client</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+           <!-- <scope>test</scope> -->
         </dependency>
 
         <!-- End of Dependencies on Omid modules -->

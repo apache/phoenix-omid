@@ -58,6 +58,8 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTransactionManager.class);
 
+    public final static int NUM_OF_CHECKPOINTS = 50;
+
     public interface TransactionFactory<T extends CellId> {
 
         AbstractTransaction<T> createTransaction(long transactionId, long epoch, AbstractTransactionManager tm);

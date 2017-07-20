@@ -20,7 +20,6 @@ package org.apache.omid.transaction;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -209,8 +208,9 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
     @Override
     public boolean isCommitted(HBaseCellId hBaseCellId) throws TransactionException {
         try {
+            long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.NUM_OF_CHECKPOINTS);
             CommitTimestamp tentativeCommitTimestamp =
-                    locateCellCommitTimestamp(hBaseCellId.getTimestamp(), tsoClient.getEpoch(),
+                    locateCellCommitTimestamp(timestamp, tsoClient.getEpoch(),
                                               new CommitTimestampLocatorImpl(hBaseCellId, Maps.<Long, Long>newHashMap()));
 
             // If transaction that added the cell was invalidated

@@ -268,7 +268,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             CommitTimestamp ct = tm.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
                     ctLocator);
             assertTrue(ct.isValid());
-            long expectedCommitTS = tx1.getStartTimestamp() + 1;
+            long expectedCommitTS = tx1.getStartTimestamp() + AbstractTransactionManager.NUM_OF_CHECKPOINTS;
             assertEquals(ct.getValue(), expectedCommitTS);
             assertTrue(ct.getLocation().compareTo(COMMIT_TABLE) == 0);
         }

@@ -21,9 +21,11 @@ import com.google.common.collect.Sets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.proto.TSOProto;
+import org.apache.omid.transaction.AbstractTransactionManager;
 import org.apache.omid.tso.PausableTimestampOracle;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
@@ -348,7 +350,7 @@ public class TestTSOClientRequestAndResponseBehaviours {
         clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         TSOProto.Response response = clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         assertFalse(response.getCommitResponse().getAborted(), "Transaction should be committed");
-        assertEquals(response.getCommitResponse().getCommitTimestamp(), tx1ST + 1);
+        assertEquals(response.getCommitResponse().getCommitTimestamp(), tx1ST + AbstractTransactionManager.NUM_OF_CHECKPOINTS);
     }
 
     @Test(timeOut = 30_000)

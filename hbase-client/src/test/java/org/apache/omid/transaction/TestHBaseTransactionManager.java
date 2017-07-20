@@ -52,7 +52,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
 
         TSOClient tsoClient = spy(getClient(context));
 
-        long fakeEpoch = tsoClient.getNewStartTimestamp().get() + FAKE_EPOCH_INCREMENT;
+        long fakeEpoch = tsoClient.getNewStartTimestamp().get() + (FAKE_EPOCH_INCREMENT * AbstractTransactionManager.NUM_OF_CHECKPOINTS);
 
         // Modify the epoch before testing the begin method
         doReturn(fakeEpoch).when(tsoClient).getEpoch();
