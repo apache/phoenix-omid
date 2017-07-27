@@ -31,6 +31,7 @@ import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tso.client.CellId;
+import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.TSOClient;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
@@ -258,6 +259,10 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                     "The transaction object passed is not an instance of HBaseTransaction");
         }
 
+    }
+
+    public ConflictDetectionLevel getConflictDetectionLevel() {
+        return tsoClient.getConflictDetectionLevel();
     }
 
     static class CommitTimestampLocatorImpl implements CommitTimestampLocator {
