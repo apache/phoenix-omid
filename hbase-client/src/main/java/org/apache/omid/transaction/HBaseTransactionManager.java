@@ -208,7 +208,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
     @Override
     public boolean isCommitted(HBaseCellId hBaseCellId) throws TransactionException {
         try {
-            long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.NUM_OF_CHECKPOINTS);
+            long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
             CommitTimestamp tentativeCommitTimestamp =
                     locateCellCommitTimestamp(timestamp, tsoClient.getEpoch(),
                                               new CommitTimestampLocatorImpl(hBaseCellId, Maps.<Long, Long>newHashMap()));

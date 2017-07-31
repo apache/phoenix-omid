@@ -353,12 +353,17 @@ public class TTable implements Closeable {
             boolean snapshotValueFound = false;
             Cell oldestCell = null;
             for (Cell cell : columnCells) {
-                if (isCellInTransaction(cell, transaction, commitCache) || isCellInSnapshot(cell, transaction, commitCache)) {
+                if (isCellInTransaction(cell, transaction, commitCache) ||
+                    isCellInSnapshot(cell, transaction, commitCache)) {
                     if (!CellUtil.matchingValue(cell, CellUtils.DELETE_TOMBSTONE)) {
                         keyValuesInSnapshot.add(cell);
                     }
 
-                    if (transaction.getVisibilityLevel() != VisibilityLevel.SNAPSHOT_ALL || !isCellInTransaction(cell, transaction, commitCache)) {
+                    // We can finish looking for additional results in two cases:
+                    // 1. if we found a result and we are not in SNAPSHOT_ALL mode.
+                    // 2. if we found a result that was not written by the current transaction.
+                    if (transaction.getVisibilityLevel() != VisibilityLevel.SNAPSHOT_ALL ||
+                        !isCellInTransaction(cell, transaction, commitCache)) {
                         snapshotValueFound = true;
                         break;
                     }
@@ -405,6 +410,9 @@ public class TTable implements Closeable {
         long startTimestamp = transaction.getStartTimestamp();
         long readTimestamp = transaction.getReadTimestamp();
 
+        // A cell was written by a transaction if its timestamp is larger than its startTimestamp and smaller or equal to its readTimestamp.
+        // There also might be a case where the cell was written by the transaction and its timestamp equals to its writeTimestamp, however,
+        // this case occurs after checkpoint and in this case we do not want to read this data.
         if (kv.getTimestamp() >= startTimestamp && kv.getTimestamp() <= readTimestamp) {
             return true;
         }

@@ -305,7 +305,7 @@ public class TestCheckpoint extends OmidTestBase {
 
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
-        for (int i=0; i < AbstractTransactionManager.NUM_OF_CHECKPOINTS ; ++i) {
+        for (int i=0; i < AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1; ++i) {
             hbaseTx1.checkpoint();
         }
 
