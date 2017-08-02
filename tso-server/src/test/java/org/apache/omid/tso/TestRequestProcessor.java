@@ -99,7 +99,7 @@ public class TestRequestProcessor {
         for (int i = 0; i < 100; i++) {
             requestProc.timestampRequest(null, new MonitoringContext(metrics));
             verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS), any(Channel.class), any(MonitoringContext.class));
-            firstTS += AbstractTransactionManager.NUM_OF_CHECKPOINTS;
+            firstTS += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
         }
 
     }
@@ -114,8 +114,8 @@ public class TestRequestProcessor {
         long firstTS = TScapture.getValue();
 
         List<Long> writeSet = Lists.newArrayList(1L, 20L, 203L);
-        requestProc.commitRequest(firstTS - AbstractTransactionManager.NUM_OF_CHECKPOINTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - AbstractTransactionManager.NUM_OF_CHECKPOINTS), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN), any(Channel.class), any(MonitoringContext.class));
 
         requestProc.commitRequest(firstTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
         ArgumentCaptor<Long> commitTScapture = ArgumentCaptor.forClass(Long.class);
@@ -180,8 +180,8 @@ public class TestRequestProcessor {
     public void testLowWatermarkIsStoredOnlyWhenACacheElementIsEvicted() throws Exception {
 
         final int ANY_START_TS = 1;
-        final long FIRST_COMMIT_TS_EVICTED = AbstractTransactionManager.NUM_OF_CHECKPOINTS;
-        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + AbstractTransactionManager.NUM_OF_CHECKPOINTS;
+        final long FIRST_COMMIT_TS_EVICTED = AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
 
         // Fill the cache to provoke a cache eviction
         for (long i = 0; i < CONFLICT_MAP_SIZE + CONFLICT_MAP_ASSOCIATIVITY; i++) {

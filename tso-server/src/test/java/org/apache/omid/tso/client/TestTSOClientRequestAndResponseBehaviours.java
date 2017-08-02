@@ -350,7 +350,7 @@ public class TestTSOClientRequestAndResponseBehaviours {
         clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         TSOProto.Response response = clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         assertFalse(response.getCommitResponse().getAborted(), "Transaction should be committed");
-        assertEquals(response.getCommitResponse().getCommitTimestamp(), tx1ST + AbstractTransactionManager.NUM_OF_CHECKPOINTS);
+        assertEquals(response.getCommitResponse().getCommitTimestamp(), tx1ST + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
     }
 
     @Test(timeOut = 30_000)

@@ -131,7 +131,7 @@ public class WorldClockOracleImpl implements TimestampOracle {
 
         long currentMsFirstTimestamp = System.currentTimeMillis() * MAX_TX_PER_MS;
 
-        lastTimestamp += AbstractTransactionManager.NUM_OF_CHECKPOINTS;
+        lastTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
 
         // Return the next timestamp in case we are still in the same millisecond as the previous timestamp was. 
         if (lastTimestamp >= currentMsFirstTimestamp) {

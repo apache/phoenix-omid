@@ -39,7 +39,14 @@ import java.util.Set;
 public abstract class AbstractTransaction<T extends CellId> implements Transaction {
 
     enum VisibilityLevel {
-        SNAPSHOT, SNAPSHOT_ALL, SNAPSHOT_EXCLUDE_CURRENT
+        // Regular snapshot isolation. Returns the last key, either from the snapshot or from the current transaction
+        // Sets the readTimestamp to be the writeTimestamp
+        SNAPSHOT,
+        // Returns all the written version of a key X that written by the transaction and the key X from the provided snapshot.
+        SNAPSHOT_ALL,
+        // Returns the last key, either from the snapshot or from the current transaction that was written before the last checkpoint.
+        // Sets the readTimestamp to be the writeTimestamp - 1
+        SNAPSHOT_EXCLUDE_CURRENT
     }
 
     private transient Map<String, Object> metadata = new HashMap<>();
@@ -53,7 +60,6 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     private final Set<T> writeSet;
     private Status status = Status.RUNNING;
     private VisibilityLevel visibilityLevel;
-    private boolean lastCheckpoint = false;
 
     /**
      * Base constructor
@@ -90,15 +96,11 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
      */
     void checkpoint() throws TransactionException {
 
-        if (lastCheckpoint == true) {
-            throw new TransactionException("Error: number of checkpoing cannot exceed " + AbstractTransactionManager.NUM_OF_CHECKPOINTS);
-        }
-
         setVisibilityLevel(VisibilityLevel.SNAPSHOT_EXCLUDE_CURRENT);
         this.readTimestamp = this.writeTimestamp++;
 
-        if (this.writeTimestamp % AbstractTransactionManager.NUM_OF_CHECKPOINTS == 0) {
-            lastCheckpoint = true;
+        if (this.writeTimestamp % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN == 0) {
+            throw new TransactionException("Error: number of checkpoing cannot exceed " + (AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1));
         }
     }
 
@@ -212,6 +214,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     public void setVisibilityLevel(VisibilityLevel visibilityLevel) {
         this.visibilityLevel = visibilityLevel;
 
+        // If we are setting visibility level to either SNAPSHOT or SNAPSHOT_ALL
+        // then we should let readTimestamp equals to writeTimestamp
         if (this.visibilityLevel == VisibilityLevel.SNAPSHOT ||
             this.visibilityLevel == VisibilityLevel.SNAPSHOT_ALL) {
             this.readTimestamp = this.writeTimestamp;

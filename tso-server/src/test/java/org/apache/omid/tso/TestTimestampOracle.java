@@ -73,7 +73,7 @@ public class TestTimestampOracle {
         long last = timestampOracle.next();
         for (int i = 0; i < (3 * TimestampOracleImpl.TIMESTAMP_BATCH); i++) {
             long current = timestampOracle.next();
-            assertEquals(current, last + AbstractTransactionManager.NUM_OF_CHECKPOINTS, "Not monotonic growth");
+            assertEquals(current, last + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN, "Not monotonic growth");
             last = current;
         }
         assertTrue(timestampOracle.getLast() == last);

@@ -137,7 +137,7 @@ public class TimestampOracleImpl implements TimestampOracle {
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public long next() {
-        lastTimestamp += AbstractTransactionManager.NUM_OF_CHECKPOINTS;
+        lastTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
 
         if (lastTimestamp >= nextAllocationThreshold) {
             // set the nextAllocationThread to max value of long in order to
