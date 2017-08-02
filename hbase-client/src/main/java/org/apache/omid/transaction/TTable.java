@@ -186,9 +186,9 @@ public class TTable implements Closeable {
     }
 
     private void  familyQualifierBasedDeletionWithOutRead(HBaseTransaction tx, Put deleteP, Get deleteG) {
-        Set<byte[]> fmap = deleteG.getFamilyMap().keySet();
+        Set<byte[]> fset = deleteG.getFamilyMap().keySet();
 
-        for (byte[] family : fmap) {
+        for (byte[] family : fset) {
             deleteP.add(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getStartTimestamp(),
                     HConstants.EMPTY_BYTE_ARRAY);
         }
@@ -350,6 +350,31 @@ public class TTable implements Closeable {
     }
 
     /**
+     * Check whether a cell was deleted using family deletion marker
+     *
+     * @param cell                The cell to check
+     * @param transaction         Defines the current snapshot
+     * @param familyDeletionCache Accumulates the family deletion markers to identify cells that deleted with a higher version
+     * @param commitCache         Holds shadow cells information
+     * @return Whether the cell was deleted
+     */
+    private boolean checkFamilyDeletionCache(Cell cell, HBaseTransaction transaction, Map<String, List<Cell>> familyDeletionCache, Map<Long, Long> commitCache) throws IOException {
+        List<Cell> familyDeletionCells = familyDeletionCache.get(Bytes.toString((cell.getRow())));
+        if (familyDeletionCells != null) {
+            for(Cell familyDeletionCell : familyDeletionCells) {
+                String family = Bytes.toString(cell.getFamily());
+                String familyDeletion = Bytes.toString(familyDeletionCell.getFamily());
+                if (family.equals(familyDeletion)) {
+                    Optional<Long> familyDeletionCommitTimestamp = getCommitTimestamp(familyDeletionCell, transaction, commitCache);
+                    if (familyDeletionCommitTimestamp.isPresent() && familyDeletionCommitTimestamp.get() >= cell.getTimestamp()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    /**
      * Filters the raw results returned from HBase and returns only those belonging to the current snapshot, as defined
      * by the transaction object. If the raw results don't contain enough information for a particular qualifier, it
      * will request more versions from HBase.
@@ -357,6 +382,7 @@ public class TTable implements Closeable {
      * @param rawCells          Raw cells that we are going to filter
      * @param transaction       Defines the current snapshot
      * @param versionsToRequest Number of versions requested from hbase
+     * @param familyDeletionCache Accumulates the family deletion markers to identify cells that deleted with a higher version
      * @return Filtered KVs belonging to the transaction snapshot
      */
     List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
@@ -379,20 +405,8 @@ public class TTable implements Closeable {
             boolean snapshotValueFound = false;
             Cell oldestCell = null;
             for (Cell cell : columnCells) {
-                List<Cell> familyDeletionCells = familyDeletionCache.get(Bytes.toString((cell.getRow())));
-                if (familyDeletionCells != null) {
-                    for(Cell familyDeletionCell : familyDeletionCells) {
-                        String family = Bytes.toString(cell.getFamily());
-                        String familyDeletion = Bytes.toString(familyDeletionCell.getFamily());
-                        if (family.equals(familyDeletion)) {
-                            Optional<Long> familyDeletionCommitTimestamp = getCommitTimestamp(familyDeletionCell, transaction, commitCache);
-                            if (familyDeletionCommitTimestamp.isPresent() && familyDeletionCommitTimestamp.get() >= cell.getTimestamp()) {
-                                snapshotValueFound = true;
-                                break;
-                            }
-                        }
-                    }
-                }
+
+                snapshotValueFound = checkFamilyDeletionCache(cell, transaction, familyDeletionCache, commitCache);
 
                 if (snapshotValueFound == true) {
                     break;
@@ -471,11 +485,8 @@ public class TTable implements Closeable {
                 return Optional.of(startTimestamp);
             }
 
-            Optional<Long> commitTimestamp =
-                tryToLocateCellCommitTimestamp(transaction.getTransactionManager(), transaction.getEpoch(), kv,
+            return tryToLocateCellCommitTimestamp(transaction.getTransactionManager(), transaction.getEpoch(), kv,
                                                commitCache);
-
-            return commitTimestamp;
     }
 
     private boolean isCellInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
@@ -887,8 +898,10 @@ public class TTable implements Closeable {
 
             @Override
             public boolean apply(Cell cell) {
-                return cell != null && !CellUtils.isShadowCell(cell) && 
-                        !(CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) && CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY));
+                boolean familyDeletionMarkerCondition = CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
+                                                        CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
+
+                return cell != null && !CellUtils.isShadowCell(cell) && !familyDeletionMarkerCondition;
             }
 
         };
