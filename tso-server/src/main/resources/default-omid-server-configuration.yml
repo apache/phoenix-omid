@@ -30,7 +30,6 @@ batchPersistTimeoutInMs: 10
 # INCREMENTAL - [Default] regular counter
 # WORLD_TIME - world time based counter
 timestampType: INCREMENTAL
-
 # Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
 timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
 commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]

@@ -19,6 +19,7 @@ package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.HTableInterface;
+import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         Set<HBaseCellId> writeSet = getWriteSet();
         for (final HBaseCellId cell : writeSet) {
             Delete delete = new Delete(cell.getRow());
-            delete.deleteColumn(cell.getFamily(), cell.getQualifier(), getStartTimestamp());
+            delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
             try {
                 cell.getTable().delete(delete);
             } catch (IOException e) {

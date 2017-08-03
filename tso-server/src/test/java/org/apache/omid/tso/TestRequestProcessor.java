@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.SettableFuture;
 
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
+import org.apache.omid.transaction.AbstractTransactionManager;
 import org.jboss.netty.channel.Channel;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
@@ -64,6 +65,9 @@ public class TestRequestProcessor {
         // Build the required scaffolding for the test
         MetricsRegistry metrics = new NullMetricsProvider();
 
+        TSOServerConfig config = new TSOServerConfig();
+        config.setConflictMapSize(CONFLICT_MAP_SIZE);
+
         TimestampOracleImpl timestampOracle =
                 new TimestampOracleImpl(metrics, new TimestampOracleImpl.InMemoryTimestampStorage(), new MockPanicker());
 
@@ -73,9 +77,6 @@ public class TestRequestProcessor {
         SettableFuture<Void> f = SettableFuture.create();
         f.set(null);
         doReturn(f).when(persist).persistLowWatermark(any(Long.class));
-
-        TSOServerConfig config = new TSOServerConfig();
-        config.setConflictMapSize(CONFLICT_MAP_SIZE);
 
         requestProc = new RequestProcessorImpl(metrics, timestampOracle, persist, new MockPanicker(), config);
 
@@ -97,7 +98,8 @@ public class TestRequestProcessor {
         // verify that timestamps increase monotonically
         for (int i = 0; i < 100; i++) {
             requestProc.timestampRequest(null, new MonitoringContext(metrics));
-            verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS++), any(Channel.class), any(MonitoringContext.class));
+            verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS), any(Channel.class), any(MonitoringContext.class));
+            firstTS += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
         }
 
     }
@@ -112,8 +114,8 @@ public class TestRequestProcessor {
         long firstTS = TScapture.getValue();
 
         List<Long> writeSet = Lists.newArrayList(1L, 20L, 203L);
-        requestProc.commitRequest(firstTS - 1, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - 1), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN), any(Channel.class), any(MonitoringContext.class));
 
         requestProc.commitRequest(firstTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContext(metrics));
         ArgumentCaptor<Long> commitTScapture = ArgumentCaptor.forClass(Long.class);
@@ -178,8 +180,8 @@ public class TestRequestProcessor {
     public void testLowWatermarkIsStoredOnlyWhenACacheElementIsEvicted() throws Exception {
 
         final int ANY_START_TS = 1;
-        final long FIRST_COMMIT_TS_EVICTED = 1L;
-        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = 2L;
+        final long FIRST_COMMIT_TS_EVICTED = AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
 
         // Fill the cache to provoke a cache eviction
         for (long i = 0; i < CONFLICT_MAP_SIZE + CONFLICT_MAP_ASSOCIATIVITY; i++) {
@@ -192,7 +194,7 @@ public class TestRequestProcessor {
 
         // Check that first time its called is on init
         verify(persist, timeout(100).times(1)).persistLowWatermark(eq(0L));
-        // Then, check it is called when cache is full and the first element is evicted (should be a 1)
+        // Then, check it is called when cache is full and the first element is evicted (should be a AbstractTransactionManager.NUM_OF_CHECKPOINTS)
         verify(persist, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
         // Finally it should never be called with the next element
         verify(persist, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
