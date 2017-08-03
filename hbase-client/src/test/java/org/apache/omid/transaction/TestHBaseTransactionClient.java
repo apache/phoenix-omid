@@ -308,7 +308,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testCellFromTransactionInPreviousEpochGetsInvalidComitTimestamp(ITestContext context) throws Exception {
 
-        final long CURRENT_EPOCH_FAKE = 1000L;
+        final long CURRENT_EPOCH_FAKE = 1000L * AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
 
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
         AbstractTransactionManager tm = spy((AbstractTransactionManager) newTransactionManager(context, commitTableClient));
