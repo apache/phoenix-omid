@@ -20,10 +20,9 @@ package org.apache.omid.transaction;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
+
 import org.apache.omid.committable.CommitTable;
-
 import org.apache.omid.metrics.NullMetricsProvider;
-
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
@@ -45,7 +44,9 @@ import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -345,7 +346,7 @@ public class TestShadowCells extends OmidTestBase {
                             return (List<KeyValue>) invocation.callRealMethod();
                         }
                     }).when(table).filterCellsForSnapshot(Matchers.<List<Cell>>any(),
-                            any(HBaseTransaction.class), anyInt());
+                            any(HBaseTransaction.class), anyInt(), Matchers.<Map<String, List<Cell>>>any());
 
                     TransactionManager tm = newTransactionManager(context);
                     if (hasShadowCell(row,
