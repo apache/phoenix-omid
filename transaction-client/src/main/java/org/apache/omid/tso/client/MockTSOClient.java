@@ -28,16 +28,19 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-class MockTSOClient implements TSOProtocol {
-    private final AtomicLong timestampGenerator = new AtomicLong();
+// TODO Would be nice to compile all util classes for testing to a separate package that clients could import for tests
+public class MockTSOClient implements TSOProtocol {
+
     private static final int CONFLICT_MAP_SIZE = 1_000_000;
+
+    private final AtomicLong timestampGenerator = new AtomicLong();
     private final long[] conflictMap = new long[CONFLICT_MAP_SIZE];
     private final Map<Long, Long> fenceMap = new HashMap<Long, Long>();
     private final AtomicLong lwm = new AtomicLong();
 
     private final CommitTable.Writer commitTable;
 
-    MockTSOClient(CommitTable.Writer commitTable) {
+    public MockTSOClient(CommitTable.Writer commitTable) {
         this.commitTable = commitTable;
     }
 
@@ -149,4 +152,10 @@ class MockTSOClient implements TSOProtocol {
         f.set(null);
         return new ForwardingTSOFuture<>(f);
     }
+
+    @Override
+    public long getEpoch() {
+        return 0;
+    }
+
 }
