@@ -15,15 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
-// IMPORTANT NOTE: This class is here only for compatibility reasons with HBase 1.x. The methods in this class
-// shouldn't be invoked or an error will be thrown because of this:
-public class ScannerContext {
+import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.regionserver.Region;
 
-    int getBatchLimit() {
+import java.io.IOException;
 
-        return -1;
+/**
+ * Wrapper over {@link org.apache.hadoop.hbase.regionserver.Region} interface in HBase 1.x versions
+ */
+public class RegionWrapper {
+
+    Region region;
+
+    public RegionWrapper(Region region) {
+
+        this.region = region;
+
+    }
+
+    public Result get(Get getOperation) throws IOException {
+
+        return region.get(getOperation);
+
+    }
+
+    public HRegionInfo getRegionInfo() {
+
+        return region.getRegionInfo();
 
     }
 

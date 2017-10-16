@@ -24,8 +24,10 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.Region;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 
 public class HBaseShims {
 
@@ -35,9 +37,9 @@ public class HBaseShims {
 
     }
 
-    static public Region getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
+    static public RegionWrapper getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
 
-        return env.getRegion();
+        return new RegionWrapper(env.getRegion());
 
     }
 
@@ -52,6 +54,21 @@ public class HBaseShims {
     static public void addFamilyToHTableDescriptor(HTableDescriptor tableDesc, HColumnDescriptor columnDesc) {
 
         tableDesc.addFamily(columnDesc);
+
+    }
+
+    static public int getBatchLimit(ScannerContext scannerContext) throws IOException {
+
+        // Invoke scannerContext.getBatchLimit() through reflection as is not accessible in HBase 1.x version
+        try {
+            return (int) ReflectionHelper.invokeParameterlessMethod(scannerContext, "getBatchLimit");
+        } catch (NoSuchMethodException e) {
+            throw new IOException("Can't find getBatchLimit method in ScannerContext through reflection", e);
+        } catch (IllegalAccessException e) {
+            throw new IOException("Can't access getBatchLimit method in ScannerContext through reflection", e);
+        } catch (InvocationTargetException e) {
+            throw new IOException("Exception thrown in calling getBatchLimit method through reflection", e);
+        }
 
     }
 
