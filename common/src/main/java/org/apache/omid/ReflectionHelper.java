@@ -15,15 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
-// IMPORTANT NOTE: This class is here only for compatibility reasons with HBase 1.x. The methods in this class
-// shouldn't be invoked or an error will be thrown because of this:
-public class ScannerContext {
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
-    int getBatchLimit() {
+public class ReflectionHelper {
 
-        return -1;
+    static public <T> Object invokeParameterlessMethod(T theObject, String methodName)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+
+        Method method = theObject.getClass().getDeclaredMethod(methodName, null);
+        method.setAccessible(true);
+        return method.invoke(theObject, null);
 
     }
 

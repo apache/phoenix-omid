@@ -15,33 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 
 import java.io.IOException;
 
-public class Region {
+/**
+ * Wrapper over  {@link org.apache.hadoop.hbase.regionserver.HRegion} interface in HBase 0.9x versions
+ */
+public class RegionWrapper {
 
     HRegion hRegion;
 
-    public Region(HRegion hRegion) {
+    public RegionWrapper(HRegion hRegion) {
 
         this.hRegion = hRegion;
 
     }
 
-    Result get(Get getOperation) throws IOException {
+    public Result get(Get getOperation) throws IOException {
 
         return hRegion.get(getOperation);
 
     }
 
-    HRegionInfo getRegionInfo() {
+    public HRegionInfo getRegionInfo() {
 
         return hRegion.getRegionInfo();
 
     }
+
 }
