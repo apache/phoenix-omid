@@ -15,15 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
-// IMPORTANT NOTE: This class is here only for compatibility reasons with HBase 1.x. The methods in this class
-// shouldn't be invoked or an error will be thrown because of this:
-public class ScannerContext {
+import org.testng.annotations.Test;
 
-    int getBatchLimit() {
+import static org.testng.Assert.assertEquals;
 
-        return -1;
+public class TestReflectionHelper {
+
+    public static class TestClass {
+
+        private final int theNumber;
+
+        public TestClass(int aNumber) {
+            this.theNumber = aNumber;
+        }
+        
+        private int getTheNumber() {
+            return theNumber;
+        }
+
+    }
+
+    @Test(timeOut = 1_000)
+    public void testReflectionWorksForAPrivateMethodReturningAnInt() throws Exception {
+
+        final int expectedInt = 10;
+        TestClass testClass = new TestClass(expectedInt);
+
+        int result = (int) ReflectionHelper.invokeParameterlessMethod(testClass, "getTheNumber");
+        assertEquals(result, expectedInt);
 
     }
 

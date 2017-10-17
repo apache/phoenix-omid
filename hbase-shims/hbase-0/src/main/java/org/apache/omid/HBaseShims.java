@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
-import org.apache.hadoop.hbase.regionserver.Region;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 
 import java.io.IOException;
 
@@ -36,9 +36,9 @@ public class HBaseShims {
 
     }
 
-    static public Region getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
+    static public RegionWrapper getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
 
-        return new Region(env.getRegion());
+        return new RegionWrapper(env.getRegion());
 
     }
 
@@ -53,6 +53,12 @@ public class HBaseShims {
     static public void addFamilyToHTableDescriptor(HTableDescriptor tableDesc, HColumnDescriptor columnDesc) {
 
         tableDesc.addFamily(columnDesc);
+
+    }
+
+    public static int getBatchLimit(ScannerContext scannerContext) {
+
+        throw new UnsupportedOperationException("Should not be called for 0.9x versions");
 
     }
 

@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid.transaction;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import org.apache.hadoop.hbase.regionserver.InternalScanner;
+import org.apache.omid.RegionWrapper;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.omid.HBaseShims;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.Client;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
-import org.apache.omid.transaction.CellUtils;
-import org.apache.omid.transaction.CellInfo;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
@@ -59,7 +60,7 @@ public class CompactorScanner implements InternalScanner {
     private final boolean retainNonTransactionallyDeletedCells;
     private final long lowWatermark;
 
-    private final Region hRegion;
+    private final RegionWrapper regionWrapper;
 
     private boolean hasMoreRows = false;
     private List<Cell> currentRowWorthValues = new ArrayList<Cell>();
@@ -77,9 +78,9 @@ public class CompactorScanner implements InternalScanner {
         this.retainNonTransactionallyDeletedCells = preserveNonTransactionallyDeletedCells;
         this.lowWatermark = getLowWatermarkFromCommitTable();
         // Obtain the table in which the scanner is going to operate
-        this.hRegion = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
+        this.regionWrapper = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
         LOG.info("Scanner cleaning up uncommitted txs older than LW [{}] in region [{}]",
-                lowWatermark, hRegion.getRegionInfo());
+                 lowWatermark, regionWrapper.getRegionInfo());
     }
 
     @Override
@@ -87,8 +88,9 @@ public class CompactorScanner implements InternalScanner {
         return next(results, -1);
     }
 
+    // This method is invoked only in HBase 1.x versions
     public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
-        int limit = scannerContext.getBatchLimit();
+        int limit = HBaseShims.getBatchLimit(scannerContext);
         return next(result, limit);
     }
 
@@ -240,7 +242,7 @@ public class CompactorScanner implements InternalScanner {
                         cell.getQualifierLength());
                 g.addColumn(family, qualifier);
                 g.setTimeStamp(cell.getTimestamp());
-                Result r = hRegion.get(g);
+                Result r = regionWrapper.get(g);
                 if (r.containsColumn(family, qualifier)) {
                     return Optional.of(new CommitTimestamp(SHADOW_CELL,
                             Bytes.toLong(r.getValue(family, qualifier)), true));

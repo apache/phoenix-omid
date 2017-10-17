@@ -16,4 +16,18 @@
         <hbase.version>${hbase1.version}</hbase.version>
     </properties>
 
+    <dependencies>
+
+        <!-- Dependencies on Omid modules -->
+
+        <dependency>
+            <groupId>org.apache.omid</groupId>
+            <artifactId>omid-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- End of Dependencies on Omid modules -->
+
+    </dependencies>
+
 </project>
