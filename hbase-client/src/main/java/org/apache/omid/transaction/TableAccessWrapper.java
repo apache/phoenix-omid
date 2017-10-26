@@ -17,6 +17,17 @@
  */
 package org.apache.omid.transaction;
 
-public interface HBaseTransactionClient {
-    long getLowWatermark() throws TransactionException;
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Get;
+
+public interface TableAccessWrapper {
+
+    public Result[] get(List<Get> get) throws IOException;
+    public Result get(Get get) throws IOException;
+    public void   put(Put put) throws IOException;
+
 }
