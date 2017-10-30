@@ -81,11 +81,21 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
                                long epoch,
                                Set<T> writeSet,
                                AbstractTransactionManager transactionManager) {
-        this.startTimestamp = this.readTimestamp = this.writeTimestamp = transactionId;
+        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, transactionManager);
+    }
+
+    public AbstractTransaction(long transactionId,
+            long readTimestamp,
+            VisibilityLevel visibilityLevel,
+            long epoch,
+            Set<T> writeSet,
+            AbstractTransactionManager transactionManager) {
+        this.startTimestamp = this.writeTimestamp = transactionId;
+        this.readTimestamp = readTimestamp;
         this.epoch = epoch;
         this.writeSet = writeSet;
         this.transactionManager = transactionManager;
-        visibilityLevel = VisibilityLevel.SNAPSHOT;
+        this.visibilityLevel = visibilityLevel;
     }
 
     /**

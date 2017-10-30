@@ -73,6 +73,14 @@ public class SnapshotFilter {
         this(tableAccessWrapper, null);
     }
 
+    public SnapshotFilter(CommitTable.Client commitTableClient) throws IOException {
+        this(null, commitTableClient);
+    }
+
+    void setTableAccessWrapper(TableAccessWrapper tableAccessWrapper) {
+        this.tableAccessWrapper = tableAccessWrapper;
+    }
+
     /**
      * Check whether a cell was deleted using family deletion marker
      *

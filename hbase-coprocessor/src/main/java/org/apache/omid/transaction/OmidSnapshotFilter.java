@@ -1,0 +1,171 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.omid.transaction;
+
+import com.google.common.annotations.VisibleForTesting;
+
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.committable.hbase.HBaseCommitTable;
+import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
+import org.apache.omid.proto.TSOProto;
+import org.apache.omid.HBaseShims;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CoprocessorEnvironment;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
+import org.apache.hadoop.hbase.coprocessor.ObserverContext;
+import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
+import org.apache.hadoop.hbase.regionserver.CompactorScanner;
+import org.apache.hadoop.hbase.regionserver.InternalScanner;
+import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
+import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScanType;
+import org.apache.hadoop.hbase.regionserver.Store;
+import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;
+
+/**
+ * Server side filtering to identify the transaction snapshot.
+ */
+public class OmidSnapshotFilter extends BaseRegionObserver {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OmidSnapshotFilter.class);
+
+    private HBaseCommitTableConfig commitTableConf = null;
+    private Configuration conf = null;
+    @VisibleForTesting
+    private CommitTable.Client commitTableClient;
+
+    private SnapshotFilter snapshotFilter;
+
+    public OmidSnapshotFilter() {
+        LOG.info("Compactor coprocessor initialized via empty constructor");
+    }
+
+    @Override
+    public void start(CoprocessorEnvironment env) throws IOException {
+        LOG.info("Starting snapshot filter coprocessor");
+        conf = env.getConfiguration();
+        commitTableConf = new HBaseCommitTableConfig();
+        String commitTableName = conf.get(COMMIT_TABLE_NAME_KEY);
+        if (commitTableName != null) {
+            commitTableConf.setTableName(commitTableName);
+        }
+        commitTableClient = initAndGetCommitTableClient();
+        
+        snapshotFilter = new SnapshotFilter(commitTableClient);
+        
+        LOG.info("Compactor snapshot filter started");
+    }
+
+    @Override
+    public void stop(CoprocessorEnvironment e) throws IOException {
+        LOG.info("Stopping snapshot filter coprocessor");
+        commitTableClient.close();
+        LOG.info("Compactor snapshot filter stopped");
+    }
+
+    @Override
+    public void preGet(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<KeyValue> results) throws IOException {
+//      long id = Bytes.toLong(get.getAttribute("TRANSACTION_ID"));
+//      long readTs = Bytes.toLong(get.getAttribute("TRANSACTION_READ_TS"));
+
+//      hRegion = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
+        
+      TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+
+//      Result result = hRegion.get(get); //  e.getEnvironment().getRegion().get(get);
+
+      RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
+      Result result = regionAccessWrapper.get(get);
+      
+      snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
+
+      List<Cell> filteredKeyValues = Collections.emptyList();
+      if (!result.isEmpty()) {
+          HBaseTransaction hbaseTransaction = new HBaseTransaction(transaction.getTimestamp(), transaction.getReadTimestamp(), transaction.getVisibilityLevel(), transaction.getEpoch(), new HashSet<HBaseCellId>(), null);
+          filteredKeyValues = snapshotFilter.filterCellsForSnapshot(result.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>());
+          ;
+      }
+
+//      Collections.copy(results, filteredKeyValues);
+
+    }
+
+    @Override
+    public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e, Scan scan, RegionScanner s) {
+        return s;
+        
+    }
+
+//    @Override
+//    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> e,
+//                                      Store store,
+//                                      InternalScanner scanner,
+//                                      ScanType scanType,
+//                                      CompactionRequest request) throws IOException {
+//        HTableDescriptor desc = e.getEnvironment().getRegion().getTableDesc();
+//        HColumnDescriptor famDesc
+//                = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
+//        boolean omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
+//        // only column families tagged as compactable are compacted
+//        // with omid compactor
+//        if (!omidCompactable) {
+//            return scanner;
+//        } else {
+//            CommitTable.Client commitTableClient = commitTableClientQueue.poll();
+//            if (commitTableClient == null) {
+//                commitTableClient = initAndGetCommitTableClient();
+//            }
+//            boolean isMajorCompaction = request.isMajor();
+//            return new CompactorScanner(e,
+//                    scanner,
+//                    commitTableClient,
+//                    commitTableClientQueue,
+//                    isMajorCompaction,
+//                    retainNonTransactionallyDeletedCells);
+//        }
+//    }
+
+    private CommitTable.Client initAndGetCommitTableClient() throws IOException {
+        LOG.info("Trying to get the commit table client");
+        CommitTable commitTable = new HBaseCommitTable(conf, commitTableConf);
+        CommitTable.Client commitTableClient = commitTable.getClient();
+        LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
+        return commitTableClient;
+    }
+
+}

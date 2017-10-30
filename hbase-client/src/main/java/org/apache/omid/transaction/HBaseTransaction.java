@@ -35,6 +35,10 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         super(transactionId, epoch, writeSet, tm);
     }
 
+    public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
+        super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, tm);
+    }
+
     @Override
     public void cleanup() {
         Set<HBaseCellId> writeSet = getWriteSet();
