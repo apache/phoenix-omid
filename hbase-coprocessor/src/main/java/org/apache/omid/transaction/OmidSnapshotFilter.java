@@ -23,6 +23,7 @@ import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.proto.TSOProto;
+import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.HBaseShims;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -99,30 +100,29 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
     @Override
-    public void preGet(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<KeyValue> results) throws IOException {
-//      long id = Bytes.toLong(get.getAttribute("TRANSACTION_ID"));
-//      long readTs = Bytes.toLong(get.getAttribute("TRANSACTION_READ_TS"));
+      public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> c, Get get, List<Cell> result) throws IOException {
 
-//      hRegion = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
-        
-      TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+      RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(c.getEnvironment()));
+      Result res = regionAccessWrapper.get(get); // get parameters were set at the client side
 
-//      Result result = hRegion.get(get); //  e.getEnvironment().getRegion().get(get);
-
-      RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
-      Result result = regionAccessWrapper.get(get);
-      
       snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
 
       List<Cell> filteredKeyValues = Collections.emptyList();
-      if (!result.isEmpty()) {
-          HBaseTransaction hbaseTransaction = new HBaseTransaction(transaction.getTimestamp(), transaction.getReadTimestamp(), transaction.getVisibilityLevel(), transaction.getEpoch(), new HashSet<HBaseCellId>(), null);
-          filteredKeyValues = snapshotFilter.filterCellsForSnapshot(result.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>());
-          ;
+      if (!res.isEmpty()) {
+          TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+
+          long id = transaction.getTimestamp();
+          long readTs = transaction.getReadTimestamp();
+          long epoch = transaction.getEpoch();
+          VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
+
+          HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), null);
+          filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>());
       }
 
-//      Collections.copy(results, filteredKeyValues);
+      Collections.copy(result, filteredKeyValues);
 
+      c.bypass();
     }
 
     @Override

@@ -46,7 +46,19 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         SNAPSHOT_ALL,
         // Returns the last key, either from the snapshot or from the current transaction that was written before the last checkpoint.
         // Sets the readTimestamp to be the writeTimestamp - 1
-        SNAPSHOT_EXCLUDE_CURRENT
+        SNAPSHOT_EXCLUDE_CURRENT;
+
+        public static VisibilityLevel fromInteger(int x) {
+            switch(x) {
+            case 0:
+                return SNAPSHOT;
+            case 1:
+                return SNAPSHOT_ALL;
+            case 2:
+                return SNAPSHOT_EXCLUDE_CURRENT;
+            }
+            return null;
+        }
     }
 
     private transient Map<String, Object> metadata = new HashMap<>();
