@@ -164,6 +164,7 @@ public class TTable implements Closeable {
         transactionBuilder.setTimestamp(transaction.getTransactionId());
         transactionBuilder.setReadTimestamp(transaction.getReadTimestamp());
         transactionBuilder.setVisibilityLevel(transaction.getVisibilityLevel().ordinal());
+        transactionBuilder.setEpoch(transaction.getEpoch());
 
         tsget.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
 
