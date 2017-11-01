@@ -129,6 +129,7 @@ public class TTable implements Closeable {
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
+
     // ----------------------------------------------------------------------------------------------------------------
     // Closeable implementation
     // ----------------------------------------------------------------------------------------------------------------
@@ -195,23 +196,18 @@ public class TTable implements Closeable {
         tsget.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
 
         tsget.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
-
         // Return the KVs that belong to the transaction snapshot, ask for more
         // versions if needed
+        
         Result result = table.get(tsget);
-        return result;
+//        return result;
 
-//        List<Cell> filteredKeyValues = Collections.emptyList();
-//        if (!result.isEmpty()) {
-//            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions(), new HashMap<String, List<Cell>>());
-//        }
-//
-//        return Result.create(filteredKeyValues);
-    }
+        List<Cell> filteredKeyValues = Collections.emptyList();
+        if (!result.isEmpty()) {
+            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions(), new HashMap<String, List<Cell>>());
+        }
 
-    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-            int versionsToRequest, Map<String, List<Cell>> familyDeletionCache) throws IOException {
-        return snapshotFilter.filterCellsForSnapshot(rawCells, transaction, versionsToRequest, familyDeletionCache);
+        return Result.create(filteredKeyValues);
     }
 
     private void familyQualifierBasedDeletion(HBaseTransaction tx, Put deleteP, Get deleteG) throws IOException {
@@ -394,6 +390,13 @@ public class TTable implements Closeable {
         }
         return new TransactionalClientScanner(transaction, tsscan, 1);
     }
+
+    
+    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
+                                      int versionsToRequest, Map<String, List<Cell>> familyDeletionCache) throws IOException {
+        return snapshotFilter.filterCellsForSnapshot(rawCells, transaction, versionsToRequest, familyDeletionCache);
+    }
+
 
     protected class TransactionalClientScanner implements ResultScanner {
 

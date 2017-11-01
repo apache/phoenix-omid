@@ -130,42 +130,16 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         }
 
         c.bypass();
+
     }
 
     @Override
     public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e, Scan scan, RegionScanner s) {
-        return s;
-        
-    }
 
-//    @Override
-//    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> e,
-//                                      Store store,
-//                                      InternalScanner scanner,
-//                                      ScanType scanType,
-//                                      CompactionRequest request) throws IOException {
-//        HTableDescriptor desc = e.getEnvironment().getRegion().getTableDesc();
-//        HColumnDescriptor famDesc
-//                = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
-//        boolean omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
-//        // only column families tagged as compactable are compacted
-//        // with omid compactor
-//        if (!omidCompactable) {
-//            return scanner;
-//        } else {
-//            CommitTable.Client commitTableClient = commitTableClientQueue.poll();
-//            if (commitTableClient == null) {
-//                commitTableClient = initAndGetCommitTableClient();
-//            }
-//            boolean isMajorCompaction = request.isMajor();
-//            return new CompactorScanner(e,
-//                    scanner,
-//                    commitTableClient,
-//                    commitTableClientQueue,
-//                    isMajorCompaction,
-//                    retainNonTransactionallyDeletedCells);
-//        }
-//    }
+        
+        
+        return s;
+    }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
         LOG.info("Trying to get the commit table client");
