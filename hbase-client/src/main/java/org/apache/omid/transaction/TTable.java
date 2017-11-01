@@ -46,6 +46,7 @@ import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
+import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocatorImpl;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
@@ -184,15 +185,28 @@ public class TTable implements Closeable {
         }
         LOG.trace("Initial Get = {}", tsget);
 
+        TSOProto.Transaction.Builder transactionBuilder = TSOProto.Transaction.newBuilder();
+
+        transactionBuilder.setTimestamp(transaction.getTransactionId());
+        transactionBuilder.setReadTimestamp(transaction.getReadTimestamp());
+        transactionBuilder.setVisibilityLevel(transaction.getVisibilityLevel().ordinal());
+        transactionBuilder.setEpoch(transaction.getEpoch());
+
+        tsget.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
+
+        tsget.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
+
         // Return the KVs that belong to the transaction snapshot, ask for more
         // versions if needed
         Result result = table.get(tsget);
-        List<Cell> filteredKeyValues = Collections.emptyList();
-        if (!result.isEmpty()) {
-            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions(), new HashMap<String, List<Cell>>());
-        }
+        return result;
 
-        return Result.create(filteredKeyValues);
+//        List<Cell> filteredKeyValues = Collections.emptyList();
+//        if (!result.isEmpty()) {
+//            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions(), new HashMap<String, List<Cell>>());
+//        }
+//
+//        return Result.create(filteredKeyValues);
     }
 
     List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,

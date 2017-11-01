@@ -51,6 +51,7 @@ public final class CellUtils {
     static byte[] DELETE_TOMBSTONE = Bytes.toBytes("__OMID_TOMBSTONE__");
     public static final byte[] FAMILY_DELETE_QUALIFIER = new byte[0];
     public static final String TRANSACTION_ATTRIBUTE = "__OMID_TRANSACTION__";
+    public static final String CLIENT_GET_ATTRIBUTE = "__OMID_CLIENT_GET__";
 
     /**
      * Utility interface to get rid of the dependency on HBase server package
