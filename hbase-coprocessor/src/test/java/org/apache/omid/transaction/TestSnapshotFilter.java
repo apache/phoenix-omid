@@ -30,6 +30,8 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.TestUtils;
@@ -50,6 +52,7 @@ import java.io.IOException;
 
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 public class TestSnapshotFilter {
@@ -82,6 +85,7 @@ public class TestSnapshotFilter {
         tsoConfig.setConflictMapSize(1);
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
+        hbaseConf.setBoolean("omid.server.side.filter", true);
         HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
 
@@ -216,7 +220,7 @@ public class TestSnapshotFilter {
         assertEquals(tsRow2, tx3.getTransactionId(), "Reading differnt version");
 
         tm.commit(tx4);
-        
+
         tt.close();
     }
 
@@ -254,6 +258,253 @@ public class TestSnapshotFilter {
 
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        tm.commit(tx3);
+
+        tt.close();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testScanFirstResult() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        String TEST_TABLE = "testGetFirstResult";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put row1 = new Put(rowName1);
+        row1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, row1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        Result result = iterableRS.next();
+        long tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS.next() != null);
+
+        tm.commit(tx2);
+
+        Transaction tx3 = tm.begin();
+
+        Put put3 = new Put(rowName1);
+        put3.add(famName1, colName1, dataValue1);
+        tt.put(tx3, put3);
+
+        tm.commit(tx3);
+
+        Transaction tx4 = tm.begin();
+
+        ResultScanner iterableRS2 = tt.getScanner(tx4, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        Result result2 = iterableRS2.next();
+        long tsRow2 = result2.rawCells()[0].getTimestamp();
+        assertEquals(tsRow2, tx3.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS2.next() != null);
+
+        tm.commit(tx4);
+
+        tt.close();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testScanSecondResult() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        String TEST_TABLE = "testGetFirstResult";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        Put put2 = new Put(rowName1);
+        put2.add(famName1, colName1, dataValue1);
+        tt.put(tx2, put2);
+
+        Transaction tx3 = tm.begin();
+
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        Result result = iterableRS.next();
+        long tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS.next() != null);
+
+        tm.commit(tx3);
+
+        tt.close();
+    }
+
+    @Test (timeOut = 60_000)
+    public void testScanFewResults() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] rowName2 = Bytes.toBytes("row2");
+        byte[] rowName3 = Bytes.toBytes("row3");
+        byte[] famName = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testGetFirstResult";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName, colName1, dataValue1);
+        tt.put(tx1, put1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        Put put2 = new Put(rowName2);
+        put2.add(famName, colName2, dataValue2);
+        tt.put(tx2, put2);
+
+        tm.commit(tx2);
+
+        Transaction tx3 = tm.begin();
+
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        Result result = iterableRS.next();
+        long tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        result = iterableRS.next();
+        tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx2.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS.next() != null);
+
+        tm.commit(tx3);
+
+        tt.close();
+    }
+
+    @Test (timeOut = 60_000)
+    public void testScanFewResultsDifferentTransaction() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] rowName2 = Bytes.toBytes("row2");
+        byte[] rowName3 = Bytes.toBytes("row3");
+        byte[] famName = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testGetFirstResult";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName, colName1, dataValue1);
+        tt.put(tx1, put1);
+        Put put2 = new Put(rowName2);
+        put2.add(famName, colName2, dataValue2);
+        tt.put(tx1, put2);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        put2 = new Put(rowName2);
+        put2.add(famName, colName2, dataValue2);
+        tt.put(tx2, put2);
+
+        tm.commit(tx2);
+
+        Transaction tx3 = tm.begin();
+
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        Result result = iterableRS.next();
+        long tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        result = iterableRS.next();
+        tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx2.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS.next() != null);
+
+        tm.commit(tx3);
+
+        tt.close();
+    }
+
+    @Test (timeOut = 60_000)
+    public void testScanFewResultsSameTransaction() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] rowName2 = Bytes.toBytes("row2");
+        byte[] rowName3 = Bytes.toBytes("row3");
+        byte[] famName = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testGetFirstResult";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName, colName1, dataValue1);
+        tt.put(tx1, put1);
+        Put put2 = new Put(rowName2);
+        put2.add(famName, colName2, dataValue2);
+        tt.put(tx1, put2);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        put2 = new Put(rowName2);
+        put2.add(famName, colName2, dataValue2);
+        tt.put(tx2, put2);
+
+        Transaction tx3 = tm.begin();
+
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        Result result = iterableRS.next();
+        long tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        result = iterableRS.next();
+        tsRow = result.rawCells()[0].getTimestamp();
+        assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
+
+        assertFalse(iterableRS.next() != null);
 
         tm.commit(tx3);
 

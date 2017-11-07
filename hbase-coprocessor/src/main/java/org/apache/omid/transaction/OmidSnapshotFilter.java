@@ -28,23 +28,14 @@ import org.apache.omid.HBaseShims;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
-import org.apache.hadoop.hbase.regionserver.CompactorScanner;
-import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
-import org.apache.hadoop.hbase.regionserver.ScanType;
-import org.apache.hadoop.hbase.regionserver.Store;
-import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +44,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;
 
@@ -91,14 +80,14 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         
         snapshotFilter = new SnapshotFilter(commitTableClient);
         
-        LOG.info("Compactor snapshot filter started");
+        LOG.info("Snapshot filter started");
     }
 
     @Override
     public void stop(CoprocessorEnvironment e) throws IOException {
         LOG.info("Stopping snapshot filter coprocessor");
         commitTableClient.close();
-        LOG.info("Compactor snapshot filter stopped");
+        LOG.info("Snapshot filter stopped");
     }
 
     @Override
@@ -134,11 +123,29 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
     @Override
-    public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e, Scan scan, RegionScanner s) {
+    public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
+            Scan scan,
+            RegionScanner s) throws IOException {
+        byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
 
-        
-        
-        return s;
+        if (byteTransaction == null) {
+            return s;
+        }
+
+        TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(byteTransaction);
+
+        long id = transaction.getTimestamp();
+        long readTs = transaction.getReadTimestamp();
+        long epoch = transaction.getEpoch();
+        VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
+
+        HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), null);
+
+        RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
+
+        snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
+
+        return new OmidRegionScanner(snapshotFilter, s, hbaseTransaction, 1);
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {

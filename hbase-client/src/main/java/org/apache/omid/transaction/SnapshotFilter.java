@@ -354,7 +354,7 @@ public class SnapshotFilter {
      * @param familyDeletionCache Accumulates the family deletion markers to identify cells that deleted with a higher version
      * @return Filtered KVs belonging to the transaction snapshot
      */
-    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
+    public List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
                                       int versionsToRequest, Map<String, List<Cell>> familyDeletionCache) throws IOException {
 
         assert (rawCells != null && transaction != null && versionsToRequest >= 1);

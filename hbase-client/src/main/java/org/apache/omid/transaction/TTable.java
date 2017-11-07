@@ -18,12 +18,7 @@
 package org.apache.omid.transaction;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimaps;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -47,8 +42,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.proto.TSOProto;
-import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
-import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocatorImpl;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +49,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -80,6 +72,8 @@ public class TTable implements Closeable {
     private HTableInterface table;
 
     private SnapshotFilter snapshotFilter;
+
+    private boolean serverSideFilter;
 
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
@@ -108,24 +102,28 @@ public class TTable implements Closeable {
     public TTable(HTableInterface hTable) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
+        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
+        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
@@ -198,9 +196,12 @@ public class TTable implements Closeable {
         tsget.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
         // Return the KVs that belong to the transaction snapshot, ask for more
         // versions if needed
-        
+
         Result result = table.get(tsget);
-//        return result;
+
+        if (serverSideFilter) {
+            return result;
+        }
 
         List<Cell> filteredKeyValues = Collections.emptyList();
         if (!result.isEmpty()) {
@@ -385,10 +386,24 @@ public class TTable implements Closeable {
                 tsscan.addColumn(family, CellUtils.addShadowCellSuffix(qualifier));
             }
             if (!qualifiers.isEmpty()) {
-                scan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
+                tsscan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
             }
         }
-        return new TransactionalClientScanner(transaction, tsscan, 1);
+
+        if (!serverSideFilter) {
+            return new TransactionalClientScanner(transaction, tsscan, 1);
+        }
+
+        TSOProto.Transaction.Builder transactionBuilder = TSOProto.Transaction.newBuilder();
+
+        transactionBuilder.setTimestamp(transaction.getTransactionId());
+        transactionBuilder.setReadTimestamp(transaction.getReadTimestamp());
+        transactionBuilder.setVisibilityLevel(transaction.getVisibilityLevel().ordinal());
+        transactionBuilder.setEpoch(transaction.getEpoch());
+
+        tsscan.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
+
+        return table.getScanner(tsscan);
     }
 
     
