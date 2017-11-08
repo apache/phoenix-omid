@@ -86,6 +86,7 @@ public class TestSnapshotFilter {
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
         hbaseConf.setBoolean("omid.server.side.filter", true);
+        hbaseConf.setInt("hbase.master.info.port", 16011);
         HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
 

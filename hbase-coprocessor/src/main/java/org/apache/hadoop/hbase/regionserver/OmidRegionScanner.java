@@ -104,7 +104,7 @@ public class OmidRegionScanner implements RegionScanner {
     }
 
     public int getBatch() {
-        throw new RuntimeException("Not implemented");
+        return Integer.MAX_VALUE;
     }
 
     public boolean nextRaw(List<Cell> result, int limit) throws IOException {
