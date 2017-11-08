@@ -116,7 +116,8 @@ public class TTable implements Closeable {
     public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
+        Configuration config = table.getConfiguration();
+        serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
         snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable));
     }
 

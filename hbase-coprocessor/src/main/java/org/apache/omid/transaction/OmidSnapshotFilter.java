@@ -34,6 +34,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
+import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.slf4j.Logger;

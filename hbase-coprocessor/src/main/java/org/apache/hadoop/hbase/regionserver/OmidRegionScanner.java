@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.transaction;
+package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.omid.transaction.HBaseTransaction;
 import org.apache.omid.transaction.SnapshotFilter;
 
-public class OmidRegionScanner implements RegionScanner{
+public class OmidRegionScanner implements RegionScanner {
 
     RegionScanner scanner;
     SnapshotFilter snapshotFilter;
@@ -54,7 +54,6 @@ public class OmidRegionScanner implements RegionScanner{
        return next(results, Integer.MAX_VALUE);
     }
 
-    @Override
     public boolean next(List<Cell> result, int limit) throws IOException {
         return nextRaw(result, limit);
     }
@@ -94,28 +93,24 @@ public class OmidRegionScanner implements RegionScanner{
         return nextRaw(result,Integer.MAX_VALUE);
     }
 
-//    @Override
-//    public boolean next(List<Cell> result,
-//            ScannerContext scannerContext) throws IOException {
-//        return next(result, scannerContext.getBatchLimit());
-//    }
-//
-//    @Override
-//    public boolean nextRaw(List<Cell> result,
-//            ScannerContext scannerContext) throws IOException {
-//        return nextRaw(result, scannerContext.getBatchLimit());
-//    }
-//
-//    @Override
-//    public int getBatch() {
-//        return scanner.getBatch();
-//    }
+    public boolean next(List<Cell> result,
+            ScannerContext scannerContext) throws IOException {
+        return next(result, scannerContext.getBatchLimit());
+    }
 
-    @Override
+    public boolean nextRaw(List<Cell> result,
+            ScannerContext scannerContext) throws IOException {
+        return nextRaw(result, scannerContext.getBatchLimit());
+    }
+
+    public int getBatch() {
+        throw new RuntimeException("Not implemented");
+    }
+
     public boolean nextRaw(List<Cell> result, int limit) throws IOException {
         List<Cell> filteredResult = new ArrayList<Cell>();
         while (filteredResult.isEmpty()) {
-            scanner.nextRaw(filteredResult, limit);
+            scanner.nextRaw(filteredResult);
             if (filteredResult.isEmpty()) {
                 return false;
             }
