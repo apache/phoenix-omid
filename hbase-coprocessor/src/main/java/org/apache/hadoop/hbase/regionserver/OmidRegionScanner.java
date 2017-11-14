@@ -28,17 +28,17 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.omid.transaction.HBaseTransaction;
-import org.apache.omid.transaction.SnapshotFilter;
+import org.apache.omid.transaction.SnapshotFilterImpl;
 
 public class OmidRegionScanner implements RegionScanner {
 
     RegionScanner scanner;
-    SnapshotFilter snapshotFilter;
+    SnapshotFilterImpl snapshotFilter;
     HBaseTransaction transaction;
     int maxVersions;
     Map<String, List<Cell>> familyDeletionCache;
     
-    public OmidRegionScanner(SnapshotFilter snapshotFilter,
+    public OmidRegionScanner(SnapshotFilterImpl snapshotFilter,
                       RegionScanner s,
                       HBaseTransaction transaction,
                       int maxVersions) {

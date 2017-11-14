@@ -25,29 +25,30 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
+// This class wraps the HTableInterface object when doing client side filtering.
 public class HTableAccessWrapper implements TableAccessWrapper {
 
-    private final HTableInterface healerTable;
-    private HTableInterface table;
+    private final HTableInterface writeTable;
+    private final HTableInterface readTable;
     
     public HTableAccessWrapper(HTableInterface table, HTableInterface healerTable) {
-        this.table = table;
-        this.healerTable = healerTable;
+        this.readTable = table;
+        this.writeTable = healerTable;
     }
 
     @Override
     public Result[] get(List<Get> get) throws IOException {
-        return table.get(get);
+        return readTable.get(get);
     }
 
     @Override
     public Result get(Get get) throws IOException {
-        return table.get(get);
+        return readTable.get(get);
     }
 
     @Override
     public void put(Put put) throws IOException {
-        healerTable.put(put);
+        writeTable.put(put);
     }
 
 }

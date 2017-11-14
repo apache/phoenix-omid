@@ -26,6 +26,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.omid.transaction.TableAccessWrapper;
 
+// This class wraps the Region object when doing server side filtering.
 public class RegionAccessWrapper implements TableAccessWrapper {
 
     private final Region region;

@@ -103,14 +103,14 @@ public class TTable implements Closeable {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable));
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
@@ -118,14 +118,14 @@ public class TTable implements Closeable {
         this.healerTable = healerTable;
         Configuration config = table.getConfiguration();
         serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
-        snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable));
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = new SnapshotFilter(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
 
@@ -185,31 +185,7 @@ public class TTable implements Closeable {
         }
         LOG.trace("Initial Get = {}", tsget);
 
-        TSOProto.Transaction.Builder transactionBuilder = TSOProto.Transaction.newBuilder();
-
-        transactionBuilder.setTimestamp(transaction.getTransactionId());
-        transactionBuilder.setReadTimestamp(transaction.getReadTimestamp());
-        transactionBuilder.setVisibilityLevel(transaction.getVisibilityLevel().ordinal());
-        transactionBuilder.setEpoch(transaction.getEpoch());
-
-        tsget.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
-
-        tsget.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
-        // Return the KVs that belong to the transaction snapshot, ask for more
-        // versions if needed
-
-        Result result = table.get(tsget);
-
-        if (serverSideFilter) {
-            return result;
-        }
-
-        List<Cell> filteredKeyValues = Collections.emptyList();
-        if (!result.isEmpty()) {
-            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions(), new HashMap<String, List<Cell>>());
-        }
-
-        return Result.create(filteredKeyValues);
+        return snapshotFilter.get(this, tsget, transaction);
     }
 
     private void familyQualifierBasedDeletion(HBaseTransaction tx, Put deleteP, Get deleteG) throws IOException {
@@ -391,20 +367,7 @@ public class TTable implements Closeable {
             }
         }
 
-        if (!serverSideFilter) {
-            return new TransactionalClientScanner(transaction, tsscan, 1);
-        }
-
-        TSOProto.Transaction.Builder transactionBuilder = TSOProto.Transaction.newBuilder();
-
-        transactionBuilder.setTimestamp(transaction.getTransactionId());
-        transactionBuilder.setReadTimestamp(transaction.getReadTimestamp());
-        transactionBuilder.setVisibilityLevel(transaction.getVisibilityLevel().ordinal());
-        transactionBuilder.setEpoch(transaction.getEpoch());
-
-        tsscan.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, transactionBuilder.build().toByteArray());
-
-        return table.getScanner(tsscan);
+        return snapshotFilter.getScanner(this, tsscan, transaction);
     }
 
     
@@ -414,7 +377,7 @@ public class TTable implements Closeable {
     }
 
 
-    protected class TransactionalClientScanner implements ResultScanner {
+    public class TransactionalClientScanner implements ResultScanner {
 
         private HBaseTransaction state;
         private ResultScanner innerScanner;
@@ -756,6 +719,10 @@ public class TTable implements Closeable {
             throws IOException
     {
         return snapshotFilter.readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
+    }
+
+    SnapshotFilter getSnapshotFilter() {
+        return snapshotFilter;
     }
 
 }
