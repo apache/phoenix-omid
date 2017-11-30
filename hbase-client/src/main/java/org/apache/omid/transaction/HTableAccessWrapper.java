@@ -15,40 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid.transaction;
 
-import org.apache.hadoop.hbase.HRegionInfo;
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
-import java.io.IOException;
+// This class wraps the HTableInterface object when doing client side filtering.
+public class HTableAccessWrapper implements TableAccessWrapper {
 
-public class Region {
-
-    HRegion hRegion;
-
-    public Region(HRegion hRegion) {
-
-        this.hRegion = hRegion;
-
+    private final HTableInterface writeTable;
+    private final HTableInterface readTable;
+    
+    public HTableAccessWrapper(HTableInterface table, HTableInterface healerTable) {
+        this.readTable = table;
+        this.writeTable = healerTable;
     }
 
-    Result get(Get getOperation) throws IOException {
-
-        return hRegion.get(getOperation);
-
+    @Override
+    public Result[] get(List<Get> get) throws IOException {
+        return readTable.get(get);
     }
 
-    void put(Put putOperation) throws IOException {
-
-        hRegion.put(putOperation);
-
+    @Override
+    public Result get(Get get) throws IOException {
+        return readTable.get(get);
     }
 
-    HRegionInfo getRegionInfo() {
-
-        return hRegion.getRegionInfo();
-
+    @Override
+    public void put(Put put) throws IOException {
+        writeTable.put(put);
     }
+
 }

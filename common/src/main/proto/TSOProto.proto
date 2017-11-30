@@ -77,3 +77,9 @@ message HandshakeResponse {
     optional Capabilities serverCapabilities = 2;
 }
 
+message Transaction {
+    optional int64 timestamp = 1;
+    optional int64 readTimestamp = 2;
+    optional int32 visibilityLevel = 3;
+    optional int64 epoch = 4;
+}

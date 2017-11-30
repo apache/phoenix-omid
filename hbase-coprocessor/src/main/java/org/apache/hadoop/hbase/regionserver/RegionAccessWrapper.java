@@ -17,38 +17,43 @@
  */
 package org.apache.hadoop.hbase.regionserver;
 
-import org.apache.hadoop.hbase.HRegionInfo;
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.omid.transaction.TableAccessWrapper;
 
-import java.io.IOException;
+// This class wraps the Region object when doing server side filtering.
+public class RegionAccessWrapper implements TableAccessWrapper {
 
-public class Region {
-
-    HRegion hRegion;
-
-    public Region(HRegion hRegion) {
-
-        this.hRegion = hRegion;
-
+    private final Region region;
+    
+    public RegionAccessWrapper(Region region) {
+        this.region = region;
     }
 
-    Result get(Get getOperation) throws IOException {
+    @Override
+    public Result[] get(List<Get> get) throws IOException {
+        Result[] results = new Result[get.size()];
 
-        return hRegion.get(getOperation);
-
+        int i = 0;
+        for (Get g : get) {
+            results[i++] = region.get(g);
+        }
+        return results;
     }
 
-    void put(Put putOperation) throws IOException {
-
-        hRegion.put(putOperation);
-
+    @Override
+    public Result get(Get get) throws IOException {
+        return region.get(get);
     }
 
-    HRegionInfo getRegionInfo() {
-
-        return hRegion.getRegionInfo();
-
+    @Override
+    public void put(Put put) throws IOException {
+        region.put(put);
     }
+
 }

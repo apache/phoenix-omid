@@ -202,38 +202,6 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         return HBaseCellId.getHasher().putBytes(tableName).hash().asLong();
     }
 
-    // ----------------------------------------------------------------------------------------------------------------
-    // HBaseTransactionClient method implementations
-    // ----------------------------------------------------------------------------------------------------------------
-
-    @Override
-    public boolean isCommitted(HBaseCellId hBaseCellId) throws TransactionException {
-        try {
-            long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
-            CommitTimestamp tentativeCommitTimestamp =
-                    locateCellCommitTimestamp(timestamp, tsoClient.getEpoch(),
-                                              new CommitTimestampLocatorImpl(hBaseCellId, Maps.<Long, Long>newHashMap()));
-
-            // If transaction that added the cell was invalidated
-            if (!tentativeCommitTimestamp.isValid()) {
-                return false;
-            }
-
-            switch (tentativeCommitTimestamp.getLocation()) {
-                case COMMIT_TABLE:
-                case SHADOW_CELL:
-                    return true;
-                case NOT_PRESENT:
-                    return false;
-                case CACHE: // cache was empty
-                default:
-                    return false;
-            }
-        } catch (IOException e) {
-            throw new TransactionException("Failure while checking if a transaction was committed", e);
-        }
-    }
-
     @Override
     public long getLowWatermark() throws TransactionException {
         try {
@@ -269,10 +237,19 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
         private HBaseCellId hBaseCellId;
         private final Map<Long, Long> commitCache;
+        private TableAccessWrapper tableAccessWrapper;
+
+        CommitTimestampLocatorImpl(HBaseCellId hBaseCellId, Map<Long, Long> commitCache, TableAccessWrapper tableAccessWrapper) {
+            this.hBaseCellId = hBaseCellId;
+            this.commitCache = commitCache;
+            this.tableAccessWrapper = tableAccessWrapper;
+        }
 
         CommitTimestampLocatorImpl(HBaseCellId hBaseCellId, Map<Long, Long> commitCache) {
             this.hBaseCellId = hBaseCellId;
             this.commitCache = commitCache;
+            this.tableAccessWrapper = null;
+            this.tableAccessWrapper = new HTableAccessWrapper(hBaseCellId.getTable(), hBaseCellId.getTable());
         }
 
         @Override
@@ -292,7 +269,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             get.addColumn(family, shadowCellQualifier);
             get.setMaxVersions(1);
             get.setTimeStamp(startTimestamp);
-            Result result = hBaseCellId.getTable().get(get);
+            Result result = tableAccessWrapper.get(get);
             if (result.containsColumn(family, shadowCellQualifier)) {
                 return Optional.of(Bytes.toLong(result.getValue(family, shadowCellQualifier)));
             }

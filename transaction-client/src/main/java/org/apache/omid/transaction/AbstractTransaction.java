@@ -46,7 +46,27 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         SNAPSHOT_ALL,
         // Returns the last key, either from the snapshot or from the current transaction that was written before the last checkpoint.
         // Sets the readTimestamp to be the writeTimestamp - 1
-        SNAPSHOT_EXCLUDE_CURRENT
+        SNAPSHOT_EXCLUDE_CURRENT;
+
+        public static VisibilityLevel fromInteger(int number) {
+            VisibilityLevel visibilityLevel = SNAPSHOT;
+
+            switch (number) {
+            case 0:
+                visibilityLevel = VisibilityLevel.SNAPSHOT;
+                break;
+            case 1:
+                visibilityLevel =  VisibilityLevel.SNAPSHOT_ALL;
+                break;
+            case 2:
+                visibilityLevel = VisibilityLevel.SNAPSHOT_EXCLUDE_CURRENT;
+                break;
+                default:
+                    assert(false);
+            }
+
+            return visibilityLevel;
+        }
     }
 
     private transient Map<String, Object> metadata = new HashMap<>();
@@ -81,11 +101,21 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
                                long epoch,
                                Set<T> writeSet,
                                AbstractTransactionManager transactionManager) {
-        this.startTimestamp = this.readTimestamp = this.writeTimestamp = transactionId;
+        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, transactionManager);
+    }
+
+    public AbstractTransaction(long transactionId,
+            long readTimestamp,
+            VisibilityLevel visibilityLevel,
+            long epoch,
+            Set<T> writeSet,
+            AbstractTransactionManager transactionManager) {
+        this.startTimestamp = this.writeTimestamp = transactionId;
+        this.readTimestamp = readTimestamp;
         this.epoch = epoch;
         this.writeSet = writeSet;
         this.transactionManager = transactionManager;
-        visibilityLevel = VisibilityLevel.SNAPSHOT;
+        this.visibilityLevel = visibilityLevel;
     }
 
     /**
