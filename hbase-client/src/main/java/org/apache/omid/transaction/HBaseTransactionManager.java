@@ -249,6 +249,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             this.hBaseCellId = hBaseCellId;
             this.commitCache = commitCache;
             this.tableAccessWrapper = null;
+            this.tableAccessWrapper = new HTableAccessWrapper(hBaseCellId.getTable(), hBaseCellId.getTable());
         }
 
         @Override
@@ -268,7 +269,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             get.addColumn(family, shadowCellQualifier);
             get.setMaxVersions(1);
             get.setTimeStamp(startTimestamp);
-            Result result = (tableAccessWrapper != null) ? tableAccessWrapper.get(get) : hBaseCellId.getTable().get(get);
+            Result result = tableAccessWrapper.get(get);
             if (result.containsColumn(family, shadowCellQualifier)) {
                 return Optional.of(Bytes.toLong(result.getValue(family, shadowCellQualifier)));
             }

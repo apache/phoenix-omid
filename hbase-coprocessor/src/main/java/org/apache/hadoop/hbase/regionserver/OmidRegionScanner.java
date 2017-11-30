@@ -32,11 +32,11 @@ import org.apache.omid.transaction.SnapshotFilterImpl;
 
 public class OmidRegionScanner implements RegionScanner {
 
-    RegionScanner scanner;
-    SnapshotFilterImpl snapshotFilter;
-    HBaseTransaction transaction;
-    int maxVersions;
-    Map<String, List<Cell>> familyDeletionCache;
+    private RegionScanner scanner;
+    private SnapshotFilterImpl snapshotFilter;
+    private HBaseTransaction transaction;
+    private int maxVersions;
+    private Map<String, List<Cell>> familyDeletionCache;
     
     public OmidRegionScanner(SnapshotFilterImpl snapshotFilter,
                       RegionScanner s,

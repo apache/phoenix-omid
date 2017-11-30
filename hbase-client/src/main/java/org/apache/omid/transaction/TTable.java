@@ -73,8 +73,6 @@ public class TTable implements Closeable {
 
     private SnapshotFilter snapshotFilter;
 
-    private boolean serverSideFilter;
-
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
@@ -102,14 +100,14 @@ public class TTable implements Closeable {
     public TTable(HTableInterface hTable) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
+        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
+        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
@@ -117,14 +115,14 @@ public class TTable implements Closeable {
         table = hTable;
         this.healerTable = healerTable;
         Configuration config = table.getConfiguration();
-        serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
+        boolean serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
+        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
