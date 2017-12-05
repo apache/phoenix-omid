@@ -31,7 +31,6 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-client</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
