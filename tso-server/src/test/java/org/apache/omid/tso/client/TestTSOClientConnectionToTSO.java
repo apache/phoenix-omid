@@ -19,12 +19,10 @@ package org.apache.omid.tso.client;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.CloseableUtils;
 import org.apache.omid.TestUtils;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.apache.omid.tso.HALeaseManagementModule;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
@@ -139,7 +137,7 @@ public class TestTSOClientConnectionToTSO {
         // ... so we should get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        assertEquals(startTS.longValue(), 1);
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
@@ -177,7 +175,7 @@ public class TestTSOClientConnectionToTSO {
         // ... so we should get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        assertEquals(startTS.longValue(), 1);
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
@@ -215,7 +213,7 @@ public class TestTSOClientConnectionToTSO {
         // ... and check that initially we get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        assertEquals(startTS.longValue(), 1);
 
         // Then stop the server...
         tsoServer.stopAndWait();

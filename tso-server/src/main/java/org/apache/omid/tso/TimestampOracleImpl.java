@@ -19,17 +19,14 @@ package org.apache.omid.tso;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import org.apache.omid.metrics.Gauge;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.timestamp.storage.TimestampStorage;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-
 import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -137,12 +134,9 @@ public class TimestampOracleImpl implements TimestampOracle {
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public long next() {
-        lastTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        lastTimestamp++;
 
-        if (lastTimestamp >= nextAllocationThreshold) {
-            // set the nextAllocationThread to max value of long in order to
-            // make sure only one call to this function will execute a thread to extend the timestamp batch.
-            nextAllocationThreshold = Long.MAX_VALUE; 
+        if (lastTimestamp == nextAllocationThreshold) {
             executor.execute(allocateTimestampsBatchTask);
         }
 

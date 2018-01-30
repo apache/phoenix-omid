@@ -17,8 +17,12 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimaps;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -39,16 +43,15 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
-import org.apache.omid.proto.TSOProto;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocatorImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -57,7 +60,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
-import java.util.Set;
 
 /**
  * Provides transactional methods for accessing and modifying a given snapshot of data identified by an opaque {@link
@@ -71,18 +73,12 @@ public class TTable implements Closeable {
 
     private HTableInterface table;
 
-    private SnapshotFilter snapshotFilter;
-
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
 
     public TTable(Configuration conf, byte[] tableName) throws IOException {
         this(new HTable(conf, tableName));
-    }
-
-    public TTable(Configuration conf, byte[] tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(new HTable(conf, tableName), commitTableClient);
     }
 
     public TTable(String tableName) throws IOException {
@@ -93,39 +89,15 @@ public class TTable implements Closeable {
         this(conf, Bytes.toBytes(tableName));
     }
 
-    public TTable(Configuration conf, String tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(conf, Bytes.toBytes(tableName), commitTableClient);
-    }
-
     public TTable(HTableInterface hTable) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
-        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
-    }
-
-    public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
-        table = hTable;
-        healerTable = new HTable(table.getConfiguration(), table.getTableName());
-        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
-        Configuration config = table.getConfiguration();
-        boolean serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
-
-    public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
-        table = hTable;
-        this.healerTable = healerTable;
-        boolean serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
-    }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Closeable implementation
@@ -160,7 +132,7 @@ public class TTable implements Closeable {
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
-        final long readTimestamp = transaction.getReadTimestamp();
+        final long readTimestamp = transaction.getStartTimestamp();
         final Get tsget = new Get(get.getRow()).setFilter(get.getFilter());
         TimeRange timeRange = get.getTimeRange();
         long startTime = timeRange.getMin();
@@ -177,41 +149,19 @@ public class TTable implements Closeable {
                     tsget.addColumn(family, qualifier);
                     tsget.addColumn(family, CellUtils.addShadowCellSuffix(qualifier));
                 }
-                tsget.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER);
-                tsget.addColumn(family, CellUtils.addShadowCellSuffix(CellUtils.FAMILY_DELETE_QUALIFIER));
             }
         }
         LOG.trace("Initial Get = {}", tsget);
 
-        return snapshotFilter.get(this, tsget, transaction);
-    }
-
-    private void familyQualifierBasedDeletion(HBaseTransaction tx, Put deleteP, Get deleteG) throws IOException {
-        Result result = this.get(tx, deleteG);
+        // Return the KVs that belong to the transaction snapshot, ask for more
+        // versions if needed
+        Result result = table.get(tsget);
+        List<Cell> filteredKeyValues = Collections.emptyList();
         if (!result.isEmpty()) {
-            for (Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> entryF : result.getMap()
-                    .entrySet()) {
-                byte[] family = entryF.getKey();
-                for (Entry<byte[], NavigableMap<Long, byte[]>> entryQ : entryF.getValue().entrySet()) {
-                    byte[] qualifier = entryQ.getKey();
-                    tx.addWriteSetElement(new HBaseCellId(table, deleteP.getRow(), family, qualifier,
-                            tx.getWriteTimestamp()));
-                }
-                deleteP.add(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
-                        HConstants.EMPTY_BYTE_ARRAY);
-            }
+            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, tsget.getMaxVersions());
         }
-    }
 
-    private void  familyQualifierBasedDeletionWithOutRead(HBaseTransaction tx, Put deleteP, Get deleteG) {
-        Set<byte[]> fset = deleteG.getFamilyMap().keySet();
-
-        for (byte[] family : fset) {
-            deleteP.add(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
-                    HConstants.EMPTY_BYTE_ARRAY);
-        }
-        tx.addWriteSetElement(new HBaseCellId(table, deleteP.getRow(), null, null,
-                tx.getWriteTimestamp()));
+        return Result.create(filteredKeyValues);
     }
 
     /**
@@ -227,48 +177,47 @@ public class TTable implements Closeable {
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
-        final long writeTimestamp = transaction.getStartTimestamp();
-        boolean deleteFamily = false;
+        final long startTimestamp = transaction.getStartTimestamp();
+        boolean issueGet = false;
 
-        final Put deleteP = new Put(delete.getRow(), writeTimestamp);
+        final Put deleteP = new Put(delete.getRow(), startTimestamp);
         final Get deleteG = new Get(delete.getRow());
         Map<byte[], List<Cell>> fmap = delete.getFamilyCellMap();
         if (fmap.isEmpty()) {
-            familyQualifierBasedDeletion(transaction, deleteP, deleteG);
+            issueGet = true;
         }
-
         for (List<Cell> cells : fmap.values()) {
             for (Cell cell : cells) {
-                CellUtils.validateCell(cell, writeTimestamp);
+                CellUtils.validateCell(cell, startTimestamp);
                 switch (KeyValue.Type.codeToType(cell.getTypeByte())) {
                     case DeleteColumn:
                         deleteP.add(CellUtil.cloneFamily(cell),
                                     CellUtil.cloneQualifier(cell),
-                                    writeTimestamp,
+                                    startTimestamp,
                                     CellUtils.DELETE_TOMBSTONE);
                         transaction.addWriteSetElement(
                             new HBaseCellId(table,
                                             delete.getRow(),
                                             CellUtil.cloneFamily(cell),
                                             CellUtil.cloneQualifier(cell),
-                                            writeTimestamp));
+                                            cell.getTimestamp()));
                         break;
                     case DeleteFamily:
                         deleteG.addFamily(CellUtil.cloneFamily(cell));
-                        deleteFamily = true;
+                        issueGet = true;
                         break;
                     case Delete:
                         if (cell.getTimestamp() == HConstants.LATEST_TIMESTAMP) {
                             deleteP.add(CellUtil.cloneFamily(cell),
                                         CellUtil.cloneQualifier(cell),
-                                        writeTimestamp,
+                                        startTimestamp,
                                         CellUtils.DELETE_TOMBSTONE);
                             transaction.addWriteSetElement(
                                 new HBaseCellId(table,
                                                 delete.getRow(),
                                                 CellUtil.cloneFamily(cell),
                                                 CellUtil.cloneQualifier(cell),
-                                                writeTimestamp));
+                                                cell.getTimestamp()));
                             break;
                         } else {
                             throw new UnsupportedOperationException(
@@ -279,11 +228,21 @@ public class TTable implements Closeable {
                 }
             }
         }
-        if (deleteFamily) {
-            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
-                familyQualifierBasedDeletionWithOutRead(transaction, deleteP, deleteG);
-            } else {
-                familyQualifierBasedDeletion(transaction, deleteP, deleteG);
+        if (issueGet) {
+            // It's better to perform a transactional get to avoid deleting more
+            // than necessary
+            Result result = this.get(transaction, deleteG);
+            if (!result.isEmpty()) {
+                for (Entry<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> entryF : result.getMap()
+                    .entrySet()) {
+                    byte[] family = entryF.getKey();
+                    for (Entry<byte[], NavigableMap<Long, byte[]>> entryQ : entryF.getValue().entrySet()) {
+                        byte[] qualifier = entryQ.getKey();
+                        deleteP.add(family, qualifier, CellUtils.DELETE_TOMBSTONE);
+                        transaction.addWriteSetElement(new HBaseCellId(table, delete.getRow(), family, qualifier,
+                                                                       transaction.getStartTimestamp()));
+                    }
+                }
             }
         }
 
@@ -306,19 +265,18 @@ public class TTable implements Closeable {
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
-        final long writeTimestamp = transaction.getWriteTimestamp();
-
+        final long startTimestamp = transaction.getStartTimestamp();
         // create put with correct ts
-        final Put tsput = new Put(put.getRow(), writeTimestamp);
+        final Put tsput = new Put(put.getRow(), startTimestamp);
         Map<byte[], List<Cell>> kvs = put.getFamilyCellMap();
         for (List<Cell> kvl : kvs.values()) {
             for (Cell c : kvl) {
-                CellUtils.validateCell(c, writeTimestamp);
+                CellUtils.validateCell(c, startTimestamp);
                 // Reach into keyvalue to update timestamp.
                 // It's not nice to reach into keyvalue internals,
                 // but we want to avoid having to copy the whole thing
                 KeyValue kv = KeyValueUtil.ensureKeyValue(c);
-                Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
+                Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), startTimestamp);
                 tsput.add(kv);
 
                 transaction.addWriteSetElement(
@@ -349,7 +307,7 @@ public class TTable implements Closeable {
 
         Scan tsscan = new Scan(scan);
         tsscan.setMaxVersions(1);
-        tsscan.setTimeRange(0, transaction.getReadTimestamp() + 1);
+        tsscan.setTimeRange(0, transaction.getStartTimestamp() + 1);
         Map<byte[], NavigableSet<byte[]>> kvs = scan.getFamilyMap();
         for (Map.Entry<byte[], NavigableSet<byte[]>> entry : kvs.entrySet()) {
             byte[] family = entry.getKey();
@@ -360,34 +318,181 @@ public class TTable implements Closeable {
             for (byte[] qualifier : qualifiers) {
                 tsscan.addColumn(family, CellUtils.addShadowCellSuffix(qualifier));
             }
-            if (!qualifiers.isEmpty()) {
-                tsscan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
+        }
+        return new TransactionalClientScanner(transaction, tsscan, 1);
+    }
+
+    /**
+     * Filters the raw results returned from HBase and returns only those belonging to the current snapshot, as defined
+     * by the transaction object. If the raw results don't contain enough information for a particular qualifier, it
+     * will request more versions from HBase.
+     *
+     * @param rawCells          Raw cells that we are going to filter
+     * @param transaction       Defines the current snapshot
+     * @param versionsToRequest Number of versions requested from hbase
+     * @return Filtered KVs belonging to the transaction snapshot
+     */
+    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
+                                      int versionsToRequest) throws IOException {
+
+        assert (rawCells != null && transaction != null && versionsToRequest >= 1);
+
+        List<Cell> keyValuesInSnapshot = new ArrayList<>();
+        List<Get> pendingGetsList = new ArrayList<>();
+
+        int numberOfVersionsToFetch = versionsToRequest * 2;
+        if (numberOfVersionsToFetch < 1) {
+            numberOfVersionsToFetch = versionsToRequest;
+        }
+
+        Map<Long, Long> commitCache = buildCommitCache(rawCells);
+
+        for (Collection<Cell> columnCells : groupCellsByColumnFilteringShadowCells(rawCells)) {
+            boolean snapshotValueFound = false;
+            Cell oldestCell = null;
+            for (Cell cell : columnCells) {
+                if (isCellInSnapshot(cell, transaction, commitCache)) {
+                    if (!CellUtil.matchingValue(cell, CellUtils.DELETE_TOMBSTONE)) {
+                        keyValuesInSnapshot.add(cell);
+                    }
+                    snapshotValueFound = true;
+                    break;
+                }
+                oldestCell = cell;
+            }
+            if (!snapshotValueFound) {
+                assert (oldestCell != null);
+                Get pendingGet = createPendingGet(oldestCell, numberOfVersionsToFetch);
+                pendingGetsList.add(pendingGet);
             }
         }
 
-        return snapshotFilter.getScanner(this, tsscan, transaction);
+        if (!pendingGetsList.isEmpty()) {
+            Result[] pendingGetsResults = table.get(pendingGetsList);
+            for (Result pendingGetResult : pendingGetsResults) {
+                if (!pendingGetResult.isEmpty()) {
+                    keyValuesInSnapshot.addAll(
+                        filterCellsForSnapshot(pendingGetResult.listCells(), transaction, numberOfVersionsToFetch));
+                }
+            }
+        }
+
+        Collections.sort(keyValuesInSnapshot, KeyValue.COMPARATOR);
+
+        assert (keyValuesInSnapshot.size() <= rawCells.size());
+        return keyValuesInSnapshot;
     }
 
-    
-    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-                                      int versionsToRequest, Map<String, List<Cell>> familyDeletionCache) throws IOException {
-        return snapshotFilter.filterCellsForSnapshot(rawCells, transaction, versionsToRequest, familyDeletionCache);
+    private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
+
+        Map<Long, Long> commitCache = new HashMap<>();
+
+        for (Cell cell : rawCells) {
+            if (CellUtils.isShadowCell(cell)) {
+                commitCache.put(cell.getTimestamp(), Bytes.toLong(CellUtil.cloneValue(cell)));
+            }
+        }
+
+        return commitCache;
     }
 
+    private boolean isCellInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
+        throws IOException {
 
-    public class TransactionalClientScanner implements ResultScanner {
+        long startTimestamp = transaction.getStartTimestamp();
+
+        if (kv.getTimestamp() == startTimestamp) {
+            return true;
+        }
+
+        Optional<Long> commitTimestamp =
+            tryToLocateCellCommitTimestamp(transaction.getTransactionManager(), transaction.getEpoch(), kv,
+                                           commitCache);
+
+        return commitTimestamp.isPresent() && commitTimestamp.get() < startTimestamp;
+    }
+
+    private Get createPendingGet(Cell cell, int versionCount) throws IOException {
+
+        Get pendingGet = new Get(CellUtil.cloneRow(cell));
+        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
+        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
+                                                                                       cell.getQualifierOffset(),
+                                                                                       cell.getQualifierLength()));
+        pendingGet.setMaxVersions(versionCount);
+        pendingGet.setTimeRange(0, cell.getTimestamp());
+
+        return pendingGet;
+    }
+
+    private Optional<Long> tryToLocateCellCommitTimestamp(AbstractTransactionManager transactionManager,
+                                                          long epoch,
+                                                          Cell cell,
+                                                          Map<Long, Long> commitCache)
+        throws IOException {
+
+        CommitTimestamp tentativeCommitTimestamp =
+            transactionManager.locateCellCommitTimestamp(
+                cell.getTimestamp(),
+                epoch,
+                new CommitTimestampLocatorImpl(
+                    new HBaseCellId(table,
+                                    CellUtil.cloneRow(cell),
+                                    CellUtil.cloneFamily(cell),
+                                    CellUtil.cloneQualifier(cell),
+                                    cell.getTimestamp()),
+                    commitCache));
+
+        // If transaction that added the cell was invalidated
+        if (!tentativeCommitTimestamp.isValid()) {
+            return Optional.absent();
+        }
+
+        switch (tentativeCommitTimestamp.getLocation()) {
+            case COMMIT_TABLE:
+                // If the commit timestamp is found in the persisted commit table,
+                // that means the writing process of the shadow cell in the post
+                // commit phase of the client probably failed, so we heal the shadow
+                // cell with the right commit timestamp for avoiding further reads to
+                // hit the storage
+                healShadowCell(cell, tentativeCommitTimestamp.getValue());
+                return Optional.of(tentativeCommitTimestamp.getValue());
+            case CACHE:
+            case SHADOW_CELL:
+                return Optional.of(tentativeCommitTimestamp.getValue());
+            case NOT_PRESENT:
+                return Optional.absent();
+            default:
+                assert (false);
+                return Optional.absent();
+        }
+    }
+
+    void healShadowCell(Cell cell, long commitTimestamp) {
+        Put put = new Put(CellUtil.cloneRow(cell));
+        byte[] family = CellUtil.cloneFamily(cell);
+        byte[] shadowCellQualifier = CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
+                                                                   cell.getQualifierOffset(),
+                                                                   cell.getQualifierLength());
+        put.add(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
+        try {
+            healerTable.put(put);
+        } catch (IOException e) {
+            LOG.warn("Failed healing shadow cell for kv {}", cell, e);
+        }
+    }
+
+    protected class TransactionalClientScanner implements ResultScanner {
 
         private HBaseTransaction state;
         private ResultScanner innerScanner;
         private int maxVersions;
-        Map<String, List<Cell>> familyDeletionCache;
 
         TransactionalClientScanner(HBaseTransaction state, Scan scan, int maxVersions)
             throws IOException {
             this.state = state;
             this.innerScanner = table.getScanner(scan);
             this.maxVersions = maxVersions;
-            this.familyDeletionCache = new HashMap<String, List<Cell>>();
         }
 
 
@@ -400,7 +505,7 @@ public class TTable implements Closeable {
                     return null;
                 }
                 if (!result.isEmpty()) {
-                    filteredResult = filterCellsForSnapshot(result.listCells(), state, maxVersions, familyDeletionCache);
+                    filteredResult = filterCellsForSnapshot(result.listCells(), state, maxVersions);
                 }
             }
             return Result.create(filteredResult);
@@ -689,38 +794,28 @@ public class TTable implements Closeable {
         }
     }
 
-    private HBaseTransactionManager enforceHBaseTransactionManagerAsParam(TransactionManager tm) {
-        if (tm instanceof HBaseTransactionManager) {
-            return (HBaseTransactionManager) tm;
-        } else {
-            throw new IllegalArgumentException(
-                String.format("The transaction manager object passed %s is not an instance of HBaseTransactionManager ",
-                              tm.getClass().getName()));
-        }
+    static ImmutableList<Collection<Cell>> groupCellsByColumnFilteringShadowCells(List<Cell> rawCells) {
+
+        Predicate<Cell> shadowCellFilter = new Predicate<Cell>() {
+
+            @Override
+            public boolean apply(Cell cell) {
+                return cell != null && !CellUtils.isShadowCell(cell);
+            }
+
+        };
+
+        Function<Cell, ColumnWrapper> cellToColumnWrapper = new Function<Cell, ColumnWrapper>() {
+
+            @Override
+            public ColumnWrapper apply(Cell cell) {
+                return new ColumnWrapper(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
+            }
+
+        };
+
+        return Multimaps.index(Iterables.filter(rawCells, shadowCellFilter), cellToColumnWrapper)
+            .asMap().values()
+            .asList();
     }
-
-    // For testing
-
-    @VisibleForTesting
-    boolean isCommitted(HBaseCellId hBaseCellId, long epoch) throws TransactionException {
-        return snapshotFilter.isCommitted(hBaseCellId, epoch);
-    }
-
-    @VisibleForTesting
-    CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp, long epoch,
-            CommitTimestampLocator locator) throws IOException {
-        return snapshotFilter.locateCellCommitTimestamp(cellStartTimestamp, epoch, locator);
-    }
-
-    @VisibleForTesting
-    Optional<CommitTimestamp> readCommitTimestampFromShadowCell(long cellStartTimestamp, CommitTimestampLocator locator)
-            throws IOException
-    {
-        return snapshotFilter.readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-    }
-
-    SnapshotFilter getSnapshotFilter() {
-        return snapshotFilter;
-    }
-
 }

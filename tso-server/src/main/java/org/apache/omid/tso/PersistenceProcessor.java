@@ -33,8 +33,6 @@ interface PersistenceProcessor extends Closeable {
 
     void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
 
-    void addFenceToBatch(long tableID, long fenceTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
     void triggerCurrentBatchFlush() throws Exception;
 
     Future<Void> persistLowWatermark(long lowWatermark);

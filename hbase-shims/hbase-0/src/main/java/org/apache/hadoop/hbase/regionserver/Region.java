@@ -19,7 +19,6 @@ package org.apache.hadoop.hbase.regionserver;
 
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
 import java.io.IOException;
@@ -37,12 +36,6 @@ public class Region {
     Result get(Get getOperation) throws IOException {
 
         return hRegion.get(getOperation);
-
-    }
-
-    void put(Put putOperation) throws IOException {
-
-        hRegion.put(putOperation);
 
     }
 

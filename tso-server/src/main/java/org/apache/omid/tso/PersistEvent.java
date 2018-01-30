@@ -25,7 +25,7 @@ public final class PersistEvent {
     private MonitoringContext monCtx;
 
     enum Type {
-        TIMESTAMP, COMMIT, ABORT, COMMIT_RETRY, FENCE
+        TIMESTAMP, COMMIT, ABORT, COMMIT_RETRY
     }
 
     private Type type = null;
@@ -66,16 +66,6 @@ public final class PersistEvent {
 
         this.type = Type.TIMESTAMP;
         this.startTimestamp = startTimestamp;
-        this.channel = c;
-        this.monCtx = monCtx;
-
-    }
-
-    void makePersistFence(long tableID, long fenceTimestamp, Channel c, MonitoringContext monCtx) {
-
-        this.type = Type.FENCE;
-        this.startTimestamp = tableID;
-        this.commitTimestamp = fenceTimestamp;
         this.channel = c;
         this.monCtx = monCtx;
 

@@ -61,7 +61,7 @@ public class TestColumnIterator {
     public void testGroupingCellsByColumnFilteringShadowCells() {
 
         ImmutableList<Collection<Cell>> groupedColumnsWithoutShadowCells =
-                SnapshotFilterImpl.groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(cells);
+                TTable.groupCellsByColumnFilteringShadowCells(cells);
         Log.info("Column Groups " + groupedColumnsWithoutShadowCells);
         assertEquals(groupedColumnsWithoutShadowCells.size(), 3, "Should be 3 column groups");
         int group1Counter = 0;

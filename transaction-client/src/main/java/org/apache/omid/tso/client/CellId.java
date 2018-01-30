@@ -21,7 +21,4 @@ public interface CellId {
 
     long getCellId();
 
-    long getTableId();
-
-    long getRowId();
 }

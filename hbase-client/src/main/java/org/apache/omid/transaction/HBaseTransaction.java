@@ -19,24 +19,18 @@ package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
 
-    public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
+    HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
         super(transactionId, epoch, writeSet, tm);
-    }
-
-    public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
-        super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, tm);
     }
 
     @Override
@@ -44,7 +38,7 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         Set<HBaseCellId> writeSet = getWriteSet();
         for (final HBaseCellId cell : writeSet) {
             Delete delete = new Delete(cell.getRow());
-            delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
+            delete.deleteColumn(cell.getFamily(), cell.getQualifier(), getStartTimestamp());
             try {
                 cell.getTable().delete(delete);
             } catch (IOException e) {
