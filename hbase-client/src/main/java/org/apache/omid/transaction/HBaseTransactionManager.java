@@ -53,7 +53,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         @Override
         public HBaseTransaction createTransaction(long transactionId, long epoch, AbstractTransactionManager tm) {
 
-            return new HBaseTransaction(transactionId, epoch, new HashSet<HBaseCellId>(), tm);
+            return new HBaseTransaction(transactionId, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), tm);
 
         }
 

@@ -78,6 +78,7 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     private long commitTimestamp;
     private boolean isRollbackOnly;
     private final Set<T> writeSet;
+    private final Set<T> conflictFreeWriteSet;
     private Status status = Status.RUNNING;
     private VisibilityLevel visibilityLevel;
 
@@ -92,6 +93,9 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
      * @param writeSet
      *            initial write set for the transaction.
      *            Should be empty in most cases.
+     * @param conflictFreeWriteSet
+     *            initial conflict free write set for the transaction.
+     *            Should be empty in most cases.
      * @param transactionManager
      *            transaction manager associated to this transaction.
      *            Usually, should be the one that created the transaction
@@ -100,8 +104,9 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     public AbstractTransaction(long transactionId,
                                long epoch,
                                Set<T> writeSet,
+                               Set<T> conflictFreeWriteSet,
                                AbstractTransactionManager transactionManager) {
-        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, transactionManager);
+        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, conflictFreeWriteSet, transactionManager);
     }
 
     public AbstractTransaction(long transactionId,
@@ -109,11 +114,13 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
             VisibilityLevel visibilityLevel,
             long epoch,
             Set<T> writeSet,
+            Set<T> conflictFreeWriteSet,
             AbstractTransactionManager transactionManager) {
         this.startTimestamp = this.writeTimestamp = transactionId;
         this.readTimestamp = readTimestamp;
         this.epoch = epoch;
         this.writeSet = writeSet;
+        this.conflictFreeWriteSet = conflictFreeWriteSet;
         this.transactionManager = transactionManager;
         this.visibilityLevel = visibilityLevel;
     }
@@ -270,6 +277,14 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     }
 
     /**
+     * Returns the current write-set for this transaction that its elements are not candidates for conflict analysis.
+     * @return conflictFreeWriteSet
+     */
+    public Set<T> getConflictFreeWriteSet() {
+        return conflictFreeWriteSet;
+    }
+
+    /**
      * Adds an element to the transaction write-set.
      * @param element
      *            the element to add
@@ -278,9 +293,18 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         writeSet.add(element);
     }
 
+    /**
+     * Adds an element to the transaction conflict free write-set.
+     * @param element
+     *            the element to add
+     */
+    public void addConflictFreeWriteSetElement(T element) {
+        conflictFreeWriteSet.add(element);
+    }
+
     @Override
     public String toString() {
-        return String.format("Tx-%s [%s] (ST=%d, RT=%d, WT=%d, CT=%d, Epoch=%d) WriteSet %s",
+        return String.format("Tx-%s [%s] (ST=%d, RT=%d, WT=%d, CT=%d, Epoch=%d) WriteSet %s ConflictFreeWriteSet %s",
                              Long.toHexString(getTransactionId()),
                              status,
                              startTimestamp,
@@ -288,7 +312,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
                              writeTimestamp,
                              commitTimestamp,
                              epoch,
-                             writeSet);
+                             writeSet,
+                             conflictFreeWriteSet);
     }
 
     @Override
