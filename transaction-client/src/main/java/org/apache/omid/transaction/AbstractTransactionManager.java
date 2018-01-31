@@ -432,7 +432,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
             if (e.getCause() instanceof AbortException) { // TSO reports Tx conflicts as AbortExceptions in the future
                 rollback(tx);
                 rolledbackTxsCounter.inc();
-                throw new RollbackException("Conflicts detected in tx writeset", e.getCause());
+                throw new RollbackException(tx + ": Conflicts detected in writeset", e.getCause());
             }
 
             if (e.getCause() instanceof ServiceUnavailableException || e.getCause() instanceof ConnectionException) {
