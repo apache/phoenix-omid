@@ -293,15 +293,11 @@ public class TTable implements Closeable {
 
     }
 
-    /**
-     * Transactional version of {@link HTableInterface#put(Put put)}
-     *
-     * @param put an instance of Put
-     * @param tx  an instance of transaction to be used
-     * @throws IOException if a remote or network exception occurs.
-     */
-    public void put(Transaction tx, Put put) throws IOException {
+    interface UpdateMetaData {
+        void update(HBaseTransaction transaction, KeyValue kv, Put put);
+    }
 
+    private void putAndUpdateMetadata(Transaction tx, Put put, UpdateMetaData updateMetaData) throws IOException {
         throwExceptionIfOpSetsTimerange(put);
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
@@ -321,16 +317,51 @@ public class TTable implements Closeable {
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
                 tsput.add(kv);
 
-                transaction.addWriteSetElement(
+                updateMetaData.update(transaction, kv, tsput);
+            }
+        }
+
+        table.put(tsput);
+    }
+
+    /**
+     * putWithAutocommit implementation. Similar to a transactional put that includes the commit time stamp.
+     *
+     * @param put an instance of Put
+     * @param tx  an instance of transaction to be used
+     * @throws IOException if a remote or network exception occurs.
+     */
+    public void putWithAutocommit(Transaction tx, Put put) throws IOException {
+
+        UpdateMetaData updateMetaData = (transaction, kv, tsput) -> {
+            tsput.add(CellUtil.cloneFamily(kv),
+                    CellUtils.addShadowCellSuffix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
+                    kv.getTimestamp(),
+                    Bytes.toBytes(kv.getTimestamp()));
+        };
+
+        putAndUpdateMetadata(tx, put, updateMetaData);
+    }
+
+    /**
+     * Transactional version of {@link HTableInterface#put(Put put)}
+     *
+     * @param put an instance of Put
+     * @param tx  an instance of transaction to be used
+     * @throws IOException if a remote or network exception occurs.
+     */
+    public void put(Transaction tx, Put put) throws IOException {
+
+        UpdateMetaData updateMetaData = (transaction, kv, tsput) -> {
+            transaction.addWriteSetElement(
                     new HBaseCellId(table,
                                     CellUtil.cloneRow(kv),
                                     CellUtil.cloneFamily(kv),
                                     CellUtil.cloneQualifier(kv),
                                     kv.getTimestamp()));
-            }
-        }
+        };
 
-        table.put(tsput);
+        putAndUpdateMetadata(tx, put, updateMetaData);
     }
 
     /**
