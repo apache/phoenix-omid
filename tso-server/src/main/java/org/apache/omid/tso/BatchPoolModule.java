@@ -52,11 +52,15 @@ public class BatchPoolModule extends AbstractModule {
 
         LOG.info("Pool Size (# of Batches) {}; Batch Size {}", poolSize, batchSize);
         LOG.info("Total Batch Size (Pool size * Batch Size): {}", poolSize * batchSize);
+        // Setup ObjectPool behaviour
         GenericObjectPoolConfig config = new GenericObjectPoolConfig();
         config.setMaxTotal(poolSize);
+        config.setMaxIdle(poolSize + 1); // This avoids GenericObjectPool to destroy the batches when returned to
+                                         // the pool during the pre-creation below
         config.setBlockWhenExhausted(true);
         GenericObjectPool<Batch> batchPool = new GenericObjectPool<>(new Batch.BatchFactory(batchSize), config);
-        LOG.info("Pre-creating objects in the pool..."); // TODO There should be a better way to do this
+        LOG.info("Pre-creating objects in the pool...");
+        // TODO There should be a better way to do the pre-creation below avoiding the two loops
         List<Batch> batches = new ArrayList<>(poolSize);
         for (int i = 0; i < poolSize; i++) {
             batches.add(batchPool.borrowObject());
