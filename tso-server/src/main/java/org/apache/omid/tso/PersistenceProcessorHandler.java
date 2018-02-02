@@ -17,6 +17,8 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
 import com.lmax.disruptor.WorkHandler;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.Histogram;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.codahale.metrics.MetricRegistry.name;
 import static org.apache.omid.tso.PersistEvent.Type.*;
@@ -35,6 +38,11 @@ import static org.apache.omid.tso.PersistEvent.Type.*;
 public class PersistenceProcessorHandler implements WorkHandler<PersistenceProcessorImpl.PersistBatchEvent> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PersistenceProcessorHandler.class);
+
+    @VisibleForTesting
+    static final AtomicInteger consecutiveSequenceCreator = new AtomicInteger(0);
+
+    private final String id;
 
     private final String tsoHostAndPort;
     private final LeaseManagement leaseManager;
@@ -44,13 +52,14 @@ public class PersistenceProcessorHandler implements WorkHandler<PersistenceProce
     private final CommitTable.Writer writer;
     final Panicker panicker;
 
+    // Metrics in this component
     private final Timer flushTimer;
     private final Histogram batchSizeHistogram;
     private final Histogram flushedCommitEventsHistogram;
 
     @Inject
     PersistenceProcessorHandler(MetricsRegistry metrics,
-                                String tsoHostAndPort,
+                                String tsoHostAndPort, // TODO This should not be passed here. Should be part of panicker
                                 LeaseManagement leaseManager,
                                 CommitTable commitTable,
                                 ReplyProcessor replyProcessor,
@@ -58,6 +67,7 @@ public class PersistenceProcessorHandler implements WorkHandler<PersistenceProce
                                 Panicker panicker)
     throws InterruptedException, ExecutionException, IOException {
 
+        this.id = String.valueOf(consecutiveSequenceCreator.getAndIncrement());
         this.tsoHostAndPort = tsoHostAndPort;
         this.leaseManager = leaseManager;
         this.writer = commitTable.getWriter();
@@ -65,11 +75,18 @@ public class PersistenceProcessorHandler implements WorkHandler<PersistenceProce
         this.retryProcessor = retryProcessor;
         this.panicker = panicker;
 
-        // Metrics in this component
-        flushTimer = metrics.timer(name("tso", "persist", "flush", "latency"));
-        flushedCommitEventsHistogram = metrics.histogram(name("tso", "persist", "flushed", "commits", "size"));
-        batchSizeHistogram = metrics.histogram(name("tso", "persist", "batch", "size"));
+        // Metrics setup
+        String flushTimerName = name("tso", "persistence-processor-handler", id, "flush", "latency");
+        flushTimer = metrics.timer(flushTimerName);
+        String flushedCommitEventsName = name("tso", "persistence-processor-handler", id, "flushed", "commits", "size");
+        flushedCommitEventsHistogram = metrics.histogram(flushedCommitEventsName);
+        String batchSizeMetricsName = name("tso", "persistence-processor-handler", id, "batch", "size");
+        batchSizeHistogram = metrics.histogram(batchSizeMetricsName);
 
+    }
+
+    public String getId() {
+        return id;
     }
 
     @Override
@@ -177,6 +194,13 @@ public class PersistenceProcessorHandler implements WorkHandler<PersistenceProce
         PersistEvent lastEventInBatch = batch.get(lastIdx);
         batch.set(firstIdx, lastEventInBatch);
         batch.set(lastIdx, tmpEvent);
+    }
+
+    @Override
+    public String toString() {
+
+        return Objects.toStringHelper(this).add("id", id).toString();
+
     }
 
 }

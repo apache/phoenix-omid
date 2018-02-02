@@ -126,6 +126,36 @@ public class TestPersistenceProcessorHandler {
         Mockito.reset(mockWriter);
     }
 
+    @Test(timeOut = 1_000)
+    public void testPersistentProcessorHandlerIdsAreCreatedConsecutive() throws Exception {
+
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setNumConcurrentCTWriters(32);
+
+        PersistenceProcessorHandler[] handlers = new PersistenceProcessorHandler[tsoConfig.getNumConcurrentCTWriters()];
+        for (int i = 0; i < tsoConfig.getNumConcurrentCTWriters(); i++) {
+            handlers[i] = new PersistenceProcessorHandler(metrics,
+                                                          "localhost:1234",
+                                                          mock(LeaseManager.class),
+                                                          commitTable,
+                                                          mock(ReplyProcessor.class),
+                                                          retryProcessor,
+                                                          panicker);
+        }
+
+        for (int i = 0; i < tsoConfig.getNumConcurrentCTWriters(); i++) {
+            // Required to generalize the cases when other tests have increased the static variable assigning the ids
+            if (i + 1 < tsoConfig.getNumConcurrentCTWriters()) {
+                int followingHandlerIdAsInt = Integer.valueOf(handlers[i + 1].getId());
+                assertEquals(handlers[i].getId(), String.valueOf(followingHandlerIdAsInt - 1));
+            } else { // Final case: compare with the last element that the sequence creator assigned
+                int followingHandlerIdAsInt = PersistenceProcessorHandler.consecutiveSequenceCreator.get();
+                assertEquals(handlers[i].getId(), String.valueOf(followingHandlerIdAsInt - 1));
+            }
+        }
+
+    }
+
     @Test(timeOut = 10_000)
     public void testProcessingOfEmptyBatchPersistEvent() throws Exception {
 
