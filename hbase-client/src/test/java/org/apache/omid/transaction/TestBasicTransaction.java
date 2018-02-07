@@ -437,4 +437,41 @@ public class TestBasicTransaction extends OmidTestBase {
 
     }
 
+    @Test(timeOut = 30_000)
+    public void testAutoCommit(ITestContext context)
+            throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        Transaction tx1 = tm.begin();
+
+        Put row1 = new Put(rowName1);
+        row1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, row1);
+
+        Transaction tx2 = tm.begin();
+
+        Transaction tx3 = tm.begin();
+
+        Get g = new Get(rowName1).setMaxVersions();
+        g.addColumn(famName1, colName1);
+        Result r = tt.get(tx3, g);
+        assertEquals(r.size(), 0, "Unexpected size for read.");
+
+        row1 = new Put(rowName1);
+        row1.add(famName1, colName1, dataValue1);
+        tt.put(tx2, row1, true);
+
+        r = tt.get(tx3, g);
+        assertEquals(r.size(), 1, "Unexpected size for read.");
+
+        tt.close();
+    }
+
 }

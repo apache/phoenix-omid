@@ -316,6 +316,16 @@ public class TTable implements Closeable {
      * @throws IOException if a remote or network exception occurs.
      */
     public void put(Transaction tx, Put put) throws IOException {
+        put(tx, put, false);
+    }
+
+    /**
+     * @param put an instance of Put
+     * @param tx  an instance of transaction to be used
+     * @param autoCommit  denotes whether to automatically commit the put
+     * @throws IOException if a remote or network exception occurs.
+     */
+    public void put(Transaction tx, Put put, boolean autoCommit) throws IOException {
 
         throwExceptionIfOpSetsTimerange(put);
 
@@ -337,23 +347,25 @@ public class TTable implements Closeable {
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
                 tsput.add(kv);
 
-                 byte[] conflictFree = put.getAttribute(CellUtils.CONFLICT_FREE_MUTATION);
+                if (autoCommit) {
+                    tsput.add(CellUtil.cloneFamily(kv),
+                            CellUtils.addShadowCellSuffix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
+                            kv.getTimestamp(),
+                            Bytes.toBytes(kv.getTimestamp()));
+                } else {
+                    byte[] conflictFree = put.getAttribute(CellUtils.CONFLICT_FREE_MUTATION);
+                    HBaseCellId cellId = new HBaseCellId(table,
+                            CellUtil.cloneRow(kv),
+                            CellUtil.cloneFamily(kv),
+                            CellUtil.cloneQualifier(kv),
+                            kv.getTimestamp());
 
-                 if (conflictFree != null && conflictFree[0]!=0) {
-                     transaction.addConflictFreeWriteSetElement(
-                             new HBaseCellId(table,
-                                     CellUtil.cloneRow(kv),
-                                     CellUtil.cloneFamily(kv),
-                                     CellUtil.cloneQualifier(kv),
-                                     kv.getTimestamp()));
-                 } else {
-                     transaction.addWriteSetElement(
-                             new HBaseCellId(table,
-                                     CellUtil.cloneRow(kv),
-                                     CellUtil.cloneFamily(kv),
-                                     CellUtil.cloneQualifier(kv),
-                                     kv.getTimestamp()));
-                 }
+                    if (conflictFree != null && conflictFree[0]!=0) {
+                        transaction.addConflictFreeWriteSetElement(cellId);
+                    } else {
+                        transaction.addWriteSetElement(cellId);
+                    }
+                }
             }
         }
 
