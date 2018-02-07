@@ -31,25 +31,31 @@ import java.util.Set;
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
 
-    public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
-        super(transactionId, epoch, writeSet, tm);
+    public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm) {
+        super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm);
     }
 
-    public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch, Set<HBaseCellId> writeSet, AbstractTransactionManager tm) {
-        super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, tm);
+    public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch, Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm) {
+        super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, tm);
     }
 
+    private void deleteCell(HBaseCellId cell) {
+        Delete delete = new Delete(cell.getRow());
+        delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
+        try {
+            cell.getTable().delete(delete);
+        } catch (IOException e) {
+            LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
+        }
+    }
     @Override
     public void cleanup() {
-        Set<HBaseCellId> writeSet = getWriteSet();
-        for (final HBaseCellId cell : writeSet) {
-            Delete delete = new Delete(cell.getRow());
-            delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
-            try {
-                cell.getTable().delete(delete);
-            } catch (IOException e) {
-                LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
-            }
+        for (final HBaseCellId cell : getWriteSet()) {
+            deleteCell(cell);
+        }
+
+        for (final HBaseCellId cell : getConflictFreeWriteSet()) {
+            deleteCell(cell);
         }
         try {
             flushTables();
@@ -77,6 +83,10 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private Set<HTableInterface> getWrittenTables() {
         HashSet<HBaseCellId> writeSet = (HashSet<HBaseCellId>) getWriteSet();
         Set<HTableInterface> tables = new HashSet<HTableInterface>();
+        for (HBaseCellId cell : writeSet) {
+            tables.add(cell.getTable());
+        }
+        writeSet = (HashSet<HBaseCellId>) getConflictFreeWriteSet();
         for (HBaseCellId cell : writeSet) {
             tables.add(cell.getTable());
         }

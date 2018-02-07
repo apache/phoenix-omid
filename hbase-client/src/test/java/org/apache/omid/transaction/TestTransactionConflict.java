@@ -300,4 +300,210 @@ public class TestTransactionConflict extends OmidTestBase {
         tm.commit(t1);
     }
 
+    @Test(timeOut = 10_000)
+    public void runTestWriteWriteConflictWithAdditionalConflictFreeWrites(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        Transaction t2 = tm.begin();
+        LOG.info("Transaction created" + t2);
+
+        byte[] row = Bytes.toBytes("test-simple");
+        byte[] fam = Bytes.toBytes(TEST_FAMILY);
+        byte[] col = Bytes.toBytes("testdata");
+        byte[] data1 = Bytes.toBytes("testWrite-1");
+        byte[] data2 = Bytes.toBytes("testWrite-2");
+
+        Put p = new Put(row);
+        p.add(fam, col, data1);
+        tt.put(t1, p);
+
+        Put p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.put(t2, p2);
+
+        row = Bytes.toBytes("test-simple-cf");
+        p = new Put(row);
+        p.add(fam, col, data1);
+        tt.markPutAsConflictFreeMutation(p);
+        tt.put(t1, p);
+
+        p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.markPutAsConflictFreeMutation(p2);
+        tt.put(t2, p2);
+
+        tm.commit(t2);
+
+        try {
+            tm.commit(t1);
+            fail("Transaction should not commit successfully");
+        } catch (RollbackException e) {
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestWriteWriteConflictFreeWrites(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        Transaction t2 = tm.begin();
+        LOG.info("Transaction created" + t2);
+
+        byte[] row = Bytes.toBytes("test-simple");
+        byte[] fam = Bytes.toBytes(TEST_FAMILY);
+        byte[] col = Bytes.toBytes("testdata");
+        byte[] data1 = Bytes.toBytes("testWrite-1");
+        byte[] data2 = Bytes.toBytes("testWrite-2");
+
+        Put p = new Put(row);
+        p.add(fam, col, data1);
+        tt.markPutAsConflictFreeMutation(p);
+        tt.put(t1, p);
+
+        Put p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.markPutAsConflictFreeMutation(p2);
+        tt.put(t2, p2);
+
+        row = Bytes.toBytes("test-simple-cf");
+        p = new Put(row);
+        p.add(fam, col, data1);
+        tt.markPutAsConflictFreeMutation(p);
+        tt.put(t1, p);
+
+        p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.markPutAsConflictFreeMutation(p2);
+        tt.put(t2, p2);
+
+        tm.commit(t2);
+
+        try {
+            tm.commit(t1);
+        } catch (RollbackException e) {
+            fail("Transaction should not commit successfully");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestWriteWriteConflictFreeWritesWithOtherWrites(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        Transaction t2 = tm.begin();
+        LOG.info("Transaction created" + t2);
+
+        byte[] row = Bytes.toBytes("test-simple");
+        byte[] row1 = Bytes.toBytes("test-simple-1");
+        byte[] fam = Bytes.toBytes(TEST_FAMILY);
+        byte[] col = Bytes.toBytes("testdata");
+        byte[] data1 = Bytes.toBytes("testWrite-1");
+        byte[] data2 = Bytes.toBytes("testWrite-2");
+
+        Put p = new Put(row);
+        p.add(fam, col, data1);
+        tt.put(t1, p);
+
+        Put p2 = new Put(row1);
+        p2.add(fam, col, data2);
+        tt.put(t2, p2);
+
+        row = Bytes.toBytes("test-simple-cf");
+        p = new Put(row);
+        p.add(fam, col, data1);
+        tt.markPutAsConflictFreeMutation(p);
+        tt.put(t1, p);
+
+        p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.markPutAsConflictFreeMutation(p2);
+        tt.put(t2, p2);
+
+        tm.commit(t2);
+
+        try {
+            tm.commit(t1);
+        } catch (RollbackException e) {
+            fail("Transaction should not commit successfully");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestCleanupConflictFreeWritesAfterConflict(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        Transaction t2 = tm.begin();
+        LOG.info("Transaction created" + t2);
+
+        byte[] row = Bytes.toBytes("test-simple");
+        byte[] row1 = Bytes.toBytes("test-simple-1");
+        byte[] fam = Bytes.toBytes(TEST_FAMILY);
+        byte[] col = Bytes.toBytes("testdata");
+        byte[] data1 = Bytes.toBytes("testWrite-1");
+        byte[] data2 = Bytes.toBytes("testWrite-2");
+
+        Put p = new Put(row);
+        p.add(fam, col, data1);
+        tt.put(t1, p);
+
+        Get g = new Get(row).setMaxVersions();
+        g.addColumn(fam, col);
+        Result r = tt.getHTable().get(g);
+        assertEquals(r.size(), 1, "Unexpected size for read.");
+        assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
+                   "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
+
+        Put p2 = new Put(row);
+        p2.add(fam, col, data2);
+        tt.put(t2, p2);
+
+        Put p3 = new Put(row1);
+        p3.add(fam, col, data2);
+        tt.markPutAsConflictFreeMutation(p3);
+        tt.put(t2, p3);
+
+        r = tt.getHTable().get(g);
+        assertEquals(r.size(), 2, "Unexpected size for read.");
+        r = tt.get(t2, g);
+        assertEquals(r.size(),1, "Unexpected size for read.");
+        assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
+                   "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
+
+        Get g1 = new Get(row1).setMaxVersions();
+        g1.addColumn(fam, col);
+        r = tt.getHTable().get(g1);
+        assertEquals(r.size(), 1, "Unexpected size for read.");
+
+        tm.commit(t1);
+
+        boolean aborted = false;
+        try {
+            tm.commit(t2);
+            fail("Transaction commited successfully");
+        } catch (RollbackException e) {
+            aborted = true;
+        }
+        assertTrue(aborted, "Transaction didn't raise exception");
+
+        r = tt.getHTable().get(g);
+        assertEquals(r.size(), 1, "Unexpected size for read.");
+        assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
+                   "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
+        r = tt.getHTable().get(g1);
+        assertEquals(r.size(), 0, "Unexpected size for read.");
+    }
 }
