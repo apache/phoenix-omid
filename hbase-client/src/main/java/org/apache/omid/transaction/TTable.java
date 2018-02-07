@@ -162,7 +162,7 @@ public class TTable implements Closeable {
 
         final long readTimestamp = transaction.getReadTimestamp();
         final Get tsget = new Get(get.getRow()).setFilter(get.getFilter());
-        updateAttributes(get, tsget);
+        propagateAttributes(get, tsget);
         TimeRange timeRange = get.getTimeRange();
         long startTime = timeRange.getMin();
         long endTime = Math.min(timeRange.getMax(), readTimestamp + 1);
@@ -187,7 +187,7 @@ public class TTable implements Closeable {
         return snapshotFilter.get(this, tsget, transaction);
     }
 
-    private void updateAttributes(OperationWithAttributes from, OperationWithAttributes to) {
+    private void propagateAttributes(OperationWithAttributes from, OperationWithAttributes to) {
         Map<String,byte[]> attributeMap = from.getAttributesMap();
 
         for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
@@ -241,8 +241,8 @@ public class TTable implements Closeable {
 
         final Put deleteP = new Put(delete.getRow(), writeTimestamp);
         final Get deleteG = new Get(delete.getRow());
-        updateAttributes(delete, deleteP);
-        updateAttributes(delete, deleteG);
+        propagateAttributes(delete, deleteP);
+        propagateAttributes(delete, deleteG);
         Map<byte[], List<Cell>> fmap = delete.getFamilyCellMap();
         if (fmap.isEmpty()) {
             familyQualifierBasedDeletion(transaction, deleteP, deleteG);
@@ -321,7 +321,7 @@ public class TTable implements Closeable {
 
         // create put with correct ts
         final Put tsput = new Put(put.getRow(), writeTimestamp);
-        updateAttributes(put, tsput);
+        propagateAttributes(put, tsput);
         Map<byte[], List<Cell>> kvs = put.getFamilyCellMap();
         for (List<Cell> kvl : kvs.values()) {
             for (Cell c : kvl) {
@@ -362,7 +362,7 @@ public class TTable implements Closeable {
         Scan tsscan = new Scan(scan);
         tsscan.setMaxVersions(1);
         tsscan.setTimeRange(0, transaction.getReadTimestamp() + 1);
-        updateAttributes(scan, tsscan);
+        propagateAttributes(scan, tsscan);
         Map<byte[], NavigableSet<byte[]>> kvs = scan.getFamilyMap();
         for (Map.Entry<byte[], NavigableSet<byte[]>> entry : kvs.entrySet()) {
             byte[] family = entry.getKey();
