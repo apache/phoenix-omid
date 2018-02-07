@@ -51,6 +51,21 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
         this.shadowCellsUpdateTimer = metrics.timer(name("omid", "tm", "hbase", "shadowCellsUpdate", "latency"));
     }
 
+    private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture) {
+        Put put = new Put(cell.getRow());
+        put.add(cell.getFamily(),
+                CellUtils.addShadowCellSuffix(cell.getQualifier(), 0, cell.getQualifier().length),
+                cell.getTimestamp(),
+                Bytes.toBytes(tx.getCommitTimestamp()));
+        try {
+            cell.getTable().put(put);
+        } catch (IOException e) {
+            LOG.warn("{}: Error inserting shadow cell {}", tx, cell, e);
+            updateSCFuture.setException(
+                    new TransactionManagerException(tx + ": Error inserting shadow cell " + cell, e));
+        }
+    }
+
     @Override
     public ListenableFuture<Void> updateShadowCells(AbstractTransaction<? extends CellId> transaction) {
 
@@ -63,18 +78,11 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
             // Add shadow cells
             for (HBaseCellId cell : tx.getWriteSet()) {
-                Put put = new Put(cell.getRow());
-                put.add(cell.getFamily(),
-                        CellUtils.addShadowCellSuffix(cell.getQualifier(), 0, cell.getQualifier().length),
-                        cell.getTimestamp(),
-                        Bytes.toBytes(tx.getCommitTimestamp()));
-                try {
-                    cell.getTable().put(put);
-                } catch (IOException e) {
-                    LOG.warn("{}: Error inserting shadow cell {}", tx, cell, e);
-                    updateSCFuture.setException(
-                            new TransactionManagerException(tx + ": Error inserting shadow cell " + cell, e));
-                }
+                addShadowCell(cell, tx, updateSCFuture);
+            }
+
+            for (HBaseCellId cell : tx.getConflictFreeWriteSet()) {
+                addShadowCell(cell, tx, updateSCFuture);
             }
 
             // Flush affected tables before returning to avoid loss of shadow cells updates when autoflush is disabled

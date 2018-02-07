@@ -304,6 +304,10 @@ public class TTable implements Closeable {
 
     }
 
+    public void markPutAsConflictFreeMutation(Put put) {
+        put.setAttribute(CellUtils.CONFLICT_FREE_MUTATION, Bytes.toBytes(true));
+    }
+
     /**
      * Transactional version of {@link HTableInterface#put(Put put)}
      *
@@ -333,12 +337,23 @@ public class TTable implements Closeable {
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
                 tsput.add(kv);
 
-                transaction.addWriteSetElement(
-                    new HBaseCellId(table,
-                                    CellUtil.cloneRow(kv),
-                                    CellUtil.cloneFamily(kv),
-                                    CellUtil.cloneQualifier(kv),
-                                    kv.getTimestamp()));
+                 byte[] conflictFree = put.getAttribute(CellUtils.CONFLICT_FREE_MUTATION);
+
+                 if (conflictFree != null && conflictFree[0]!=0) {
+                     transaction.addConflictFreeWriteSetElement(
+                             new HBaseCellId(table,
+                                     CellUtil.cloneRow(kv),
+                                     CellUtil.cloneFamily(kv),
+                                     CellUtil.cloneQualifier(kv),
+                                     kv.getTimestamp()));
+                 } else {
+                     transaction.addWriteSetElement(
+                             new HBaseCellId(table,
+                                     CellUtil.cloneRow(kv),
+                                     CellUtil.cloneFamily(kv),
+                                     CellUtil.cloneQualifier(kv),
+                                     kv.getTimestamp()));
+                 }
             }
         }
 
