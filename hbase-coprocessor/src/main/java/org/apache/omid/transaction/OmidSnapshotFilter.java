@@ -112,7 +112,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
             VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
             HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), null);
-            filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>());
+            filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>(), get.getAttributesMap());
         }
 
         for (Cell cell : filteredKeyValues) {
@@ -146,7 +146,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
         snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
 
-        return new OmidRegionScanner(snapshotFilter, s, hbaseTransaction, 1);
+        return new OmidRegionScanner(snapshotFilter, s, hbaseTransaction, 1, scan.getAttributesMap());
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
