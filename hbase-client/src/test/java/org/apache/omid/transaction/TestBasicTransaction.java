@@ -466,7 +466,7 @@ public class TestBasicTransaction extends OmidTestBase {
 
         row1 = new Put(rowName1);
         row1.add(famName1, colName1, dataValue1);
-        tt.putWithAutocommit(tx2, row1);
+        tt.put(tx2, row1, true);
 
         r = tt.get(tx3, g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
