@@ -65,7 +65,7 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
 
     @Override
     public List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-                                      int versionsToRequest, Map<String, List<Cell>> familyDeletionCache) throws IOException {
+                                      int versionsToRequest, Map<String, List<Cell>> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
         throw new UnsupportedOperationException();
     }
 
