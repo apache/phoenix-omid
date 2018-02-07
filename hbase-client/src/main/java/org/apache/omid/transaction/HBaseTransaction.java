@@ -39,7 +39,7 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, tm);
     }
 
-    private void cleanCell(HBaseCellId cell) {
+    private void deleteCell(HBaseCellId cell) {
         Delete delete = new Delete(cell.getRow());
         delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
         try {
@@ -51,11 +51,11 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     @Override
     public void cleanup() {
         for (final HBaseCellId cell : getWriteSet()) {
-            cleanCell(cell);
+            deleteCell(cell);
         }
 
         for (final HBaseCellId cell : getConflictFreeWriteSet()) {
-            cleanCell(cell);
+            deleteCell(cell);
         }
         try {
             flushTables();
