@@ -54,7 +54,6 @@ public class CompactorScanner implements InternalScanner {
     private static final Logger LOG = LoggerFactory.getLogger(CompactorScanner.class);
     private final InternalScanner internalScanner;
     private final CommitTable.Client commitTableClient;
-    private final Queue<CommitTable.Client> commitTableClientQueue;
     private final boolean isMajorCompaction;
     private final boolean retainNonTransactionallyDeletedCells;
     private final long lowWatermark;
@@ -67,12 +66,10 @@ public class CompactorScanner implements InternalScanner {
     public CompactorScanner(ObserverContext<RegionCoprocessorEnvironment> e,
                             InternalScanner internalScanner,
                             Client commitTableClient,
-                            Queue<CommitTable.Client> commitTableClientQueue,
                             boolean isMajorCompaction,
                             boolean preserveNonTransactionallyDeletedCells) throws IOException {
         this.internalScanner = internalScanner;
         this.commitTableClient = commitTableClient;
-        this.commitTableClientQueue = commitTableClientQueue;
         this.isMajorCompaction = isMajorCompaction;
         this.retainNonTransactionallyDeletedCells = preserveNonTransactionallyDeletedCells;
         this.lowWatermark = getLowWatermarkFromCommitTable();
@@ -182,7 +179,7 @@ public class CompactorScanner implements InternalScanner {
     @Override
     public void close() throws IOException {
         internalScanner.close();
-        commitTableClientQueue.add(commitTableClient);
+        commitTableClient.close(); // Ensure we free the resources that the HBase impl use (executor threads, etc...)
     }
 
     // ----------------------------------------------------------------------------------------------------------------

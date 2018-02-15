@@ -60,6 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -108,7 +109,7 @@ public class TestCompaction {
     private PostCommitActions syncPostCommitter;
 
     @BeforeClass
-    public void setupTestCompation() throws Exception {
+    public void setupTestCompaction() throws Exception {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setPort(1234);
         tsoConfig.setConflictMapSize(1);
@@ -227,25 +228,10 @@ public class TestCompaction {
             tm.commit(tx);
         }
 
-        LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
-
-        // Return a LWM that triggers compaction & stays between 1 and the max start timestamp assigned to previous TXs
-        LOG.info("Regions in table {}: {}", TEST_TABLE, hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).size());
-        OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).get(0)
-                .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());
-        CommitTable commitTable = injector.getInstance(CommitTable.class);
-        CommitTable.Client commitTableClient = spy(commitTable.getClient());
+        // Compact with a LWM that triggers compaction & stays between 1 and the max start TS assigned to previous TXs
         SettableFuture<Long> f = SettableFuture.create();
         f.set(fakeAssignedLowWatermark);
-        doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
-        LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
-
-        LOG.info("Sleeping for 3 secs");
-        Thread.sleep(3000);
-        LOG.info("Waking up after 3 secs");
+        compactWithLWM(f, TEST_TABLE);
 
         // No rows should have been discarded after compacting
         assertEquals(rowCount(TEST_TABLE, fam), ROWS_TO_ADD, "Rows in table after compacting should be " + ROWS_TO_ADD);
@@ -281,26 +267,8 @@ public class TestCompaction {
                                             new TTableCellGetterAdapter(txTable)),
                     "Shadow cell should not be there");
 
-        // Return a LWM that triggers compaction and has all the possible start timestamps below it
-        LOG.info("Regions in table {}: {}", TEST_TABLE, hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).size());
-        OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).get(0)
-                .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());
-        CommitTable commitTable = injector.getInstance(CommitTable.class);
-        CommitTable.Client commitTableClient = spy(commitTable.getClient());
-        SettableFuture<Long> f = SettableFuture.create();
-        f.set(Long.MAX_VALUE);
-        doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
-
-        LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
-
-        LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
-
-        LOG.info("Sleeping for 3 secs");
-        Thread.sleep(3000);
-        LOG.info("Waking up after 3 secs");
+        // Compact with a LWM that triggers compaction and has all the possible start timestamps below it
+        compactEverything(TEST_TABLE);
 
         assertTrue(CellUtils.hasCell(Bytes.toBytes(row), fam, qual, problematicTx.getStartTimestamp(),
                                      new TTableCellGetterAdapter(txTable)),
@@ -347,25 +315,11 @@ public class TestCompaction {
 
         assertEquals(rowCount(TEST_TABLE, fam), 2, "Rows in table before flushing should be 2");
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
-        assertEquals(rowCount(TEST_TABLE, fam), 2, "Rows in table after flushing should be 2");
 
-        // Return a LWM that triggers compaction and stays between both ST of TXs, so assign 1st TX's start timestamp
-        LOG.info("Regions in table {}: {}", TEST_TABLE, hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).size());
-        OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).get(0)
-                .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());
-        CommitTable commitTable = injector.getInstance(CommitTable.class);
-        CommitTable.Client commitTableClient = spy(commitTable.getClient());
+        // Compact with a LWM that triggers compaction and stays between both ST of TXs, so assign 1st TX's start timestamp
         SettableFuture<Long> f = SettableFuture.create();
         f.set(neverendingTxBelowLowWatermark.getStartTimestamp());
-        doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
-        LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
-
-        LOG.info("Sleeping for 3 secs");
-        Thread.sleep(3000);
-        LOG.info("Waking up after 3 secs");
+        compactWithLWM(f, TEST_TABLE);
 
         // One row should have been discarded after compacting
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one row in table after compacting");
@@ -412,22 +366,9 @@ public class TestCompaction {
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one rows in table after flushing");
 
         // Break access to CommitTable functionality in Compactor
-        LOG.info("Regions in table {}: {}", TEST_TABLE, hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).size());
-        OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).get(0)
-                .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());
-        CommitTable commitTable = injector.getInstance(CommitTable.class);
-        CommitTable.Client commitTableClient = spy(commitTable.getClient());
         SettableFuture<Long> f = SettableFuture.create();
         f.setException(new IOException("Unable to read"));
-        doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
-
-        LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE); // Should trigger the error when accessing CommitTable funct.
-
-        LOG.info("Sleeping for 3 secs");
-        Thread.sleep(3000);
-        LOG.info("Waking up after 3 secs");
+        setCompactorLWM(f, TEST_TABLE);
 
         // All rows should be there after the failed compaction
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one row in table after compacting");
@@ -542,7 +483,9 @@ public class TestCompaction {
 
         // Compact
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         // After compaction, only the last value for the cell should have survived
         assertFalse(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -701,9 +644,11 @@ public class TestCompaction {
         manualFlush(TEST_TABLE);
 
         // trigger minor compaction and give it time to run
-        setCompactorLWM(tx4.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(tx4.getStartTimestamp());
+        setCompactorLWM(f, TEST_TABLE);
         admin.compact(TEST_TABLE);
-        Thread.sleep(3000);
+        TimeUnit.SECONDS.sleep(3);
 
         // check if the cell that should be compacted, is compacted
         assertFalse(CellUtils.hasCell(rowToBeCompactedAway, fam, qual, tx1.getStartTimestamp(),
@@ -778,7 +723,9 @@ public class TestCompaction {
 
         // Trigger a major compaction
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         // Then perform a non-tx (raw) scan...
         Scan scan = new Scan();
@@ -847,7 +794,9 @@ public class TestCompaction {
 
         // Trigger the minor compaction
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        setCompactorLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        setCompactorLWM(f, TEST_TABLE);
         admin.compact(TEST_TABLE);
         Thread.sleep(5000);
 
@@ -928,7 +877,9 @@ public class TestCompaction {
 
         // Trigger the minor compaction
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        setCompactorLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        setCompactorLWM(f, TEST_TABLE);
         admin.compact(TEST_TABLE);
         Thread.sleep(5000);
 
@@ -968,7 +919,9 @@ public class TestCompaction {
         tm.commit(tx1);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        setCompactorLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        setCompactorLWM(f, TEST_TABLE);
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
@@ -1010,7 +963,9 @@ public class TestCompaction {
         tm.commit(tx2);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
         assertFalse(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -1046,7 +1001,9 @@ public class TestCompaction {
         txTable.delete(tx2, d);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
         assertTrue(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -1082,7 +1039,9 @@ public class TestCompaction {
         Delete d = new Delete(rowId);
         d.deleteColumn(fam, qual);
         txTable.delete(tx2, d);
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
         assertTrue(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -1112,7 +1071,9 @@ public class TestCompaction {
         tm.commit(tx1);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
         assertFalse(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -1144,7 +1105,9 @@ public class TestCompaction {
         tm.commit(tx2);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
-        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+        SettableFuture<Long> f = SettableFuture.create();
+        f.set(lwmTx.getStartTimestamp());
+        compactWithLWM(f, TEST_TABLE);
 
         TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
         assertFalse(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
@@ -1157,32 +1120,47 @@ public class TestCompaction {
                    "Put shadow cell shouldn't be there");
     }
 
-    private void setCompactorLWM(long lwm, String tableName) throws Exception {
+    private void setCompactorLWM(SettableFuture<Long> lwmFuture, String tableName) throws Exception {
         OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(tableName)).get(0)
                 .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());
         CommitTable commitTable = injector.getInstance(CommitTable.class);
-        CommitTable.Client commitTableClient = spy(commitTable.getClient());
-        SettableFuture<Long> f = SettableFuture.create();
-        f.set(lwm);
-        doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
+        final CommitTable.Client commitTableClient = spy(commitTable.getClient());
+        doReturn(lwmFuture).when(commitTableClient).readLowWatermark();
+        omidCompactor.commitTableClientFactory = new OmidCompactor.CommitTableClientFactory() {
+            @Override
+            public CommitTable.Client getCommitTableClient() throws IOException {
+                return commitTableClient;
+            }
+        };
+
     }
 
     private void compactEverything(String tableName) throws Exception {
-        compactWithLWM(Long.MAX_VALUE, tableName);
+        final SettableFuture<Long> f = SettableFuture.<Long>create();
+        f.set(Long.MAX_VALUE); // Set the largest possible value to compact everything
+        compactWithLWM(f, tableName);
     }
 
-    private void compactWithLWM(long lwm, String tableName) throws Exception {
+    private void compactWithLWM(final SettableFuture<Long> lwmFuture, String tableName) throws Exception {
+
+        LOG.info("--------------------------------------------------------------------------------------------------");
+        LOG.info("Compacting table {}", tableName);
+        LOG.info("--------------------------------------------------------------------------------------------------");
+
+        LOG.info("1/3) Flushing table {}", tableName);
         admin.flush(tableName);
 
-        LOG.info("Regions in table {}: {}", tableName, hbaseCluster.getRegions(Bytes.toBytes(tableName)).size());
-        setCompactorLWM(lwm, tableName);
-        LOG.info("Compacting table {}", tableName);
+        LOG.info("2/3) Compacting {} regions in table {}", hbaseCluster.getRegions(Bytes.toBytes(tableName)).size(), tableName);
+        setCompactorLWM(lwmFuture, tableName);
         admin.majorCompact(tableName);
 
-        LOG.info("Sleeping for 3 secs");
-        Thread.sleep(3000);
-        LOG.info("Waking up after 3 secs");
+        LOG.info("3/3) Sleeping for 3 secs after compacting table {}", tableName);
+        TimeUnit.SECONDS.sleep(3);
+
+        LOG.info("--------------------------------------------------------------------------------------------------");
+        LOG.info(" End compaction for table {}", tableName);
+        LOG.info("--------------------------------------------------------------------------------------------------");
+
     }
 
     private long rowCount(String tableName, byte[] family) throws Throwable {
