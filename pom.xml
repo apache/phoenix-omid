@@ -464,7 +464,6 @@
                 <artifactId>apache-rat-plugin</artifactId>
                 <configuration>
                     <excludes>
-                        <exclude>**/*.md</exclude>
                         <exclude>**/*.yml</exclude>
                         <exclude>**/*.properties</exclude>
                         <exclude>**/hbase-site.xml</exclude>
@@ -512,6 +511,31 @@
             <build>
 
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.rat</groupId>
+                        <artifactId>apache-rat-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/*.yml</exclude>
+                                <exclude>**/*.properties</exclude>
+                                <exclude>**/hbase-site.xml</exclude>
+                                <exclude>**/test-output/**</exclude>
+                                <exclude>bintray-settings.xml</exclude>
+                                <exclude>doc/site/site.xml</exclude>
+                                <exclude>doc/images/ModuleDependencies.graffle</exclude>
+                                <exclude>misc/findbugs-exclude.xml</exclude>
+                                <exclude>misc/omid_checks.xml</exclude>
+                           </excludes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                       </executions>
+                    </plugin>
 
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
