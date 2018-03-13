@@ -322,10 +322,11 @@ public class TTable implements Closeable {
 
     /**
      * @param put an instance of Put
-     * @param timestamp  timestamp to be used for autocommit
+     * @param timestamp  timestamp to be used as cells version
+     * @param commitTimestamp  timestamp to be used as commit timestamp
      * @throws IOException if a remote or network exception occurs.
      */
-    static public Put MarkPutAsCommitted(Put put, long timestamp, long commitTimestamp) throws IOException {
+    static public Put markPutAsCommitted(Put put, long timestamp, long commitTimestamp) throws IOException {
         final Put tsput = new Put(put.getRow(), timestamp);
         propagateAttributes(put, tsput);
 

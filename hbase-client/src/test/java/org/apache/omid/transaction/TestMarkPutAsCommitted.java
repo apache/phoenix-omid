@@ -62,12 +62,11 @@ public class TestMarkPutAsCommitted extends OmidTestBase {
         Put put = new Put(row);
         put.add(family, qualifier, data1);
         
-        put = TTable.MarkPutAsCommitted(put, t1.getWriteTimestamp(), t1.getWriteTimestamp());
+        put = TTable.markPutAsCommitted(put, t1.getWriteTimestamp(), t1.getWriteTimestamp());
       
         table.getHTable().put(put);
-        //table.put(t1, put);
 
-        // After commit test that both cell and shadow cell are there
+        // After markPutAsCommitted test that both cell and shadow cell are there
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
         assertTrue(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
@@ -108,12 +107,12 @@ public class TestMarkPutAsCommitted extends OmidTestBase {
 
         Put put1 = new Put(row);
         put1.add(family, qualifier, data2);
-        
-        put1 = TTable.MarkPutAsCommitted(put1, t3.getWriteTimestamp(), t3.getWriteTimestamp());
-      
-        table.getHTable().put(put1);
 
-        // After MarkPutAsCommitted commit test that both cell and shadow cell are there
+        put1 = TTable.markPutAsCommitted(put1, t3.getWriteTimestamp(), t3.getWriteTimestamp());
+
+       table.getHTable().put(put1);
+
+        // After markPutAsCommitted test that both cell and shadow cell are there
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
         assertTrue(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
