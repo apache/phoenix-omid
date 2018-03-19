@@ -62,7 +62,7 @@ public class TSOServer extends AbstractIdleService {
 
     // ----------------------------------------------------------------------------------------------------------------
 
-    static TSOServer getInitializedTsoServer(TSOServerConfig config) throws IOException {
+    public static TSOServer getInitializedTsoServer(TSOServerConfig config) throws IOException {
         LOG.info("Configuring TSO Server...");
         Injector injector = Guice.createInjector(buildModuleList(config));
         LOG.info("TSO Server configured. Creating instance...");
