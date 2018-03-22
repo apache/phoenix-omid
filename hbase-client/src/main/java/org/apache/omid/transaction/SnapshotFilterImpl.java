@@ -85,6 +85,10 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         this.tableAccessWrapper = tableAccessWrapper;
     }
 
+    void setCommitTableClient(CommitTable.Client commitTableClient) {
+        this.commitTableClient = commitTableClient;
+    }
+
     /**
      * Check whether a cell was deleted using family deletion marker
      *

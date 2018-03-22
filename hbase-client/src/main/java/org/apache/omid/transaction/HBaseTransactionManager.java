@@ -75,7 +75,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         return builder(configuration).build();
     }
 
-    @VisibleForTesting
+
     public static class Builder {
 
         // Required parameters
@@ -90,7 +90,9 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             this.hbaseOmidClientConf = hbaseOmidClientConf;
         }
 
-        public Builder tsoClient(TSOProtocol tsoClient) {
+
+        public Builder tsoClient(TSOClient tsoClient) {
+
             this.tsoClient = Optional.of(tsoClient);
             return this;
         }
@@ -153,7 +155,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
     }
 
-    @VisibleForTesting
+
     public static Builder builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
         return new Builder(hbaseOmidClientConf);
     }

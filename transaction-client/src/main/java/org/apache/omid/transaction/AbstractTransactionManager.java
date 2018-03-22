@@ -243,7 +243,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
             commitTimer.start();
             try {
-                if (tx.getWriteSet().isEmpty()) {
+                if (tx.getWriteSet().isEmpty() && tx.getConflictFreeWriteSet().isEmpty()) {
                     markReadOnlyTransaction(tx); // No need for read-only transactions to contact the TSO Server
                 } else {
                     commitRegularTransaction(tx);
