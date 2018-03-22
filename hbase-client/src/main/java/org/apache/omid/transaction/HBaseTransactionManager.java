@@ -227,6 +227,10 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
     }
 
+    public void setConflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
+        tsoClient.setConflictDetectionLevel(conflictDetectionLevel);
+    }
+
     public ConflictDetectionLevel getConflictDetectionLevel() {
         return tsoClient.getConflictDetectionLevel();
     }
