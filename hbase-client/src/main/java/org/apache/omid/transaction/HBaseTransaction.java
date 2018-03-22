@@ -35,6 +35,10 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm);
     }
 
+    public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm, long readTimestamp, long writeTimestamp) {
+        super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm, readTimestamp, writeTimestamp);
+    }
+
     public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch, Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm) {
         super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, tm);
     }

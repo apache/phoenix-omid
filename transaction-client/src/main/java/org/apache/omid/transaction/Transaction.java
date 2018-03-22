@@ -47,6 +47,19 @@ public interface Transaction {
     Status getStatus();
 
     /**
+     * Returns the read timestamp for this transaction.
+     * @return read timestamp
+     */
+    long getReadTimestamp();
+
+    /**
+     * Returns the write timestamp for this transaction.
+     * @return write timestamp
+     */
+
+    long getWriteTimestamp();
+
+    /**
      * Forces the transaction to rollback, even when there's an intention
      * to commit it.
      */

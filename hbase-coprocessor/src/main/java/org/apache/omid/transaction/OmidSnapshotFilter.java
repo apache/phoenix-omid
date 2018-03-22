@@ -25,6 +25,7 @@ import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.HBaseShims;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
@@ -37,6 +38,7 @@ import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +70,11 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         LOG.info("Compactor coprocessor initialized via empty constructor");
     }
 
+    public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
+        LOG.info("Compactor coprocessor initialized with constructor for testing");
+        this.commitTableClient = commitTableClient;
+    }
+
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
         LOG.info("Starting snapshot filter coprocessor");
@@ -77,8 +84,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
-        commitTableClient = initAndGetCommitTableClient();
-        
+        if (commitTableClient == null) {
+            commitTableClient = initAndGetCommitTableClient();
+        }
         snapshotFilter = new SnapshotFilterImpl(commitTableClient);
         
         LOG.info("Snapshot filter started");
@@ -89,6 +97,11 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         LOG.info("Stopping snapshot filter coprocessor");
         commitTableClient.close();
         LOG.info("Snapshot filter stopped");
+    }
+
+    public void setCommitTableClient(CommitTable.Client commitTableClient) {
+        this.commitTableClient = commitTableClient;
+        this.snapshotFilter.setCommitTableClient(commitTableClient);
     }
 
     @Override
