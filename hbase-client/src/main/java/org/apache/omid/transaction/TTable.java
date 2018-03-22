@@ -193,7 +193,7 @@ public class TTable implements Closeable {
         return snapshotFilter.get(this, tsget, transaction);
     }
 
-    private void propagateAttributes(OperationWithAttributes from, OperationWithAttributes to) {
+    static private void propagateAttributes(OperationWithAttributes from, OperationWithAttributes to) {
         Map<String,byte[]> attributeMap = from.getAttributesMap();
 
         for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
@@ -327,6 +327,34 @@ public class TTable implements Closeable {
     public void put(Transaction tx, Put put) throws IOException {
         put(tx, put, false);
     }
+
+
+    /**
+     * @param put an instance of Put
+     * @param timestamp  timestamp to be used as cells version
+     * @param commitTimestamp  timestamp to be used as commit timestamp
+     * @throws IOException if a remote or network exception occurs.
+     */
+    static public Put markPutAsCommitted(Put put, long timestamp, long commitTimestamp) throws IOException {
+        final Put tsput = new Put(put.getRow(), timestamp);
+        propagateAttributes(put, tsput);
+
+        Map<byte[], List<Cell>> kvs = put.getFamilyCellMap();
+        for (List<Cell> kvl : kvs.values()) {
+            for (Cell c : kvl) {
+                KeyValue kv = KeyValueUtil.ensureKeyValue(c);
+                Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), timestamp);
+                tsput.add(kv);
+                tsput.add(CellUtil.cloneFamily(kv),
+                        CellUtils.addShadowCellSuffix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
+                        kv.getTimestamp(),
+                        Bytes.toBytes(commitTimestamp));
+            }
+        }
+
+        return tsput;
+    }
+
 
     /**
      * @param put an instance of Put
