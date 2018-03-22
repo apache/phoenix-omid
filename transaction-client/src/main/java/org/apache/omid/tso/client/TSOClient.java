@@ -307,6 +307,13 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         return conflictDetectionLevel;
     }
 
+    /**
+     * Used for family deletion testing
+     */
+    public void setConflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
+        this.conflictDetectionLevel = conflictDetectionLevel;
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // NodeCacheListener interface
     // ----------------------------------------------------------------------------------------------------------------

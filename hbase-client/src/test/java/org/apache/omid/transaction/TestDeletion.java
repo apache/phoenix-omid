@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -95,7 +96,87 @@ public class TestDeletion extends OmidTestBase {
         count = countColsInRows(rs, famColA, famColB);
         assertEquals((int) count.get(famColA), (rowsWritten - 1), "ColA count should be equal to rowsWritten - 1");
         assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
+    }
 
+    @Test(timeOut = 10_000)
+    public void runTestDeleteFamilyRowLevelCA(ITestContext context) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        int rowsWritten = 10;
+        FamCol famColA = new FamCol(famA, colA);
+        FamCol famColB = new FamCol(famB, colB);
+        writeRows(tt, t1, rowsWritten, famColA, famColB);
+        tm.commit(t1);
+
+        Transaction t2 = tm.begin();
+        Delete d = new Delete(modrow);
+        d.deleteFamily(famA);
+        tt.delete(t2, d);
+
+        Transaction tscan = tm.begin();
+        ResultScanner rs = tt.getScanner(tscan, new Scan());
+
+        Map<FamCol, Integer> count = countColsInRows(rs, famColA, famColB);
+        assertEquals((int) count.get(famColA), rowsWritten, "ColA count should be equal to rowsWritten");
+        assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
+        tm.commit(t2);
+
+        tscan = tm.begin();
+        rs = tt.getScanner(tscan, new Scan());
+
+        count = countColsInRows(rs, famColA, famColB);
+        assertEquals((int) count.get(famColA), (rowsWritten - 1), "ColA count should be equal to rowsWritten - 1");
+        assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestDeleteFamilyAborts(ITestContext context) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        int rowsWritten = 10;
+        FamCol famColA = new FamCol(famA, colA);
+        FamCol famColB = new FamCol(famB, colB);
+        writeRows(tt, t1, rowsWritten, famColA, famColB);
+
+        Transaction t2 = tm.begin();
+
+        tm.commit(t1);
+
+        Delete d = new Delete(modrow);
+        d.deleteFamily(famA);
+        tt.delete(t2, d);
+
+        try {
+            tm.commit(t2);
+        } catch(RollbackException e) {
+            System.out.println("Rollback");
+            System.out.flush();
+        }
+
+        Transaction tscan = tm.begin();
+        ResultScanner rs = tt.getScanner(tscan, new Scan());
+
+        Map<FamCol, Integer> count = countColsInRows(rs, famColA, famColB);
+        assertEquals((int) count.get(famColA), rowsWritten, "ColA count should be equal to rowsWritten");
+        assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
     }
 
     @Test(timeOut = 10_000)
