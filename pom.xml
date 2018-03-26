@@ -551,6 +551,9 @@
 
         <profile>
             <id>hbase-1</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <hbase.version>${hbase1.version}</hbase.version>
             </properties>
