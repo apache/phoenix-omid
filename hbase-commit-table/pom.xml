@@ -19,7 +19,7 @@
     <parent>
         <groupId>org.apache.omid</groupId>
         <artifactId>omid</artifactId>
-        <version>0.9.0.0-SNAPSHOT</version>
+        <version>0.9.0.0</version>
     </parent>
 
     <artifactId>omid-hbase-commit-table</artifactId>
