@@ -57,6 +57,8 @@ public class OmidCompactor extends BaseRegionObserver {
 
     final static String OMID_COMPACTABLE_CF_FLAG = "OMID_ENABLED";
 
+    private boolean enableCompactorForAllFamilies = false;
+
     private HBaseCommitTableConfig commitTableConf = null;
     private Configuration conf = null;
     @VisibleForTesting
@@ -70,7 +72,12 @@ public class OmidCompactor extends BaseRegionObserver {
     private boolean retainNonTransactionallyDeletedCells;
 
     public OmidCompactor() {
-        LOG.info("Compactor coprocessor initialized via empty constructor");
+        this(false);
+    }
+
+    public OmidCompactor(boolean enableCompactorForAllFamilies) {
+        LOG.info("Compactor coprocessor initialized");
+        this.enableCompactorForAllFamilies = enableCompactorForAllFamilies;
     }
 
     @Override
@@ -106,10 +113,18 @@ public class OmidCompactor extends BaseRegionObserver {
                                       ScanType scanType,
                                       CompactionRequest request) throws IOException {
 
-        HTableDescriptor desc = e.getEnvironment().getRegion().getTableDesc();
-        HColumnDescriptor famDesc = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
-        boolean omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
-        // only column families tagged as compactable are compacted with omid compactor
+        boolean omidCompactable;
+        if (enableCompactorForAllFamilies) {
+            omidCompactable = true;
+        } else {
+            HTableDescriptor desc = e.getEnvironment().getRegion().getTableDesc();
+            HColumnDescriptor famDesc
+            = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
+            omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
+        }
+
+        // only column families tagged as compactable are compacted
+        // with omid compactor
         if (!omidCompactable) {
             return scanner;
         } else {
