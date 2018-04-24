@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.Enumeration;
 
 public class NetworkUtils {
@@ -36,11 +37,14 @@ public class NetworkUtils {
         try {
             Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
             while (networkInterfaces.hasMoreElements()) {
-                String name = networkInterfaces.nextElement().getDisplayName();
+                NetworkInterface nextElement = networkInterfaces.nextElement();
+                String name = nextElement.getDisplayName();
                 LOG.info("Iterating over network interfaces, found '{}'", name);
-                if (name.startsWith(MAC_TSO_NET_IFACE_PREFIX) || name.startsWith(LINUX_TSO_NET_IFACE_PREFIX)) {
-                    return name;
-                }
+                boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 1; // Checking that inet exists, to avoid taking iBridge
+                if ((name.startsWith(MAC_TSO_NET_IFACE_PREFIX) && hasInet ) ||
+                        name.startsWith(LINUX_TSO_NET_IFACE_PREFIX)) {
+                  return name;
+              }
             }
         } catch (SocketException ignored) {
             throw new RuntimeException("Failed to find any network interfaces", ignored);
