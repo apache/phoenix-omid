@@ -18,11 +18,13 @@
 package org.apache.omid.transaction;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
+import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
@@ -108,37 +110,43 @@ public class OmidCompactor extends BaseRegionObserver {
     }
 
     @Override
-    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> e,
+    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
                                       Store store,
                                       InternalScanner scanner,
                                       ScanType scanType,
                                       CompactionRequest request) throws IOException {
         boolean omidCompactable;
-        if (enableCompactorForAllFamilies) {
-            omidCompactable = true;
-        } else {
-            HTableDescriptor desc = e.getEnvironment().getRegion().getTableDesc();
-            HColumnDescriptor famDesc
-            = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
-            omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
-        }
-
-        // only column families tagged as compactable are compacted
-        // with omid compactor
-        if (!omidCompactable) {
-            return scanner;
-        } else {
-            CommitTable.Client commitTableClient = commitTableClientQueue.poll();
-            if (commitTableClient == null) {
-                commitTableClient = initAndGetCommitTableClient();
+        try {
+            if (enableCompactorForAllFamilies) {
+                omidCompactable = true;
+            } else {
+                HTableDescriptor desc = env.getEnvironment().getRegion().getTableDesc();
+                HColumnDescriptor famDesc
+                = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
+                omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
             }
-            boolean isMajorCompaction = request.isMajor();
-            return new CompactorScanner(e,
-                    scanner,
-                    commitTableClient,
-                    commitTableClientQueue,
-                    isMajorCompaction,
-                    retainNonTransactionallyDeletedCells);
+
+            // only column families tagged as compactable are compacted
+            // with omid compactor
+            if (!omidCompactable) {
+                return scanner;
+            } else {
+                CommitTable.Client commitTableClient = commitTableClientQueue.poll();
+                if (commitTableClient == null) {
+                    commitTableClient = initAndGetCommitTableClient();
+                }
+                boolean isMajorCompaction = request.isMajor();
+                return new CompactorScanner(env,
+                        scanner,
+                        commitTableClient,
+                        commitTableClientQueue,
+                        isMajorCompaction,
+                        retainNonTransactionallyDeletedCells);
+            }
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DoNotRetryIOException(e);
         }
     }
 
