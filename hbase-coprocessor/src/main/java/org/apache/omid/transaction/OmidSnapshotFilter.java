@@ -25,10 +25,10 @@ import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.HBaseShims;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
+import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
@@ -38,7 +38,6 @@ import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,32 +108,37 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
         if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
 
-        get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, null);
-        RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(c.getEnvironment()));
-        Result res = regionAccessWrapper.get(get); // get parameters were set at the client side
+        try {
+            get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, null);
+            RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(c.getEnvironment()));
+            Result res = regionAccessWrapper.get(get); // get parameters were set at the client side
 
-        snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
+            snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
 
-        List<Cell> filteredKeyValues = Collections.emptyList();
-        if (!res.isEmpty()) {
-            TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+            List<Cell> filteredKeyValues = Collections.emptyList();
+            if (!res.isEmpty()) {
+                TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
 
-            long id = transaction.getTimestamp();
-            long readTs = transaction.getReadTimestamp();
-            long epoch = transaction.getEpoch();
-            VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
+                long id = transaction.getTimestamp();
+                long readTs = transaction.getReadTimestamp();
+                long epoch = transaction.getEpoch();
+                VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
 
-            HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
-            filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>(), get.getAttributesMap());
+                HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
+                filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, List<Cell>>(), get.getAttributesMap());
+            }
+
+            for (Cell cell : filteredKeyValues) {
+                result.add(cell);
+            }
+
+            c.bypass();
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DoNotRetryIOException(e);
         }
-
-        for (Cell cell : filteredKeyValues) {
-            result.add(cell);
-        }
-
-        c.bypass();
-
     }
 
     @Override
