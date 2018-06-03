@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScannerContext;
@@ -111,21 +112,27 @@ public class OmidRegionScanner implements RegionScanner {
     }
 
     public boolean nextRaw(List<Cell> result, int limit) throws IOException {
-        List<Cell> filteredResult = new ArrayList<Cell>();
-        while (filteredResult.isEmpty()) {
-            scanner.nextRaw(filteredResult);
-            if (filteredResult.isEmpty()) {
-                return false;
+        try {
+            List<Cell> filteredResult = new ArrayList<Cell>();
+            while (filteredResult.isEmpty()) {
+                scanner.nextRaw(filteredResult);
+                if (filteredResult.isEmpty()) {
+                    return false;
+                }
+
+                filteredResult = snapshotFilter.filterCellsForSnapshot(filteredResult, transaction, maxVersions, familyDeletionCache, attributeMap);
             }
 
-            filteredResult = snapshotFilter.filterCellsForSnapshot(filteredResult, transaction, maxVersions, familyDeletionCache, attributeMap);
-        }
+            for (Cell cell : filteredResult) {
+                result.add(cell);
+            }
 
-        for (Cell cell : filteredResult) {
-            result.add(cell);
+            return true;
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DoNotRetryIOException(e);
         }
-
-        return true;
     }
 
 }
