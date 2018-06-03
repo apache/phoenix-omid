@@ -42,10 +42,10 @@ public class TestMockTSOClient {
         long tr1 = client.getNewStartTimestamp().get();
         long tr2 = client.getNewStartTimestamp().get();
 
-        client.commit(tr1, Sets.newHashSet(c1)).get();
+        client.commit(tr1, Sets.newHashSet(c1), null).get();
 
         try {
-            client.commit(tr2, Sets.newHashSet(c1, c2)).get();
+            client.commit(tr2, Sets.newHashSet(c1, c2), null).get();
             fail("Shouldn't have committed");
         } catch (ExecutionException ee) {
             assertEquals(ee.getCause().getClass(), AbortException.class, "Should have aborted");
@@ -59,12 +59,12 @@ public class TestMockTSOClient {
         CommitTable.Client commitTableClient = commitTable.getClient();
 
         long tr1 = client.getNewStartTimestamp().get();
-        client.commit(tr1, Sets.newHashSet(c1)).get();
+        client.commit(tr1, Sets.newHashSet(c1), null).get();
 
         long initWatermark = commitTableClient.readLowWatermark().get();
 
         long tr2 = client.getNewStartTimestamp().get();
-        client.commit(tr2, Sets.newHashSet(c1)).get();
+        client.commit(tr2, Sets.newHashSet(c1), null).get();
 
         long newWatermark = commitTableClient.readLowWatermark().get();
         assertTrue(newWatermark > initWatermark, "new low watermark should be bigger");
