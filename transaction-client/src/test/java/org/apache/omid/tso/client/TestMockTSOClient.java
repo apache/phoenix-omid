@@ -18,11 +18,13 @@
 package org.apache.omid.tso.client;
 
 import com.google.common.collect.Sets;
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.InMemoryCommitTable;
 import org.apache.omid.tso.util.DummyCellIdImpl;
 import org.testng.annotations.Test;
 
+import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 
 import static org.testng.Assert.assertEquals;
@@ -42,10 +44,10 @@ public class TestMockTSOClient {
         long tr1 = client.getNewStartTimestamp().get();
         long tr2 = client.getNewStartTimestamp().get();
 
-        client.commit(tr1, Sets.newHashSet(c1), null).get();
+        client.commit(tr1, Sets.newHashSet(c1), new HashSet<CellId>()).get();
 
         try {
-            client.commit(tr2, Sets.newHashSet(c1, c2), null).get();
+            client.commit(tr2, Sets.newHashSet(c1, c2), new HashSet<CellId>()).get();
             fail("Shouldn't have committed");
         } catch (ExecutionException ee) {
             assertEquals(ee.getCause().getClass(), AbortException.class, "Should have aborted");
@@ -59,12 +61,12 @@ public class TestMockTSOClient {
         CommitTable.Client commitTableClient = commitTable.getClient();
 
         long tr1 = client.getNewStartTimestamp().get();
-        client.commit(tr1, Sets.newHashSet(c1), null).get();
+        client.commit(tr1, Sets.newHashSet(c1), new HashSet<CellId>()).get();
 
         long initWatermark = commitTableClient.readLowWatermark().get();
 
         long tr2 = client.getNewStartTimestamp().get();
-        client.commit(tr2, Sets.newHashSet(c1), null).get();
+        client.commit(tr2, Sets.newHashSet(c1), new HashSet<CellId>()).get();
 
         long newWatermark = commitTableClient.readLowWatermark().get();
         assertTrue(newWatermark > initWatermark, "new low watermark should be bigger");

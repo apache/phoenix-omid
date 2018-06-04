@@ -77,7 +77,7 @@ public class TestTransactionCleanup extends OmidTestBase {
                 .when(mockedTSOClient).getNewStartTimestamp();
 
         doReturn(abortingFF)
-                .when(mockedTSOClient).commit(eq(START_TS), anySetOf(HBaseCellId.class));
+                .when(mockedTSOClient).commit(eq(START_TS), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
 
         try (TransactionManager tm = newTransactionManager(context, mockedTSOClient);
              TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
