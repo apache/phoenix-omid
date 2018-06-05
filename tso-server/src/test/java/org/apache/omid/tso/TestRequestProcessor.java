@@ -56,6 +56,8 @@ public class TestRequestProcessor {
     // Request processor under test
     private RequestProcessor requestProc;
 
+    private LowWatermarkWriter lowWatermarkWriter;
+
     @BeforeMethod
     public void beforeMethod() throws Exception {
 
@@ -66,16 +68,16 @@ public class TestRequestProcessor {
                 new TimestampOracleImpl(metrics, new TimestampOracleImpl.InMemoryTimestampStorage(), new MockPanicker());
 
         stateManager = new TSOStateManagerImpl(timestampOracle);
-
+        lowWatermarkWriter = mock(LowWatermarkWriter.class);
         persist = mock(PersistenceProcessor.class);
         SettableFuture<Void> f = SettableFuture.create();
         f.set(null);
-        doReturn(f).when(persist).persistLowWatermark(any(Long.class));
+        doReturn(f).when(lowWatermarkWriter).persistLowWatermark(any(Long.class));
 
         TSOServerConfig config = new TSOServerConfig();
         config.setConflictMapSize(CONFLICT_MAP_SIZE);
 
-        requestProc = new RequestProcessorImpl(metrics, timestampOracle, persist, new MockPanicker(), config);
+        requestProc = new RequestProcessorPersistCT(metrics, timestampOracle, persist, new MockPanicker(), config, lowWatermarkWriter);
 
         // Initialize the state for the experiment
         stateManager.register(requestProc);
@@ -179,11 +181,11 @@ public class TestRequestProcessor {
         Thread.currentThread().sleep(3000); // Allow the Request processor to finish the request processing
 
         // Check that first time its called is on init
-        verify(persist, timeout(100).times(1)).persistLowWatermark(eq(0L));
+        verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(0L));
         // Then, check it is called when cache is full and the first element is evicted (should be a 1)
-        verify(persist, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
+        verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
         // Finally it should never be called with the next element
-        verify(persist, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
+        verify(lowWatermarkWriter, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
 
     }
 

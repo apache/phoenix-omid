@@ -63,12 +63,7 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
 
     // TODO Next two need to be either int or AtomicLong
     volatile private long batchSequence;
-
-    private CommitTable.Writer lowWatermarkWriter;
-    private ExecutorService lowWatermarkWriterExecutor;
-
     private MetricsRegistry metrics;
-    private final Timer lwmWriteTimer;
 
     @Inject
     PersistenceProcessorImpl(TSOServerConfig config,
@@ -97,19 +92,11 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
         // ------------------------------------------------------------------------------------------------------------
 
         this.metrics = metrics;
-        this.lowWatermarkWriter = commitTable.getWriter();
         this.batchSequence = 0L;
         this.batchPool = batchPool;
         this.currentBatch = batchPool.borrowObject();
-        // Low Watermark writer
-        ThreadFactoryBuilder lwmThreadFactory = new ThreadFactoryBuilder().setNameFormat("lwm-writer-%d");
-        this.lowWatermarkWriterExecutor = Executors.newSingleThreadExecutor(lwmThreadFactory.build());
-
-        // Metrics config
-        this.lwmWriteTimer = metrics.timer(name("tso", "lwmWriter", "latency"));
 
         LOG.info("PersistentProcessor initialized");
-
     }
 
     @Override
@@ -163,25 +150,6 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
         if (currentBatch.isFull()) {
             triggerCurrentBatchFlush();
         }
-
-    }
-
-    @Override
-    public Future<Void> persistLowWatermark(final long lowWatermark) {
-
-        return lowWatermarkWriterExecutor.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws IOException {
-                try {
-                    lwmWriteTimer.start();
-                    lowWatermarkWriter.updateLowWatermark(lowWatermark);
-                    lowWatermarkWriter.flush();
-                } finally {
-                    lwmWriteTimer.stop();
-                }
-                return null;
-            }
-        });
 
     }
 

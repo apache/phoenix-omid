@@ -65,6 +65,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     private final PostCommitActions postCommitter;
     protected final TSOClient tsoClient;
     protected final CommitTable.Client commitTableClient;
+    private final CommitTable.Writer commitTableWriter;
     private final TransactionFactory<? extends CellId> transactionFactory;
 
     // Metrics
@@ -75,6 +76,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     private final Counter errorTxsCounter;
     private final Counter invalidatedTxsCounter;
 
+    private final boolean lowLatency;
     /**
      * Base constructor
      *
@@ -94,11 +96,14 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                                       PostCommitActions postCommitter,
                                       TSOClient tsoClient,
                                       CommitTable.Client commitTableClient,
-                                      TransactionFactory<? extends CellId> transactionFactory) {
+                                      CommitTable.Writer commitTableWriter,
+                                      TransactionFactory<? extends CellId> transactionFactory,
+                                      Boolean lowLatency) {
 
         this.tsoClient = tsoClient;
         this.postCommitter = postCommitter;
         this.commitTableClient = commitTableClient;
+        this.commitTableWriter = commitTableWriter;
         this.transactionFactory = transactionFactory;
 
         // Metrics configuration
@@ -109,6 +114,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
         this.errorTxsCounter = metrics.counter(name("omid", "tm", "hbase", "erroredTxs"));
         this.invalidatedTxsCounter = metrics.counter(name("omid", "tm", "hbase", "invalidatedTxs"));
 
+        this.lowLatency = lowLatency;
     }
 
     /**
@@ -198,7 +204,10 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                 if (tx.getWriteSet().isEmpty()) {
                     markReadOnlyTransaction(tx); // No need for read-only transactions to contact the TSO Server
                 } else {
-                    commitRegularTransaction(tx);
+                    if (lowLatency)
+                        commitLowLatencyTransaction(tx);
+                    else
+                        commitRegularTransaction(tx);
                 }
                 committedTxsCounter.inc();
             } finally {
@@ -325,9 +334,19 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
             // 4) Check the epoch and invalidate the entry
             // if the data was written by a transaction from a previous epoch (previous TSO)
-            if (cellStartTimestamp < epoch) {
+            if (cellStartTimestamp < epoch || lowLatency) {
                 boolean invalidated = commitTableClient.tryInvalidateTransaction(cellStartTimestamp).get();
                 if (invalidated) { // Invalid commit timestamp
+
+                    // If we are running lowLatency Omid, we could have manged to invalidate a ct entry,
+                    // but the committing client already wrote to shadow cells:
+                    if (lowLatency) {
+                        commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
+                        if (commitTimeStamp.isPresent()) {
+                            //TODO YONIGO: Do we need to remove invalidation or will the commiter remove?
+                            return commitTimeStamp.get();
+                        }
+                    }
                     return new CommitTimestamp(COMMIT_TABLE, CommitTable.INVALID_TRANSACTION_MARKER, false);
                 }
             }
@@ -395,6 +414,41 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
         readOnlyTx.setStatus(Status.COMMITTED_RO);
 
+    }
+
+    private void commitLowLatencyTransaction(AbstractTransaction<? extends CellId> tx)
+            throws RollbackException, TransactionException {
+        try {
+
+            long commitTs = tsoClient.commit(tx.getStartTimestamp(), tx.getWriteSet()).get();
+            boolean commited = commitTableWriter.atomicAddCommittedTransaction(tx.getStartTimestamp(),commitTs);
+            if (!commited) {
+                // Trasaction has been invalidated by other client
+                rollback(tx);
+                rolledbackTxsCounter.inc();
+                //TODO add more info to rollback
+                throw new RollbackException("Conflicts detected in tx writeset");
+            }
+            certifyCommitForTx(tx, commitTs);
+            updateShadowCellsAndRemoveCommitTableEntry(tx, postCommitter);
+
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof AbortException) { // TSO reports Tx conflicts as AbortExceptions in the future
+                rollback(tx);
+                rolledbackTxsCounter.inc();
+                throw new RollbackException("Conflicts detected in tx writeset", e.getCause());
+            }
+
+            if (e.getCause() instanceof ServiceUnavailableException || e.getCause() instanceof ConnectionException) {
+                errorTxsCounter.inc();
+            } else {
+                throw new TransactionException(tx + ": cannot determine Tx outcome", e.getCause());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void commitRegularTransaction(AbstractTransaction<? extends CellId> tx)

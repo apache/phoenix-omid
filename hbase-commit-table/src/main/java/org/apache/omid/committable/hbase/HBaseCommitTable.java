@@ -129,6 +129,16 @@ public class HBaseCommitTable implements CommitTable {
         }
 
         @Override
+        public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
+            assert (startTimestamp < commitTimestamp);
+            byte[] transactionRow = startTimestampToKey(startTimestamp);
+            Put put = new Put(transactionRow, startTimestamp);
+            byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
+            put.add(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
+            return table.checkAndPut(transactionRow, commitTableFamily, INVALID_TX_QUALIFIER, null, put);
+        }
+
+        @Override
         public void close() throws IOException {
             clearWriteBuffer();
             table.close();
@@ -254,7 +264,7 @@ public class HBaseCommitTable implements CommitTable {
             try {
                 byte[] row = startTimestampToKey(startTimestamp);
                 Put invalidationPut = new Put(row, startTimestamp);
-                invalidationPut.add(commitTableFamily, INVALID_TX_QUALIFIER, null);
+                invalidationPut.add(commitTableFamily, INVALID_TX_QUALIFIER, Bytes.toBytes(1));
 
                 // We need to write to the invalid column only if the commit timestamp
                 // is empty. This has to be done atomically. Otherwise, if we first

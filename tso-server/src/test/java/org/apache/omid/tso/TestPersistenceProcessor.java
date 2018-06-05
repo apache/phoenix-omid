@@ -68,6 +68,7 @@ public class TestPersistenceProcessor {
 
     private MetricsRegistry metrics;
     private CommitTable commitTable;
+    private LowWatermarkWriter lowWatermarkWriter;
 
     @BeforeMethod(alwaysRun = true, timeOut = 30_000)
     public void initMocksAndComponents() throws Exception {
@@ -101,7 +102,7 @@ public class TestPersistenceProcessor {
     public void testLowWatermarkIsPersisted() throws Exception {
 
         TSOServerConfig tsoConfig = new TSOServerConfig();
-
+        lowWatermarkWriter = mock(LowWatermarkWriter.class);
         PersistenceProcessorHandler[] handlers = new PersistenceProcessorHandler[tsoConfig.getNumConcurrentCTWriters()];
         for (int i = 0; i < tsoConfig.getNumConcurrentCTWriters(); i++) {
             handlers[i] = new PersistenceProcessorHandler(metrics,
@@ -123,7 +124,7 @@ public class TestPersistenceProcessor {
                                              handlers,
                                              metrics);
 
-        persistenceProcessor.persistLowWatermark(ANY_LWM).get();
+        lowWatermarkWriter.persistLowWatermark(ANY_LWM).get();
 
         ArgumentCaptor<Long> lwmCapture = ArgumentCaptor.forClass(Long.class);
         CommitTable.Writer lwmWriter = commitTable.getWriter();

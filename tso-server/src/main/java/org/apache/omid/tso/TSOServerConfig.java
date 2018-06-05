@@ -82,6 +82,18 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     private String networkIfaceName = NetworkUtils.getDefaultNetworkInterface();
 
+    public Boolean getPersistToCommitTable() {
+        return persistToCommitTable;
+    }
+
+    public void setPersistToCommitTable(Boolean persistToCommitTable) {
+        this.persistToCommitTable = persistToCommitTable;
+    }
+
+    private Boolean persistToCommitTable;
+
+
+
     public int getPort() {
         return port;
     }

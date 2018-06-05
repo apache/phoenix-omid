@@ -66,6 +66,14 @@ public class InMemoryCommitTable implements CommitTable {
         }
 
         @Override
+        public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
+            // In this implementation, we use only one location that represents
+            // both the value and the invalidation. Therefore, putIfAbsent is
+            // required to make sure the entry was not invalidated.
+            return (table.putIfAbsent(startTimestamp, commitTimestamp) == null);
+        }
+
+        @Override
         public void close() {
         }
     }

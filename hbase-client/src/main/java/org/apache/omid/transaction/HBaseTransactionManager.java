@@ -81,6 +81,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         // Optional parameters - initialized to default values
         private Optional<TSOClient> tsoClient = Optional.absent();
         private Optional<CommitTable.Client> commitTableClient = Optional.absent();
+        private Optional<CommitTable.Writer> commitTableWriter = Optional.absent();
         private Optional<PostCommitActions> postCommitter = Optional.absent();
 
         private Builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
@@ -105,6 +106,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         HBaseTransactionManager build() throws IOException, InterruptedException {
 
             CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient()).get();
+            CommitTable.Writer commitTableWriter = this.commitTableWriter.or(buildCommitTableWriter()).get();
             PostCommitActions postCommitter = this.postCommitter.or(buildPostCommitter(commitTableClient)).get();
             TSOClient tsoClient = this.tsoClient.or(buildTSOClient()).get();
 
@@ -112,6 +114,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                                postCommitter,
                                                tsoClient,
                                                commitTableClient,
+                                               commitTableWriter,
                                                new HBaseTransactionFactory());
         }
 
@@ -125,6 +128,13 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
             CommitTable commitTable = new HBaseCommitTable(hbaseOmidClientConf.getHBaseConfiguration(), commitTableConf);
             return Optional.of(commitTable.getClient());
+        }
+
+        private Optional<CommitTable.Writer> buildCommitTableWriter() throws IOException {
+            HBaseCommitTableConfig commitTableConf = new HBaseCommitTableConfig();
+            commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
+            CommitTable commitTable = new HBaseCommitTable(hbaseOmidClientConf.getHBaseConfiguration(), commitTableConf);
+            return Optional.of(commitTable.getWriter());
         }
 
         private Optional<PostCommitActions> buildPostCommitter(CommitTable.Client commitTableClient ) {
@@ -159,14 +169,16 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                     PostCommitActions postCommitter,
                                     TSOClient tsoClient,
                                     CommitTable.Client commitTableClient,
+                                    CommitTable.Writer commitTableWriter,
                                     HBaseTransactionFactory hBaseTransactionFactory) {
 
         super(hBaseOmidClientConfiguration.getMetrics(),
-              postCommitter,
-              tsoClient,
-              commitTableClient,
-              hBaseTransactionFactory);
-
+                postCommitter,
+                tsoClient,
+                commitTableClient,
+                commitTableWriter,
+                hBaseTransactionFactory,
+                hBaseOmidClientConfiguration.getOmidClientConfiguration().getLowLatency());
     }
 
     // ----------------------------------------------------------------------------------------------------------------
