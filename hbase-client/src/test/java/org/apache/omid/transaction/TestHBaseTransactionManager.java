@@ -83,7 +83,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
             txTable.put(tx1, put);
             tm.commit(tx1);
 
-            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class));
+            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
 
             // Create a read-only tx and verify that commit has not been invoked again in the TSOClient
             AbstractTransaction readOnlyTx = (AbstractTransaction) tm.begin();
@@ -93,7 +93,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
             assertTrue(readOnlyTx.getWriteSet().isEmpty());
             tm.commit(readOnlyTx);
 
-            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class));
+            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
             assertEquals(readOnlyTx.getStatus(), Transaction.Status.COMMITTED_RO);
         }
 

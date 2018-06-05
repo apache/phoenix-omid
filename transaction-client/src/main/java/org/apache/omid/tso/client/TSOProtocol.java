@@ -58,6 +58,22 @@ public interface TSOProtocol {
     TSOFuture<Long> commit(long transactionId, Set<? extends CellId> writeSet);
 
     /**
+     * Returns the result of the conflict detection made on the server-side for the specified transaction
+     * @param transactionId
+     *          the transaction to check for conflicts
+     * @param writeSet
+     *          the writeSet of the transaction, which includes all the modified cells
+     * @param conflictFreeWriteSet
+     *          the conflict free writeSet of the transaction, needed only for table access information.
+     * @return the commit timestamp as a future if the transaction was committed. If the transaction was aborted due
+     * to conflicts with a concurrent transaction, the future will include an AbortException. If an error was detected,
+     * the future will contain a corresponding protocol exception
+     * see org.apache.omid.tso.TimestampOracle
+     * see org.apache.omid.tso.TSOServer
+     */
+    TSOFuture<Long> commit(long transactionId, Set<? extends CellId> writeSet, Set<? extends CellId> conflictFreeWriteSet);
+
+    /**
      * Returns a new fence timestamp assigned by on the server-side
      * @param tableId
      *          the table to create fence for.

@@ -201,6 +201,14 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
      */
     @Override
     public TSOFuture<Long> commit(long transactionId, Set<? extends CellId> cells) {
+        return commit(transactionId, cells, new HashSet<CellId>());
+    }
+
+    /**
+     * @see TSOProtocol#commit(long, Set, Set)
+     */
+    @Override
+    public TSOFuture<Long> commit(long transactionId, Set<? extends CellId> cells, Set<? extends CellId> conflictFreeWriteSet) {
         TSOProto.Request.Builder builder = TSOProto.Request.newBuilder();
         TSOProto.CommitRequest.Builder commitbuilder = TSOProto.CommitRequest.newBuilder();
         commitbuilder.setStartTimestamp(transactionId);
@@ -229,6 +237,11 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             commitbuilder.addCellId(id);
             tableIDs.add(cell.getTableId());
         }
+
+        for (CellId cell : conflictFreeWriteSet) {
+            tableIDs.add(cell.getTableId());
+        }
+
         commitbuilder.addAllTableId(tableIDs);
         tableIDs.clear();
         builder.setCommitRequest(commitbuilder.build());

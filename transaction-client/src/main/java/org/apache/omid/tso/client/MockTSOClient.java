@@ -106,6 +106,11 @@ public class MockTSOClient implements TSOProtocol {
     }
 
     @Override
+    public TSOFuture<Long> commit(long transactionId, Set<? extends CellId> cells, Set<? extends CellId> conflictFreeWriteSet) {
+        return commit(transactionId, cells);
+    }
+
+    @Override
     public TSOFuture<Long> commit(long transactionId, Set<? extends CellId> cells) {
         synchronized (conflictMap) {
             SettableFuture<Long> f = SettableFuture.create();

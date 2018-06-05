@@ -360,7 +360,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
         try {
 
-            long commitTs = tsoClient.commit(tx.getStartTimestamp(), tx.getWriteSet()).get();
+            long commitTs = tsoClient.commit(tx.getStartTimestamp(), tx.getWriteSet(), tx.getConflictFreeWriteSet()).get();
             certifyCommitForTx(tx, commitTs);
             updateShadowCellsAndRemoveCommitTableEntry(tx, postCommitter);
 
