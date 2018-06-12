@@ -28,13 +28,11 @@ batchSizePerCTWriter: 25
 batchPersistTimeoutInMs: 10
 
 #low latency mode - clients are expected to update commit table
-lowLatency: true
+lowLatency: false
 
 # Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
-#timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
-#commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]
-timestampStoreModule: !!org.apache.omid.timestamp.storage.HBaseTimestampStorageModule [ ]
-commitTableStoreModule: !!org.apache.omid.committable.hbase.HBaseCommitTableStorageModule [ ]
+timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
+commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]
 leaseModule: !!org.apache.omid.tso.VoidLeaseManagementModule [ ]
 
 # Default stats/metrics configuration
