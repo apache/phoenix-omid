@@ -28,8 +28,6 @@ public class OmidClientConfiguration {
 
     private static final String DEFAULT_CONFIG_FILE_NAME = "omid-client-config.yml";
 
-
-
     public enum ConnType {DIRECT, HA}
 
     public enum PostCommitMode {SYNC, ASYNC}

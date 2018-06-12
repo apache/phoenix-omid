@@ -177,8 +177,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                 tsoClient,
                 commitTableClient,
                 commitTableWriter,
-                hBaseTransactionFactory,
-                hBaseOmidClientConfiguration.getOmidClientConfiguration().getLowLatency());
+                hBaseTransactionFactory);
     }
 
     // ----------------------------------------------------------------------------------------------------------------

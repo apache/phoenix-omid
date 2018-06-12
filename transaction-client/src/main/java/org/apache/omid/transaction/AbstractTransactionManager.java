@@ -76,7 +76,6 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     private final Counter errorTxsCounter;
     private final Counter invalidatedTxsCounter;
 
-    private final boolean lowLatency;
     /**
      * Base constructor
      *
@@ -97,8 +96,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                                       TSOClient tsoClient,
                                       CommitTable.Client commitTableClient,
                                       CommitTable.Writer commitTableWriter,
-                                      TransactionFactory<? extends CellId> transactionFactory,
-                                      Boolean lowLatency) {
+                                      TransactionFactory<? extends CellId> transactionFactory) {
 
         this.tsoClient = tsoClient;
         this.postCommitter = postCommitter;
@@ -113,8 +111,6 @@ public abstract class AbstractTransactionManager implements TransactionManager {
         this.rolledbackTxsCounter = metrics.counter(name("omid", "tm", "hbase", "rolledbackTxs"));
         this.errorTxsCounter = metrics.counter(name("omid", "tm", "hbase", "erroredTxs"));
         this.invalidatedTxsCounter = metrics.counter(name("omid", "tm", "hbase", "invalidatedTxs"));
-
-        this.lowLatency = lowLatency;
     }
 
     /**
@@ -204,7 +200,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                 if (tx.getWriteSet().isEmpty()) {
                     markReadOnlyTransaction(tx); // No need for read-only transactions to contact the TSO Server
                 } else {
-                    if (lowLatency)
+                    if (tsoClient.isLowLatency())
                         commitLowLatencyTransaction(tx);
                     else
                         commitRegularTransaction(tx);
@@ -321,29 +317,40 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
             // 2) Then check the commit table
             // If the data was written at a previous epoch, check whether the transaction was invalidated
-            Optional<CommitTimestamp> commitTimeStamp = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
+            Optional<CommitTimestamp> commitTimeStampFromCT = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
+
+            boolean invalidatedByOther = false;
+            if (commitTimeStampFromCT.isPresent()) {
+                if (tsoClient.isLowLatency() && !commitTimeStampFromCT.get().isValid())
+                    invalidatedByOther = true;
+                else
+                    return commitTimeStampFromCT.get();
+            }
+
+            // 3) Read from shadow cell
+            Optional<CommitTimestamp> commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
             if (commitTimeStamp.isPresent()) {
                 return commitTimeStamp.get();
             }
 
-            // 3) Read from shadow cell
-            commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
+            // In case of LL, if found invalid ct cell, still must check sc in stage 3 then return
+            if (invalidatedByOther) {
+                return commitTimeStampFromCT.get();
             }
 
             // 4) Check the epoch and invalidate the entry
             // if the data was written by a transaction from a previous epoch (previous TSO)
-            if (cellStartTimestamp < epoch || lowLatency) {
+            if (cellStartTimestamp < epoch || tsoClient.isLowLatency()) {
                 boolean invalidated = commitTableClient.tryInvalidateTransaction(cellStartTimestamp).get();
                 if (invalidated) { // Invalid commit timestamp
 
                     // If we are running lowLatency Omid, we could have manged to invalidate a ct entry,
                     // but the committing client already wrote to shadow cells:
-                    if (lowLatency) {
+                    if (tsoClient.isLowLatency()) {
                         commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
                         if (commitTimeStamp.isPresent()) {
-                            //TODO YONIGO: Do we need to remove invalidation or will the commiter remove?
+                            // Remove false invalidation from commit table
+                            commitTableClient.completeTransaction(cellStartTimestamp);
                             return commitTimeStamp.get();
                         }
                     }
@@ -425,9 +432,9 @@ public abstract class AbstractTransactionManager implements TransactionManager {
             if (!commited) {
                 // Trasaction has been invalidated by other client
                 rollback(tx);
+                commitTableClient.completeTransaction(tx.getStartTimestamp());
                 rolledbackTxsCounter.inc();
-                //TODO add more info to rollback
-                throw new RollbackException("Conflicts detected in tx writeset");
+                throw new RollbackException("Transaction " + tx.getTransactionId() + " got invalidated");
             }
             certifyCommitForTx(tx, commitTs);
             updateShadowCellsAndRemoveCommitTableEntry(tx, postCommitter);

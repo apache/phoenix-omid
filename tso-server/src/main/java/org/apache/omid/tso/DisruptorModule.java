@@ -52,7 +52,7 @@ public class DisruptorModule extends AbstractModule {
              break;
         }
 
-        if (config.getPersistToCommitTable() == false) {
+        if (config.getLowLatency()) {
             bind(RequestProcessor.class).to(RequestProcessorSkipCT.class).in(Singleton.class);
             bind(PersistenceProcessor.class).to(PersitenceProcessorNullImpl.class).in(Singleton.class);
         } else {

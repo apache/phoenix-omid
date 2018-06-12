@@ -137,7 +137,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertTrue(batch.isEmpty());
 
@@ -148,14 +148,14 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addTimestamp(FIRST_ST, null, mock(MonitoringContext.class));
+        batch.addTimestamp(FIRST_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
         persistenceHandler.onEvent(batchEvent);
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 1);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -167,14 +167,14 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContext.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
         persistenceHandler.onEvent(batchEvent);
 
         verify(persistenceHandler, times(1)).flush(eq(1));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(batch);
-        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 1);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -187,14 +187,14 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addAbort(FIRST_ST, null, mock(MonitoringContext.class));
+        batch.addAbort(FIRST_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
         persistenceHandler.onEvent(batchEvent);
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(batch);
-        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 1);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -206,7 +206,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContext.class));
+        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -215,7 +215,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(batch);
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 0);
 
@@ -226,8 +226,8 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContext.class));
-        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContext.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -239,7 +239,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(1));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 1);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -255,8 +255,8 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContext.class));
-        batch.addCommit(SECOND_ST, SECOND_CT, null, mock(MonitoringContext.class));
+        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(SECOND_ST, SECOND_CT, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -268,7 +268,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(1));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 1);
         assertEquals(batch.get(0).getStartTimestamp(), SECOND_ST);
@@ -281,8 +281,8 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContext.class));
-        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContext.class));
+        batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContextImpl.class));
+        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -294,8 +294,8 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContext.class));
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(FIRST_ST), any(Channel.class), any(MonitoringContextImpl.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 0);
 
@@ -306,8 +306,8 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addAbort(FIRST_ST, null, mock(MonitoringContext.class));
-        batch.addAbort(SECOND_ST, null, mock(MonitoringContext.class));
+        batch.addAbort(FIRST_ST, null, mock(MonitoringContextImpl.class));
+        batch.addAbort(SECOND_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -319,7 +319,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(eq(0));
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, never()).disambiguateRetryRequestHeuristically(anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 2);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -334,12 +334,12 @@ public class TestPersistenceProcessorHandler {
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
 
-        batch.addTimestamp(FIRST_ST, null, mock(MonitoringContext.class));
-        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContext.class));
-        batch.addCommit(THIRD_ST, THIRD_CT, null, mock(MonitoringContext.class));
-        batch.addAbort(FOURTH_ST, null, mock(MonitoringContext.class));
-        batch.addCommit(FIFTH_ST, FIFTH_CT, null, mock(MonitoringContext.class));
-        batch.addCommitRetry(SIXTH_ST, null, mock(MonitoringContext.class));
+        batch.addTimestamp(FIRST_ST, null, mock(MonitoringContextImpl.class));
+        batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(THIRD_ST, THIRD_CT, null, mock(MonitoringContextImpl.class));
+        batch.addAbort(FOURTH_ST, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIFTH_ST, FIFTH_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommitRetry(SIXTH_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -351,7 +351,7 @@ public class TestPersistenceProcessorHandler {
 
         verify(persistenceHandler, times(1)).flush(2); // 2 commits to flush
         verify(persistenceHandler, times(1)).filterAndDissambiguateClientRetries(eq(batch));
-        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContext.class));
+        verify(retryProcessor, times(1)).disambiguateRetryRequestHeuristically(eq(SECOND_ST), any(Channel.class), any(MonitoringContextImpl.class));
         verify(replyProcessor, times(1)).manageResponsesBatch(eq(BATCH_SEQUENCE), eq(batch));
         assertEquals(batch.getNumEvents(), 4);
         assertEquals(batch.get(0).getStartTimestamp(), FIRST_ST);
@@ -378,7 +378,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContext.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -420,7 +420,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContext.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -455,7 +455,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContext.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
         batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 

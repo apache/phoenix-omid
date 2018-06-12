@@ -29,7 +29,6 @@ import com.lmax.disruptor.dsl.Disruptor;
 import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
-import org.apache.omid.metrics.Timer;
 import org.jboss.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +36,8 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 
 import java.io.IOException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static com.lmax.disruptor.dsl.ProducerType.SINGLE;
 import static java.util.concurrent.TimeUnit.SECONDS;

@@ -26,38 +26,54 @@ import java.io.IOException;
 public class RequestProcessorSkipCT extends AbstractRequestProcessor {
 
 
-    ReplyProcessor replyProcessor;
+    private final ReplyProcessor replyProcessor;
+
+    private final LeaseManagement leaseManager;
+    private final Panicker panicker;
+    private final String tsoHostAndPort;
 
     @Inject
     RequestProcessorSkipCT(MetricsRegistry metrics,
                            TimestampOracle timestampOracle,
                            ReplyProcessor replyProcessor,
                            Panicker panicker,
+                           LeaseManagement leaseManager,
                            TSOServerConfig config,
-                           LowWatermarkWriter lowWatermarkWriter) throws IOException {
+                           LowWatermarkWriter lowWatermarkWriter,
+                           String tsoHostAndPort) throws IOException {
         super(metrics, timestampOracle, panicker, config, lowWatermarkWriter);
         this.replyProcessor = replyProcessor;
+        this.tsoHostAndPort = tsoHostAndPort;
         requestRing = disruptor.start();
+        this.leaseManager = leaseManager;
+        this.panicker = panicker;
+    }
+
+    private void commitSuicideIfNotMaster() {
+        if (!leaseManager.stillInLeasePeriod()) {
+            panicker.panic("Replica " + tsoHostAndPort + " lost mastership whilst flushing data. Committing suicide");
+        }
     }
 
     @Override
     public void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) {
-        replyProcessor.sendCommitResponse(startTimestamp, commitTimestamp, c);
+        commitSuicideIfNotMaster();
+        replyProcessor.sendCommitResponse(startTimestamp, commitTimestamp, c, monCtx);
     }
 
     @Override
     public void forwardCommitRetry(long startTimestamp, Channel c, MonitoringContext monCtx) {
-        replyProcessor.sendAbortResponse(startTimestamp, c);
+        replyProcessor.sendAbortResponse(startTimestamp, c, monCtx);
     }
 
     @Override
     public void forwardAbort(long startTimestamp, Channel c, MonitoringContext monCtx) {
-        replyProcessor.sendAbortResponse(startTimestamp, c);
+        replyProcessor.sendAbortResponse(startTimestamp, c, monCtx);
     }
 
     @Override
     public void forwardTimestamp(long startTimestamp, Channel c, MonitoringContext monCtx) {
-        replyProcessor.sendTimestampResponse(startTimestamp, c);
+        replyProcessor.sendTimestampResponse(startTimestamp, c, monCtx);
     }
 
     @Override

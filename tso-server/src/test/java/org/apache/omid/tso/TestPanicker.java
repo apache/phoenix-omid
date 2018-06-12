@@ -137,7 +137,7 @@ public class TestPanicker {
                                                                  handlers,
                                                                  metrics);
 
-        proc.addCommitToBatch(1, 2, null, new MonitoringContext(metrics));
+        proc.addCommitToBatch(1, 2, null, new MonitoringContextImpl(metrics));
 
         LowWatermarkWriter lowWatermarkWriter = new LowWatermarkWriterImpl(config, commitTable, metrics);
 
@@ -191,7 +191,7 @@ public class TestPanicker {
                                                                  panicker,
                                                                  handlers,
                                                                  metrics);
-        proc.addCommitToBatch(1, 2, null, new MonitoringContext(metrics));
+        proc.addCommitToBatch(1, 2, null, new MonitoringContextImpl(metrics));
 
         LowWatermarkWriter lowWatermarkWriter = new LowWatermarkWriterImpl(config, commitTable, metrics);
 

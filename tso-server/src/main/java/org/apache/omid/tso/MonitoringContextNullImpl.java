@@ -15,24 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid.tso;
 
-import org.jboss.netty.channel.Channel;
+public class MonitoringContextNullImpl implements MonitoringContext {
+    @Override
+    public void timerStart(String name) {
 
-import java.io.Closeable;
+    }
 
-interface PersistenceProcessor extends Closeable {
+    @Override
+    public void timerStop(String name) {
 
-    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
-            throws Exception;
+    }
 
-    void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    @Override
+    public void publish() {
 
-    void addAbortToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void triggerCurrentBatchFlush() throws Exception;
-
-
+    }
 }
