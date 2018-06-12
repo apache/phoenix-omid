@@ -114,19 +114,13 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
 
             switch (event.getType()) {
                 case COMMIT:
-                    sendCommitResponse(event.getStartTimestamp(), event.getCommitTimestamp(), event.getChannel());
-                    event.getMonCtx().timerStop("reply.processor.commit.latency");
-                    commitMeter.mark();
+                    sendCommitResponse(event.getStartTimestamp(), event.getCommitTimestamp(), event.getChannel(), event.getMonCtx());
                     break;
                 case ABORT:
-                    sendAbortResponse(event.getStartTimestamp(), event.getChannel());
-                    event.getMonCtx().timerStop("reply.processor.abort.latency");
-                    abortMeter.mark();
+                    sendAbortResponse(event.getStartTimestamp(), event.getChannel(), event.getMonCtx());
                     break;
                 case TIMESTAMP:
-                    sendTimestampResponse(event.getStartTimestamp(), event.getChannel());
-                    event.getMonCtx().timerStop("reply.processor.timestamp.latency");
-                    timestampMeter.mark();
+                    sendTimestampResponse(event.getStartTimestamp(), event.getChannel(), event.getMonCtx());
                     break;
                 case COMMIT_RETRY:
                     throw new IllegalStateException("COMMIT_RETRY events must be filtered before this step: " + event);
@@ -182,7 +176,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
     }
 
     @Override
-    public void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel c) {
+    public void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) {
 
         TSOProto.Response.Builder builder = TSOProto.Response.newBuilder();
         TSOProto.CommitResponse.Builder commitBuilder = TSOProto.CommitResponse.newBuilder();
@@ -191,11 +185,12 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
                 .setCommitTimestamp(commitTimestamp);
         builder.setCommitResponse(commitBuilder.build());
         c.write(builder.build());
-
+        commitMeter.mark();
+        monCtx.timerStop("reply.processor.commit.latency");
     }
 
     @Override
-    public void sendAbortResponse(long startTimestamp, Channel c) {
+    public void sendAbortResponse(long startTimestamp, Channel c, MonitoringContext monCtx) {
 
         TSOProto.Response.Builder builder = TSOProto.Response.newBuilder();
         TSOProto.CommitResponse.Builder commitBuilder = TSOProto.CommitResponse.newBuilder();
@@ -203,18 +198,20 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
         commitBuilder.setStartTimestamp(startTimestamp);
         builder.setCommitResponse(commitBuilder.build());
         c.write(builder.build());
-
+        abortMeter.mark();
+        monCtx.timerStop("reply.processor.abort.latency");
     }
 
     @Override
-    public void sendTimestampResponse(long startTimestamp, Channel c) {
+    public void sendTimestampResponse(long startTimestamp, Channel c, MonitoringContext monCtx) {
 
         TSOProto.Response.Builder builder = TSOProto.Response.newBuilder();
         TSOProto.TimestampResponse.Builder respBuilder = TSOProto.TimestampResponse.newBuilder();
         respBuilder.setStartTimestamp(startTimestamp);
         builder.setTimestampResponse(respBuilder.build());
         c.write(builder.build());
-
+        timestampMeter.mark();
+        monCtx.timerStop("reply.processor.timestamp.latency");
     }
 
     @Override

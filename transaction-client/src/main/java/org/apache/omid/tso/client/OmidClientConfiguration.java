@@ -50,6 +50,7 @@ public class OmidClientConfiguration {
 
     // Transaction Manager related params
 
+    private boolean lowLatency;
     private PostCommitMode postCommitMode = PostCommitMode.SYNC;
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -67,6 +68,12 @@ public class OmidClientConfiguration {
     public ConnType getConnectionType() {
         return connectionType;
     }
+
+    @Inject(optional = true)
+    @Named("omid.client.lowLatency")
+    public void setLowLatency(boolean lowLatency) { this.lowLatency = lowLatency;}
+
+    public boolean getLowLatency() { return lowLatency;}
 
     @Inject(optional = true)
     @Named("omid.client.connectionType")

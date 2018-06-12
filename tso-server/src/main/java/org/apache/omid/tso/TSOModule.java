@@ -44,6 +44,7 @@ class TSOModule extends AbstractModule {
         bind(TSOChannelHandler.class).in(Singleton.class);
         bind(TSOStateManager.class).to(TSOStateManagerImpl.class).in(Singleton.class);
         bind(TimestampOracle.class).to(TimestampOracleImpl.class).in(Singleton.class);
+        bind(LowWatermarkWriter.class).to(LowWatermarkWriterImpl.class).in(Singleton.class);
         bind(Panicker.class).to(SystemExitPanicker.class).in(Singleton.class);
 
         install(new BatchPoolModule(config));
