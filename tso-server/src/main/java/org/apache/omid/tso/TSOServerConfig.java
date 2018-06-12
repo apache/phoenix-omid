@@ -82,6 +82,26 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     private String networkIfaceName = NetworkUtils.getDefaultNetworkInterface();
 
+    public Boolean getLowLatency() {
+        return lowLatency;
+    }
+
+    public void setLowLatency(Boolean lowLatency) {
+        this.lowLatency = lowLatency;
+    }
+
+    private Boolean lowLatency;
+
+    public boolean getMonitorContext() {
+        return monitorContext;
+    }
+
+    public void setMonitorContext(boolean monitorContext) {
+        this.monitorContext = monitorContext;
+    }
+
+    public boolean monitorContext;
+
     public int getPort() {
         return port;
     }

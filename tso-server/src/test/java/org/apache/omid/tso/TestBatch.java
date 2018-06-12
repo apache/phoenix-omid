@@ -43,7 +43,7 @@ public class TestBatch {
     @Mock
     private Channel channel;
     @Mock
-    private MonitoringContext monCtx;
+    private MonitoringContextImpl monCtx;
 
     @BeforeMethod
     void setup() {

@@ -52,7 +52,8 @@ public class TSOServer extends AbstractIdleService {
     private RetryProcessor retryProcessor;
     @Inject
     private ReplyProcessor replyProcessor;
-
+    @Inject
+    private LowWatermarkWriter lowWatermarkWriter;
     // ----------------------------------------------------------------------------------------------------------------
     // High availability related variables
     // ----------------------------------------------------------------------------------------------------------------

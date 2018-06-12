@@ -17,22 +17,15 @@
  */
 package org.apache.omid.tso;
 
-import org.jboss.netty.channel.Channel;
+import org.apache.omid.metrics.MetricsRegistry;
 
-import java.io.Closeable;
+public class MonitoringContextFactory {
+    private MonitoringContextFactory(){};
 
-interface PersistenceProcessor extends Closeable {
-
-    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
-            throws Exception;
-
-    void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void addAbortToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void triggerCurrentBatchFlush() throws Exception;
-
-
+    static public MonitoringContext getInstance(TSOServerConfig config, MetricsRegistry metrics) {
+        if (config.getMonitorContext())
+            return new MonitoringContextImpl(metrics);
+        else
+            return new MonitoringContextNullImpl();
+    }
 }

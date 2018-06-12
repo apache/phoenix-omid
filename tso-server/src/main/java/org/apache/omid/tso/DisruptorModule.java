@@ -51,8 +51,15 @@ public class DisruptorModule extends AbstractModule {
              bind(WaitStrategy.class).annotatedWith(Names.named("RetryStrategy")).to(YieldingWaitStrategy.class);
              break;
         }
-        bind(RequestProcessor.class).to(RequestProcessorImpl.class).in(Singleton.class);
-        bind(PersistenceProcessor.class).to(PersistenceProcessorImpl.class).in(Singleton.class);
+
+        if (config.getLowLatency()) {
+            bind(RequestProcessor.class).to(RequestProcessorSkipCT.class).in(Singleton.class);
+            bind(PersistenceProcessor.class).to(PersitenceProcessorNullImpl.class).in(Singleton.class);
+        } else {
+            bind(PersistenceProcessor.class).to(PersistenceProcessorImpl.class).in(Singleton.class);
+            bind(RequestProcessor.class).to(RequestProcessorPersistCT.class).in(Singleton.class);
+        }
+
         bind(ReplyProcessor.class).to(ReplyProcessorImpl.class).in(Singleton.class);
         bind(RetryProcessor.class).to(RetryProcessorImpl.class).in(Singleton.class);
 

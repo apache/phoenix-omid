@@ -17,22 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import org.jboss.netty.channel.Channel;
+import java.util.concurrent.Future;
 
-import java.io.Closeable;
-
-interface PersistenceProcessor extends Closeable {
-
-    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
-            throws Exception;
-
-    void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void addAbortToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
-
-    void triggerCurrentBatchFlush() throws Exception;
-
-
+public interface LowWatermarkWriter {
+    Future<Void> persistLowWatermark(final long lowWatermark);
 }

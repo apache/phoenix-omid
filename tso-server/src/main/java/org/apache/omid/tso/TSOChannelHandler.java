@@ -165,14 +165,14 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
             }
 
             if (request.hasTimestampRequest()) {
-                requestProcessor.timestampRequest(ctx.getChannel(), new MonitoringContext(metrics));
+                requestProcessor.timestampRequest(ctx.getChannel(), MonitoringContextFactory.getInstance(config,metrics));
             } else if (request.hasCommitRequest()) {
                 TSOProto.CommitRequest cr = request.getCommitRequest();
                 requestProcessor.commitRequest(cr.getStartTimestamp(),
                                                cr.getCellIdList(),
                                                cr.getIsRetry(),
                                                ctx.getChannel(),
-                                               new MonitoringContext(metrics));
+                                               MonitoringContextFactory.getInstance(config,metrics));
             } else {
                 LOG.error("Invalid request {}. Closing channel {}", request, ctx.getChannel());
                 ctx.getChannel().close();
@@ -240,6 +240,7 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
         } else {
             response.setClientCompatible(false);
         }
+        response.setLowLatency(config.getLowLatency());
         ctx.getChannel().write(TSOProto.Response.newBuilder().setHandshakeResponse(response.build()).build());
 
     }
