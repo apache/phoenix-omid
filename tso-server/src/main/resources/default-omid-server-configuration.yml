@@ -41,6 +41,9 @@ batchSizePerCTWriter: 25
 # When this timeout expires, the contents of the batch are flushed to the datastore
 batchPersistTimeoutInMs: 10
 
+#low latency mode - clients are expected to update commit table
+lowLatency: false
+
 # Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
 timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
 commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]
@@ -48,6 +51,8 @@ leaseModule: !!org.apache.omid.tso.VoidLeaseManagementModule [ ]
 
 # Default stats/metrics configuration
 metrics: !!org.apache.omid.metrics.NullMetricsProvider [ ]
+
+monitorContext: false
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Timestamp storage configuration options

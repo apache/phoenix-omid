@@ -56,6 +56,8 @@ public class TestRequestProcessor {
     // Request processor under test
     private RequestProcessor requestProc;
 
+    private LowWatermarkWriter lowWatermarkWriter;
+
     @BeforeMethod
     public void beforeMethod() throws Exception {
 
@@ -66,16 +68,16 @@ public class TestRequestProcessor {
                 new TimestampOracleImpl(metrics, new TimestampOracleImpl.InMemoryTimestampStorage(), new MockPanicker());
 
         stateManager = new TSOStateManagerImpl(timestampOracle);
-
+        lowWatermarkWriter = mock(LowWatermarkWriter.class);
         persist = mock(PersistenceProcessor.class);
         SettableFuture<Void> f = SettableFuture.create();
         f.set(null);
-        doReturn(f).when(persist).persistLowWatermark(any(Long.class));
+        doReturn(f).when(lowWatermarkWriter).persistLowWatermark(any(Long.class));
 
         TSOServerConfig config = new TSOServerConfig();
         config.setConflictMapSize(CONFLICT_MAP_SIZE);
 
-        requestProc = new RequestProcessorImpl(metrics, timestampOracle, persist, new MockPanicker(), config);
+        requestProc = new RequestProcessorPersistCT(metrics, timestampOracle, persist, new MockPanicker(), config, lowWatermarkWriter);
 
         // Initialize the state for the experiment
         stateManager.register(requestProc);
@@ -86,16 +88,16 @@ public class TestRequestProcessor {
     @Test(timeOut = 30_000)
     public void testTimestamp() throws Exception {
 
-        requestProc.timestampRequest(null, new MonitoringContext(metrics));
+        requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> firstTScapture = ArgumentCaptor.forClass(Long.class);
         verify(persist, timeout(100).times(1)).addTimestampToBatch(
-                firstTScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+                firstTScapture.capture(), any(Channel.class), any(MonitoringContextImpl.class));
 
         long firstTS = firstTScapture.getValue();
         // verify that timestamps increase monotonically
         for (int i = 0; i < 100; i++) {
-            requestProc.timestampRequest(null, new MonitoringContext(metrics));
-            verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS++), any(Channel.class), any(MonitoringContext.class));
+            requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
+            verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS++), any(Channel.class), any(MonitoringContextImpl.class));
         }
 
     }
@@ -103,39 +105,39 @@ public class TestRequestProcessor {
     @Test(timeOut = 30_000)
     public void testCommit() throws Exception {
 
-        requestProc.timestampRequest(null, new MonitoringContext(metrics));
+        requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> TScapture = ArgumentCaptor.forClass(Long.class);
         verify(persist, timeout(100).times(1)).addTimestampToBatch(
-                TScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+                TScapture.capture(), any(Channel.class), any(MonitoringContextImpl.class));
         long firstTS = TScapture.getValue();
 
         List<Long> writeSet = Lists.newArrayList(1L, 20L, 203L);
-        requestProc.commitRequest(firstTS - 1, writeSet, false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - 1), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(firstTS - 1, writeSet, false, null, new MonitoringContextImpl(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - 1), any(Channel.class), any(MonitoringContextImpl.class));
 
-        requestProc.commitRequest(firstTS, writeSet, false, null, new MonitoringContext(metrics));
+        requestProc.commitRequest(firstTS, writeSet, false, null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> commitTScapture = ArgumentCaptor.forClass(Long.class);
 
-        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(firstTS), commitTScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(firstTS), commitTScapture.capture(), any(Channel.class), any(MonitoringContextImpl.class));
         assertTrue(commitTScapture.getValue() > firstTS, "Commit TS must be greater than start TS");
 
         // test conflict
-        requestProc.timestampRequest(null, new MonitoringContext(metrics));
+        requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
         TScapture = ArgumentCaptor.forClass(Long.class);
         verify(persist, timeout(100).times(2)).addTimestampToBatch(
-                TScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+                TScapture.capture(), any(Channel.class), any(MonitoringContextImpl.class));
         long secondTS = TScapture.getValue();
 
-        requestProc.timestampRequest(null, new MonitoringContext(metrics));
+        requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
         TScapture = ArgumentCaptor.forClass(Long.class);
         verify(persist, timeout(100).times(3)).addTimestampToBatch(
-                TScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+                TScapture.capture(), any(Channel.class), any(MonitoringContextImpl.class));
         long thirdTS = TScapture.getValue();
 
-        requestProc.commitRequest(thirdTS, writeSet, false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(thirdTS), anyLong(), any(Channel.class), any(MonitoringContext.class));
-        requestProc.commitRequest(secondTS, writeSet, false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(secondTS), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(thirdTS, writeSet, false, null, new MonitoringContextImpl(metrics));
+        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(thirdTS), anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
+        requestProc.commitRequest(secondTS, writeSet, false, null, new MonitoringContextImpl(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(secondTS), any(Channel.class), any(MonitoringContextImpl.class));
 
     }
 
@@ -145,11 +147,11 @@ public class TestRequestProcessor {
         List<Long> writeSet = Collections.emptyList();
 
         // Start a transaction...
-        requestProc.timestampRequest(null, new MonitoringContext(metrics));
+        requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> capturedTS = ArgumentCaptor.forClass(Long.class);
         verify(persist, timeout(100).times(1)).addTimestampToBatch(capturedTS.capture(),
                                                                    any(Channel.class),
-                                                                   any(MonitoringContext.class));
+                                                                   any(MonitoringContextImpl.class));
         long startTS = capturedTS.getValue();
 
         // ... simulate the reset of the RequestProcessor state (e.g. due to
@@ -157,8 +159,8 @@ public class TestRequestProcessor {
         stateManager.initialize();
 
         // ...check that the transaction is aborted when trying to commit
-        requestProc.commitRequest(startTS, writeSet, false, null, new MonitoringContext(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(startTS), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(startTS, writeSet, false, null, new MonitoringContextImpl(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(startTS), any(Channel.class), any(MonitoringContextImpl.class));
 
     }
 
@@ -173,17 +175,17 @@ public class TestRequestProcessor {
         for (long i = 0; i < CONFLICT_MAP_SIZE + CONFLICT_MAP_ASSOCIATIVITY; i++) {
             long writeSetElementHash = i + 1; // This is to match the assigned CT: K/V in cache = WS Element Hash/CT
             List<Long> writeSet = Lists.newArrayList(writeSetElementHash);
-            requestProc.commitRequest(ANY_START_TS, writeSet, false, null, new MonitoringContext(metrics));
+            requestProc.commitRequest(ANY_START_TS, writeSet, false, null, new MonitoringContextImpl(metrics));
         }
 
         Thread.currentThread().sleep(3000); // Allow the Request processor to finish the request processing
 
         // Check that first time its called is on init
-        verify(persist, timeout(100).times(1)).persistLowWatermark(eq(0L));
+        verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(0L));
         // Then, check it is called when cache is full and the first element is evicted (should be a 1)
-        verify(persist, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
+        verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
         // Finally it should never be called with the next element
-        verify(persist, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
+        verify(lowWatermarkWriter, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
 
     }
 

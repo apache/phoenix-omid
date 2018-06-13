@@ -51,6 +51,11 @@ public class NullCommitTable implements CommitTable {
         }
 
         @Override
+        public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
+            return true;
+        }
+
+        @Override
         public void flush() throws IOException {
             // noop
         }

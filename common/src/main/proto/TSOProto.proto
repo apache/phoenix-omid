@@ -63,4 +63,5 @@ message HandshakeRequest {
 message HandshakeResponse {
     optional bool clientCompatible = 1;
     optional Capabilities serverCapabilities = 2;
+    optional bool lowLatency = 3[default= false];
 }

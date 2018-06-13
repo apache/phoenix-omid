@@ -44,7 +44,7 @@ interface ReplyProcessor extends Closeable {
      * @param channel
      *            the channel used to send the response back to the client
      */
-    void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel channel);
+    void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel channel, MonitoringContext monCtx);
 
     /**
      * Allows to send an abort response back to the client.
@@ -54,7 +54,7 @@ interface ReplyProcessor extends Closeable {
      * @param channel
      *            the channel used to send the response back to the client
      */
-    void sendAbortResponse(long startTimestamp, Channel channel);
+    void sendAbortResponse(long startTimestamp, Channel channel, MonitoringContext monCtx);
 
     /**
      * Allow to send a timestamp response back to the client.
@@ -65,7 +65,7 @@ interface ReplyProcessor extends Closeable {
      *            the channel used to send the response back to the client
      */
 
-    void sendTimestampResponse(long startTimestamp, Channel channel);
+    void sendTimestampResponse(long startTimestamp, Channel channel, MonitoringContext monCtx);
 
 }
 

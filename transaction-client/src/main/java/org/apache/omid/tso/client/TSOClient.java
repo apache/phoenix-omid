@@ -92,6 +92,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     private InetSocketAddress tsoAddr;
     private String zkCurrentTsoPath;
 
+    private boolean lowLatency;
+
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
@@ -159,6 +161,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         bootstrap.setOption("keepAlive", true);
         bootstrap.setOption("reuseAddress", true);
         bootstrap.setOption("connectTimeoutMillis", 100);
+        lowLatency = false;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -262,6 +265,11 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             currentChannel.close();
         }
 
+    }
+
+    @Override
+    public boolean isLowLatency() {
+        return lowLatency;
     }
 
     // ****************************************** Finite State Machine ************************************************
@@ -530,6 +538,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         }
 
         public StateMachine.State handleEvent(ResponseEvent e) {
+            lowLatency = e.getParam().getHandshakeResponse().getLowLatency();
             if (e.getParam().hasHandshakeResponse() && e.getParam().getHandshakeResponse().getClientCompatible()) {
                 if (timeout != null) {
                     timeout.cancel();

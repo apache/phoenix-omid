@@ -60,4 +60,10 @@ public interface TSOProtocol {
      */
     TSOFuture<Void> close();
 
+    /**
+     * checks is tso is low latency protocol
+     * @return
+     */
+    boolean isLowLatency();
+
 }
