@@ -24,14 +24,11 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
+import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp.Location;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,6 +123,18 @@ public class HBaseCommitTable implements CommitTable {
         @Override
         public void clearWriteBuffer() {
             writeBuffer.clear();
+        }
+
+        @Override
+        public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
+            assert (startTimestamp < commitTimestamp);
+            byte[] transactionRow = startTimestampToKey(startTimestamp);
+            Put put = new Put(transactionRow, startTimestamp);
+            byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
+            put.add(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
+
+            // TODO checkandput return false but still writes the put!?!
+            return table.checkAndPut(transactionRow, commitTableFamily, INVALID_TX_QUALIFIER, null, put);
         }
 
         @Override
@@ -254,7 +263,7 @@ public class HBaseCommitTable implements CommitTable {
             try {
                 byte[] row = startTimestampToKey(startTimestamp);
                 Put invalidationPut = new Put(row, startTimestamp);
-                invalidationPut.add(commitTableFamily, INVALID_TX_QUALIFIER, null);
+                invalidationPut.add(commitTableFamily, INVALID_TX_QUALIFIER, Bytes.toBytes(1));
 
                 // We need to write to the invalid column only if the commit timestamp
                 // is empty. This has to be done atomically. Otherwise, if we first

@@ -29,7 +29,6 @@ import com.lmax.disruptor.dsl.Disruptor;
 import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
-import org.apache.omid.metrics.Timer;
 import org.jboss.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +36,8 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 
 import java.io.IOException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static com.lmax.disruptor.dsl.ProducerType.SINGLE;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -63,12 +60,7 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
 
     // TODO Next two need to be either int or AtomicLong
     volatile private long batchSequence;
-
-    private CommitTable.Writer lowWatermarkWriter;
-    private ExecutorService lowWatermarkWriterExecutor;
-
     private MetricsRegistry metrics;
-    private final Timer lwmWriteTimer;
 
     @Inject
     PersistenceProcessorImpl(TSOServerConfig config,
@@ -97,19 +89,11 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
         // ------------------------------------------------------------------------------------------------------------
 
         this.metrics = metrics;
-        this.lowWatermarkWriter = commitTable.getWriter();
         this.batchSequence = 0L;
         this.batchPool = batchPool;
         this.currentBatch = batchPool.borrowObject();
-        // Low Watermark writer
-        ThreadFactoryBuilder lwmThreadFactory = new ThreadFactoryBuilder().setNameFormat("lwm-writer-%d");
-        this.lowWatermarkWriterExecutor = Executors.newSingleThreadExecutor(lwmThreadFactory.build());
-
-        // Metrics config
-        this.lwmWriteTimer = metrics.timer(name("tso", "lwmWriter", "latency"));
 
         LOG.info("PersistentProcessor initialized");
-
     }
 
     @Override
@@ -163,25 +147,6 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
         if (currentBatch.isFull()) {
             triggerCurrentBatchFlush();
         }
-
-    }
-
-    @Override
-    public Future<Void> persistLowWatermark(final long lowWatermark) {
-
-        return lowWatermarkWriterExecutor.submit(new Callable<Void>() {
-            @Override
-            public Void call() throws IOException {
-                try {
-                    lwmWriteTimer.start();
-                    lowWatermarkWriter.updateLowWatermark(lowWatermark);
-                    lowWatermarkWriter.flush();
-                } finally {
-                    lwmWriteTimer.stop();
-                }
-                return null;
-            }
-        });
 
     }
 

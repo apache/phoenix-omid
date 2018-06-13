@@ -19,20 +19,37 @@ package org.apache.omid.tso;
 
 import org.jboss.netty.channel.Channel;
 
-import java.io.Closeable;
+import java.io.IOException;
 
-interface PersistenceProcessor extends Closeable {
+public class PersitenceProcessorNullImpl implements PersistenceProcessor {
 
-    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
-            throws Exception;
+    @Override
+    public void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
 
-    void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    }
 
-    void addAbortToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    @Override
+    public void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
 
-    void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    }
 
-    void triggerCurrentBatchFlush() throws Exception;
+    @Override
+    public void addAbortToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
 
+    }
 
+    @Override
+    public void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
+
+    }
+
+    @Override
+    public void triggerCurrentBatchFlush() throws Exception {
+
+    }
+
+    @Override
+    public void close() throws IOException {
+
+    }
 }
