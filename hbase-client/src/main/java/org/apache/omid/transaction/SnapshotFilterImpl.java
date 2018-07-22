@@ -298,12 +298,10 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return commitCache;
     }
 
-    private void buildFamilyDeletionCache(List<Cell> rawCells, Map<String, List<Cell>> familyDeletionCache) {
-
+    private void buildFamilyDeletionCache(HBaseTransaction transaction, List<Cell> rawCells, Map<String, List<Cell>> familyDeletionCache, Map<Long, Long> commitCache, Map<String,byte[]> attributeMap) throws IOException {
         for (Cell cell : rawCells) {
             if (CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
                     CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY)) {
-
                 String row = Bytes.toString(cell.getRow());
                 List<Cell> cells = familyDeletionCache.get(row);
                 if (cells == null) {
@@ -311,10 +309,42 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     familyDeletionCache.put(row, cells);
                 }
 
-                cells.add(cell);
+                if (isCellInSnapshot(cell, transaction, commitCache) ||
+                    isCellInTransaction(cell, transaction, commitCache)) {
+                    cells.add(cell);
+                } else {
+                    Cell lastCell = cell;
+                    Map<Long, Long> cmtCache;
+                    boolean foundCommitttedFamilyDeletion = false;
+                    while (!foundCommitttedFamilyDeletion) {
+
+                        Get g = createPendingGet(lastCell, 3);
+                        for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
+                            g.setAttribute(entry.getKey(), entry.getValue());
+                        }
+
+                        Result result = tableAccessWrapper.get(g);
+                        List<Cell> resultCells = result.listCells();
+                        if (resultCells == null) {
+                            break;
+                        }
+
+                        cmtCache = buildCommitCache(resultCells);
+                        for (Cell c : resultCells) {
+                            if (CellUtil.matchingQualifier(c, CellUtils.FAMILY_DELETE_QUALIFIER) &&
+                                    CellUtil.matchingValue(c, HConstants.EMPTY_BYTE_ARRAY)) {
+                                    if (isCellInSnapshot(c, transaction, cmtCache)) {
+                                        cells.add(c);
+                                        foundCommitttedFamilyDeletion = true;
+                                        break;
+                                    }
+                                    lastCell = c;
+                            }
+                        }
+                    }
+                }
             }
         }
-
     }
 
     private boolean isCellInTransaction(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache) {
@@ -379,7 +409,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         Map<Long, Long> commitCache = buildCommitCache(rawCells);
-        buildFamilyDeletionCache(rawCells, familyDeletionCache);
+        buildFamilyDeletionCache(transaction, rawCells, familyDeletionCache, commitCache, attributeMap);
 
         for (Collection<Cell> columnCells : groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(rawCells)) {
             boolean snapshotValueFound = false;

@@ -48,7 +48,7 @@ public class TestDeletion extends OmidTestBase {
     private byte[] colA = Bytes.toBytes("testdataA");
     private byte[] colB = Bytes.toBytes("testdataB");
     private byte[] data1 = Bytes.toBytes("testWrite-1");
-    private byte[] modrow = Bytes.toBytes("test-del" + 3);
+    private byte[] modrow = Bytes.toBytes("test-del" + 0);
 
     private static class FamCol {
 
@@ -59,6 +59,102 @@ public class TestDeletion extends OmidTestBase {
             this.fam = fam;
             this.col = col;
         }
+
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestDeleteFamilyRow(ITestContext context) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        int rowsWritten = 1;
+        FamCol famColA = new FamCol(famA, colA);
+        writeRows(tt, t1, rowsWritten, famColA);
+        tm.commit(t1);
+
+        Transaction t2 = tm.begin();
+        Delete d = new Delete(modrow);
+        d.deleteFamily(famA);
+        tt.delete(t2, d);
+
+        Transaction tscan = tm.begin();
+        ResultScanner rs = tt.getScanner(tscan, new Scan());
+
+        Map<FamCol, Integer> count = countColsInRows(rs, famColA);
+        assertEquals((int) count.get(famColA), rowsWritten, "ColA count should be equal to rowsWritten");
+        tm.commit(t2);
+
+        tscan = tm.begin();
+        rs = tt.getScanner(tscan, new Scan());
+
+        count = countColsInRows(rs, famColA);
+        Integer countFamColA = count.get(famColA);
+        assertEquals(countFamColA, null);
+
+        Transaction t3 = tm.begin();
+        d.deleteFamily(famA);
+        tt.delete(t3, d);
+
+        tscan = tm.begin();
+        rs = tt.getScanner(tscan, new Scan());
+
+        count = countColsInRows(rs, famColA);
+        countFamColA = count.get(famColA);
+        assertEquals(countFamColA, null);
+
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
+
+    }
+
+    @Test(timeOut = 10_000)
+    public void runTestDeleteFamilyCell(ITestContext context) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        int rowsWritten = 1;
+        FamCol famColA = new FamCol(famA, colA);
+        writeRows(tt, t1, rowsWritten, famColA);
+        tm.commit(t1);
+
+        Transaction t2 = tm.begin();
+        Delete d = new Delete(modrow);
+        d.deleteFamily(famA);
+        tt.delete(t2, d);
+
+        Transaction tscan = tm.begin();
+        ResultScanner rs = tt.getScanner(tscan, new Scan());
+
+        Map<FamCol, Integer> count = countColsInRows(rs, famColA);
+        assertEquals((int) count.get(famColA), rowsWritten, "ColA count should be equal to rowsWritten");
+        tm.commit(t2);
+
+        tscan = tm.begin();
+        rs = tt.getScanner(tscan, new Scan());
+
+        count = countColsInRows(rs, famColA);
+        Integer countFamColA = count.get(famColA);
+        assertEquals(countFamColA, null);
+
+        Transaction t3 = tm.begin();
+        d.deleteFamily(famA);
+        tt.delete(t3, d);
+
+        tscan = tm.begin();
+        rs = tt.getScanner(tscan, new Scan());
+
+        count = countColsInRows(rs, famColA);
+        countFamColA = count.get(famColA);
+        assertEquals(countFamColA, null);
 
     }
 
