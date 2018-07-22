@@ -245,7 +245,7 @@ public class TTable implements Closeable {
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
-        final long writeTimestamp = transaction.getStartTimestamp();
+        final long writeTimestamp = transaction.getWriteTimestamp();
         boolean deleteFamily = false;
 
         final Put deleteP = new Put(delete.getRow(), writeTimestamp);
