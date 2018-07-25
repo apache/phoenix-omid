@@ -95,15 +95,15 @@ public class TestCellUtils {
 
     }
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 10_000000)
     public void testCorrectMapingOfCellsToShadowCells() throws IOException {
         // Create the required data
         final byte[] validShadowCellQualifier =
-                com.google.common.primitives.Bytes.concat(qualifier, SHADOW_CELL_SUFFIX);
+                com.google.common.primitives.Bytes.concat(new byte[1], qualifier, SHADOW_CELL_SUFFIX);
 
         final byte[] qualifier2 = Bytes.toBytes("test-qual2");
         final byte[] validShadowCellQualifier2 =
-                com.google.common.primitives.Bytes.concat(qualifier2, SHADOW_CELL_SUFFIX);
+                com.google.common.primitives.Bytes.concat(new byte[1], qualifier2, SHADOW_CELL_SUFFIX);
 
         final byte[] qualifier3 = Bytes.toBytes("test-qual3");
 
@@ -175,7 +175,7 @@ public class TestCellUtils {
         byte[] suffixedQualifier = CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
                                                                  cell.getQualifierOffset(),
                                                                  cell.getQualifierLength());
-        byte[] expectedQualifier = com.google.common.primitives.Bytes.concat(qualifier, SHADOW_CELL_SUFFIX);
+        byte[] expectedQualifier = com.google.common.primitives.Bytes.concat(new byte[1], qualifier, SHADOW_CELL_SUFFIX);
         assertEquals(suffixedQualifier, expectedQualifier);
 
     }
@@ -184,7 +184,7 @@ public class TestCellUtils {
     public void testShadowCellSuffixRemovalFromQualifier(byte[] shadowCellSuffixToTest) throws IOException {
 
         // Test removal from a correclty suffixed qualifier
-        byte[] suffixedQualifier = com.google.common.primitives.Bytes.concat(qualifier, shadowCellSuffixToTest);
+        byte[] suffixedQualifier = com.google.common.primitives.Bytes.concat(new byte[1], qualifier, shadowCellSuffixToTest);
         Cell cell = new KeyValue(row, family, suffixedQualifier, 1, Bytes.toBytes("value"));
         byte[] resultedQualifier = CellUtils.removeShadowCellSuffix(cell.getQualifierArray(),
                                                                     cell.getQualifierOffset(),
@@ -193,7 +193,7 @@ public class TestCellUtils {
         assertEquals(resultedQualifier, expectedQualifier);
 
         // Test removal from a badly suffixed qualifier
-        byte[] badlySuffixedQualifier = com.google.common.primitives.Bytes.concat(qualifier, Bytes.toBytes("BAD"));
+        byte[] badlySuffixedQualifier = com.google.common.primitives.Bytes.concat(new byte[1], qualifier, Bytes.toBytes("BAD"));
         Cell badCell = new KeyValue(row, family, badlySuffixedQualifier, 1, Bytes.toBytes("value"));
         try {
             CellUtils.removeShadowCellSuffix(badCell.getQualifierArray(),
@@ -215,7 +215,7 @@ public class TestCellUtils {
     @Test(dataProvider = "shadow-cell-suffixes", timeOut = 10_000)
     public void testQualifierLengthFromShadowCellQualifier(byte[] shadowCellSuffixToTest) {
         // Test suffixed qualifier
-        byte[] suffixedQualifier = com.google.common.primitives.Bytes.concat(qualifier, shadowCellSuffixToTest);
+        byte[] suffixedQualifier = com.google.common.primitives.Bytes.concat(new byte[1], qualifier, shadowCellSuffixToTest);
         int originalQualifierLength =
                 CellUtils.qualifierLengthFromShadowCellQualifier(suffixedQualifier, 0, suffixedQualifier.length);
         assertEquals(originalQualifierLength, qualifier.length);

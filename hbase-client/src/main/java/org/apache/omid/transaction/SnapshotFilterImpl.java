@@ -36,8 +36,6 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -45,10 +43,8 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
-import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocatorImpl;
-import org.apache.omid.transaction.TTable.TransactionalClientScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +61,10 @@ public class SnapshotFilterImpl implements SnapshotFilter {
     private static Logger LOG = LoggerFactory.getLogger(SnapshotFilterImpl.class);
 
     private TableAccessWrapper tableAccessWrapper;
+
+    public CommitTable.Client getCommitTableClient() {
+        return commitTableClient;
+    }
 
     private CommitTable.Client commitTableClient;
     
@@ -98,7 +98,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
      * @param commitCache         Holds shadow cells information
      * @return Whether the cell was deleted
      */
-    private boolean checkFamilyDeletionCache(Cell cell, HBaseTransaction transaction, Map<String, List<Cell>> familyDeletionCache, Map<Long, Long> commitCache) throws IOException {
+    public boolean checkFamilyDeletionCache(Cell cell, HBaseTransaction transaction, Map<String, List<Cell>> familyDeletionCache, Map<Long, Long> commitCache) throws IOException {
         List<Cell> familyDeletionCells = familyDeletionCache.get(Bytes.toString((cell.getRow())));
         if (familyDeletionCells != null) {
             for(Cell familyDeletionCell : familyDeletionCells) {
@@ -223,7 +223,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    private Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
+    public Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
             Cell cell,
             Map<Long, Long> commitCache)
                     throws IOException {
@@ -298,7 +298,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return commitCache;
     }
 
-    private void buildFamilyDeletionCache(List<Cell> rawCells, Map<String, List<Cell>> familyDeletionCache) {
+    public void buildFamilyDeletionCache(List<Cell> rawCells, Map<String, List<Cell>> familyDeletionCache) {
 
         for (Cell cell : rawCells) {
             if (CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
@@ -317,7 +317,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    private boolean isCellInTransaction(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache) {
+    public boolean isCellInTransaction(Cell kv, HBaseTransaction transaction) {
 
         long startTimestamp = transaction.getStartTimestamp();
         long readTimestamp = transaction.getReadTimestamp();
@@ -332,7 +332,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return false;
     }
 
-    private boolean isCellInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
+    public boolean isCellInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
         throws IOException {
 
         Optional<Long> commitTimestamp = getCommitTimestamp(kv, transaction, commitCache);
@@ -395,7 +395,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     }
                 }
 
-                if (isCellInTransaction(cell, transaction, commitCache) ||
+                if (isCellInTransaction(cell, transaction) ||
                     isCellInSnapshot(cell, transaction, commitCache)) {
                     if (!CellUtil.matchingValue(cell, CellUtils.DELETE_TOMBSTONE)) {
                         keyValuesInSnapshot.add(cell);
@@ -405,7 +405,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     // 1. if we found a result and we are not in SNAPSHOT_ALL mode.
                     // 2. if we found a result that was not written by the current transaction.
                     if (transaction.getVisibilityLevel() != VisibilityLevel.SNAPSHOT_ALL ||
-                        !isCellInTransaction(cell, transaction, commitCache)) {
+                        !isCellInTransaction(cell, transaction)) {
                         snapshotValueFound = true;
                         break;
                     }
@@ -490,8 +490,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
             @Override
             public boolean apply(Cell cell) {
-                boolean familyDeletionMarkerCondition = CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
-                                                        CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
+                boolean familyDeletionMarkerCondition = CellUtils.isFamilyDeleteCell(cell);
 
                 return cell != null && !CellUtils.isShadowCell(cell) && !familyDeletionMarkerCondition;
             }
