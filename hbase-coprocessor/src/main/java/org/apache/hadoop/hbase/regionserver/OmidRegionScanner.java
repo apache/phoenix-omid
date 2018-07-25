@@ -37,7 +37,7 @@ public class OmidRegionScanner implements RegionScanner {
     private SnapshotFilterImpl snapshotFilter;
     private HBaseTransaction transaction;
     private int maxVersions;
-    private Map<String, List<Cell>> familyDeletionCache;
+    private Map<String, Long> familyDeletionCache;
     private Map<String,byte[]> attributeMap;
 
     public OmidRegionScanner(SnapshotFilterImpl snapshotFilter,
@@ -49,7 +49,7 @@ public class OmidRegionScanner implements RegionScanner {
         this.scanner = s;
         this.transaction = transaction;
         this.maxVersions = maxVersions;
-        this.familyDeletionCache = new HashMap<String, List<Cell>>();
+        this.familyDeletionCache = new HashMap<String, Long>();
         this.attributeMap = attributeMap;
     }
 
