@@ -20,7 +20,6 @@ package org.apache.omid.transaction;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.omid.committable.CommitTable;
@@ -32,9 +31,7 @@ import org.apache.omid.HBaseShims;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
-import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
@@ -57,19 +54,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
     private HBaseCommitTableConfig commitTableConf = null;
     private Configuration conf = null;
-
-    final static String OMID_SNAPSHOT_FILTER_CF_FLAG = "OMID_SNAPSHOT_FILTER_ENABLED";
-
     Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
-
-    public OmidSnapshotFilter() {
-        LOG.info("Compactor coprocessor initialized via empty constructor");
-    }
-
-    public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
-        LOG.info("Compactor coprocessor initialized with constructor for testing");
-//        this.commitTableClient = commitTableClient;
-    }
 
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
