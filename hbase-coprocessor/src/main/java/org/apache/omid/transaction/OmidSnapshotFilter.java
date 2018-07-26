@@ -56,6 +56,14 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     private Configuration conf = null;
     Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
 
+    private CommitTable.Client inMemoryCommitTable = null;
+
+    public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
+        LOG.info("Compactor coprocessor initialized with constructor for testing");
+        this.inMemoryCommitTable = commitTableClient;
+    }
+
+
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
         LOG.info("Starting snapshot filter coprocessor");
@@ -154,6 +162,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
         LOG.info("Trying to get the commit table client");
+        if (inMemoryCommitTable != null) {
+            return inMemoryCommitTable;
+        }
         CommitTable commitTable = new HBaseCommitTable(conf, commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
