@@ -24,6 +24,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
@@ -233,6 +234,16 @@ public final class CellUtils {
      */
     public static boolean isTombstone(Cell cell) {
         return CellUtil.matchingValue(cell, DELETE_TOMBSTONE);
+    }
+
+    /**
+     * Returns if a cell is a family deletion marker.
+     * @param cell the cell to check
+     * @return whether the cell is marked as a family deletion marker
+     */
+    public static boolean isFamilyDeleteCell(Cell cell) {
+        return CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
+                CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
     }
 
     /**
