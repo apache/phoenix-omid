@@ -303,10 +303,10 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                 if (familyDeletionCache.containsKey(key))
                     return;
 
-                Optional<Long> commitTimeStamp = getTSIfInSnapshot(cell, transaction, commitCache);
+                Optional<Long> commitTimeStamp = getTSIfInTransaction(cell, transaction, commitCache);
 
                 if (!commitTimeStamp.isPresent()) {
-                    commitTimeStamp = getTSIfInTransaction(cell, transaction, commitCache);
+                    commitTimeStamp = getTSIfInSnapshot(cell, transaction, commitCache);
                 }
 
                 if (commitTimeStamp.isPresent()) {
@@ -314,13 +314,10 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                 } else {
                     Cell lastCell = cell;
                     Map<Long, Long> cmtCache;
-                    boolean foundCommitttedFamilyDeletion = false;
-                    while (!foundCommitttedFamilyDeletion) {
+                    boolean foundCommittedFamilyDeletion = false;
+                    while (!foundCommittedFamilyDeletion) {
 
                         Get g = createPendingGet(lastCell, 3);
-                        for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
-                            g.setAttribute(entry.getKey(), entry.getValue());
-                        }
 
                         Result result = tableAccessWrapper.get(g);
                         List<Cell> resultCells = result.listCells();
@@ -334,7 +331,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                                     commitTimeStamp = getTSIfInSnapshot(c, transaction, cmtCache);
                                     if (commitTimeStamp.isPresent()) {
                                         familyDeletionCache.put(key, commitTimeStamp.get());
-                                        foundCommitttedFamilyDeletion = true;
+                                        foundCommittedFamilyDeletion = true;
                                         break;
                                     }
                                     lastCell = c;
