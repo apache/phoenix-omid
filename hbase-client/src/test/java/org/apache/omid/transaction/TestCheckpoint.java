@@ -20,6 +20,7 @@ package org.apache.omid.transaction;
 import java.util.List;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -294,6 +295,42 @@ public class TestCheckpoint extends OmidTestBase {
         assertTrue(Bytes.equals(dataValue1, r.getValue(famName1, colName1)),
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
         
+        tt.close();
+    }
+
+    @Test(timeOut = 30_000)
+    public void testDeleteAfterCheckpoint(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        Transaction tx1 = tm.begin();
+
+        Put row1 = new Put(rowName1);
+        row1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, row1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+
+        HBaseTransaction hbaseTx2 = enforceHBaseTransactionAsParam(tx1);
+
+        hbaseTx2.checkpoint();
+
+        Delete d = new Delete(rowName1);
+        tt.delete(tx2, d);
+
+        try {
+            tm.commit(tx2);
+        } catch (TransactionException e) {
+            Assert.fail();
+        }
+
         tt.close();
     }
 
