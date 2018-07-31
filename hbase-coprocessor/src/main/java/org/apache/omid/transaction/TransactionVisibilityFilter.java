@@ -66,6 +66,17 @@ public class TransactionVisibilityFilter extends FilterBase {
                 return ReturnCode.SKIP;
             }
         } else if (CellUtils.isFamilyDeleteCell(v)) {
+            //Delete is part of this transaction
+            if (snapshotFilter.isCellInTransaction(v, hbaseTransaction)) {
+                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), v.getTimestamp());
+                return ReturnCode.NEXT_COL;
+            }
+
+            if (shadowCellCache.containsKey(v.getTimestamp()) &&
+                    hbaseTransaction.getStartTimestamp() >= shadowCellCache.get(v.getTimestamp())) {
+                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), shadowCellCache.get(v.getTimestamp()));
+                return ReturnCode.NEXT_COL;
+            }
 
             // Try to get shadow cell from region
             final Get get = new Get(CellUtil.cloneRow(v));
@@ -79,16 +90,17 @@ public class TransactionVisibilityFilter extends FilterBase {
                 return ReturnCode.NEXT_COL;
             }
 
+            //At last go to commit table
             Optional<Long> commitTimestamp = snapshotFilter.tryToLocateCellCommitTimestamp(hbaseTransaction.getEpoch(),
                     v, shadowCellCache);
             if (commitTimestamp.isPresent() && hbaseTransaction.getStartTimestamp() >= commitTimestamp.get()) {
                 familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), commitTimestamp.get());
                 return ReturnCode.NEXT_COL;
-            } else {
-                // Continue getting the next version of the delete family,
-                // until we get one in the snapshot or move to next cell
-                return ReturnCode.SKIP;
             }
+
+            // Continue getting the next version of the delete family,
+            // until we get one in the snapshot or move to next cell
+            return ReturnCode.SKIP;
         }
 
         if (familyDeletionCache.containsKey(Bytes.toString(CellUtil.cloneFamily(v)))

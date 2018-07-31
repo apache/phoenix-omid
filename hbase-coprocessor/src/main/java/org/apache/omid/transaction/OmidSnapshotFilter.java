@@ -63,6 +63,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         this.inMemoryCommitTable = commitTableClient;
     }
 
+    public OmidSnapshotFilter() {
+        LOG.info("Compactor coprocessor initialized via empty constructor");
+    }
 
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
