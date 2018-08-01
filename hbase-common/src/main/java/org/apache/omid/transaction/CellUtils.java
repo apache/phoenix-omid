@@ -24,6 +24,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
@@ -246,6 +247,7 @@ public final class CellUtils {
     public static boolean isTombstone(Cell cell) {
         return CellUtil.matchingValue(cell, DELETE_TOMBSTONE);
     }
+
 
     /**
      * Returns a new shadow cell created from a particular cell.

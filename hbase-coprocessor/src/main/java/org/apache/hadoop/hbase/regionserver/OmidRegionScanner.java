@@ -31,6 +31,7 @@ public class OmidRegionScanner implements RegionScanner {
     private SnapshotFilterImpl snapshotFilter;
     private final Queue<SnapshotFilterImpl> snapshotFilterQueue;
 
+
     public OmidRegionScanner(SnapshotFilterImpl snapshotFilter,
                              RegionScanner s, Queue<SnapshotFilterImpl> snapshotFilterQueue) {
         this.snapshotFilter = snapshotFilter;

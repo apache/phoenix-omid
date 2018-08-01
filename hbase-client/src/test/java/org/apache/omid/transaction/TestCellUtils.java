@@ -95,7 +95,7 @@ public class TestCellUtils {
 
     }
 
-    @Test(timeOut = 10_000000)
+    @Test(timeOut = 10_000)
     public void testCorrectMapingOfCellsToShadowCells() throws IOException {
         // Create the required data
         final byte[] validShadowCellQualifier =

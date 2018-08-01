@@ -110,7 +110,6 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
 
         HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
-
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
         get.setMaxVersions();
         Filter newFilter = TransactionFilters.getVisibilityFilter(get.getFilter(),

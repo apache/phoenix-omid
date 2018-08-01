@@ -245,7 +245,7 @@ public class TTable implements Closeable {
 
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
-        final long writeTimestamp = transaction.getStartTimestamp();
+        final long writeTimestamp = transaction.getWriteTimestamp();
         boolean deleteFamily = false;
 
         final Put deleteP = new Put(delete.getRow(), writeTimestamp);
@@ -447,7 +447,7 @@ public class TTable implements Closeable {
 
 
     List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-                                      int versionsToRequest, Map<String, List<Cell>> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
+                                      int versionsToRequest, Map<String, Long> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
         return snapshotFilter.filterCellsForSnapshot(rawCells, transaction, versionsToRequest, familyDeletionCache, attributeMap);
     }
 
@@ -457,7 +457,7 @@ public class TTable implements Closeable {
         private HBaseTransaction state;
         private ResultScanner innerScanner;
         private int maxVersions;
-        Map<String, List<Cell>> familyDeletionCache;
+        Map<String, Long> familyDeletionCache;
         private Map<String,byte[]> attributeMap;
 
         TransactionalClientScanner(HBaseTransaction state, Scan scan, int maxVersions)
@@ -465,7 +465,7 @@ public class TTable implements Closeable {
             this.state = state;
             this.innerScanner = table.getScanner(scan);
             this.maxVersions = maxVersions;
-            this.familyDeletionCache = new HashMap<String, List<Cell>>();
+            this.familyDeletionCache = new HashMap<String, Long>();
             this.attributeMap = scan.getAttributesMap();
         }
 

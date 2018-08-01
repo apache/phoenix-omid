@@ -67,7 +67,7 @@ public class TransactionVisibilityFilter extends FilterBase {
             }
         } else if (CellUtils.isFamilyDeleteCell(v)) {
             //Delete is part of this transaction
-            if (snapshotFilter.isCellInTransaction(v, hbaseTransaction)) {
+            if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
                 familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), v.getTimestamp());
                 return ReturnCode.NEXT_COL;
             }
@@ -117,7 +117,7 @@ public class TransactionVisibilityFilter extends FilterBase {
             if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT) {
                 return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
             } else if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
-                if (snapshotFilter.isCellInTransaction(v, hbaseTransaction)) {
+                if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
                     return runUserFilter(v, ReturnCode.INCLUDE);
                 } else {
                     return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
@@ -153,10 +153,12 @@ public class TransactionVisibilityFilter extends FilterBase {
                 hbaseTransaction.getStartTimestamp() >= shadowCellCache.get(v.getTimestamp())) {
             return true;
         }
-        if (snapshotFilter.isCellInTransaction(v, hbaseTransaction)) {
+        if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
             return true;
         }
-        if (snapshotFilter.isCellInSnapshot(v,hbaseTransaction,shadowCellCache)) {
+        Optional<Long> commitTS = snapshotFilter.getTSIfInSnapshot(v, hbaseTransaction, shadowCellCache);
+        if (commitTS.isPresent()) {
+            shadowCellCache.put(v.getTimestamp(), commitTS.get());
             return true;
         }
         return false;
