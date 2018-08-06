@@ -32,7 +32,7 @@ import com.google.common.base.Optional;
 
 public interface SnapshotFilter {
     
-    public Result get(TTable ttable, Get get, HBaseTransaction transaction) throws IOException;
+    public Result get(Get get, HBaseTransaction transaction) throws IOException;
 
     public ResultScanner getScanner(TTable ttable, Scan scan, HBaseTransaction transaction) throws IOException;
 

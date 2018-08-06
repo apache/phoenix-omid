@@ -49,7 +49,7 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
     }
 
     @Override
-    public Result get(TTable ttable, Get get, HBaseTransaction transaction) throws IOException {
+    public Result get(Get get, HBaseTransaction transaction) throws IOException {
         get.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, getBuilder(transaction).build().toByteArray());
         get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
 

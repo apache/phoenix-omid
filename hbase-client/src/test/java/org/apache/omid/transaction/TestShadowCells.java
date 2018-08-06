@@ -21,19 +21,12 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import org.apache.hadoop.hbase.client.*;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
@@ -44,7 +37,6 @@ import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -334,7 +326,11 @@ public class TestShadowCells extends OmidTestBase {
                 LOG.info("Waiting readAfterCommit barrier");
                 try {
                     readAfterCommit.await();
-                    final TTable table = spy(new TTable(hbaseConf, TEST_TABLE));
+                    HTable htable = new HTable(hbaseConf, TEST_TABLE);
+                    HTable healer = new HTable(hbaseConf, TEST_TABLE);
+
+                    final SnapshotFilter snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, healer)));
+                    final TTable table = new TTable(htable ,snapshotFilter);
                     doAnswer(new Answer<List<KeyValue>>() {
                         @SuppressWarnings("unchecked")
                         @Override
@@ -345,7 +341,7 @@ public class TestShadowCells extends OmidTestBase {
                             postCommitEnd.await();
                             return (List<KeyValue>) invocation.callRealMethod();
                         }
-                    }).when(table).filterCellsForSnapshot(Matchers.<List<Cell>>any(),
+                    }).when(snapshotFilter).filterCellsForSnapshot(Matchers.<List<Cell>>any(),
                             any(HBaseTransaction.class), anyInt(), Matchers.<Map<String, Long>>any(), Matchers.<Map<String,byte[]>>any());
 
                     TransactionManager tm = newTransactionManager(context);
@@ -438,7 +434,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // delete new shadow cell
         Delete del = new Delete(row2);
-        del.deleteColumn(family, CellUtils.addShadowCellSuffix(qualifier));
+        del.deleteColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
         htable.delete(del);
         htable.flushCommits();
 

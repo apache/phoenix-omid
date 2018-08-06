@@ -18,7 +18,7 @@
 package org.apache.omid.transaction;
 
 import com.google.common.base.Optional;
-import com.sun.istack.Nullable;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
@@ -26,6 +26,7 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
@@ -36,97 +37,78 @@ public class TransactionVisibilityFilter extends FilterBase {
     // optional sub-filter to apply to visible cells
     private final Filter userFilter;
     private final SnapshotFilterImpl snapshotFilter;
-    private final Map<Long ,Long> shadowCellCache;
+    private final Map<Long ,Long> commitCache;
     private final HBaseTransaction hbaseTransaction;
-    private final Map<String, Long> familyDeletionCache;
+
+    // This cache is cleared when moving to the next row
+    // So no need to keep row name
+    private final Map<ImmutableBytesWritable, Long> familyDeletionCache;
 
     public SnapshotFilter getSnapshotFilter() {
         return snapshotFilter;
     }
 
-    public TransactionVisibilityFilter(@Nullable Filter cellFilter,
+    public TransactionVisibilityFilter(Filter cellFilter,
                                        SnapshotFilterImpl snapshotFilter,
                                        HBaseTransaction hbaseTransaction) {
         this.userFilter = cellFilter;
         this.snapshotFilter = snapshotFilter;
-        shadowCellCache = new HashMap<>();
+        commitCache = new HashMap<>();
         this.hbaseTransaction = hbaseTransaction;
-        familyDeletionCache = new HashMap<String, Long>();
+        familyDeletionCache = new HashMap<>();
     }
 
     @Override
     public ReturnCode filterKeyValue(Cell v) throws IOException {
         if (CellUtils.isShadowCell(v)) {
             Long commitTs =  Bytes.toLong(CellUtil.cloneValue(v));
-            shadowCellCache.put(v.getTimestamp(), commitTs);
+            commitCache.put(v.getTimestamp(), commitTs);
             // Continue getting shadow cells until one of them fits this transaction
             if (hbaseTransaction.getStartTimestamp() >= commitTs) {
                 return ReturnCode.NEXT_COL;
             } else {
                 return ReturnCode.SKIP;
             }
-        } else if (CellUtils.isFamilyDeleteCell(v)) {
-            //Delete is part of this transaction
-            if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
-                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), v.getTimestamp());
-                return ReturnCode.NEXT_COL;
-            }
-
-            if (shadowCellCache.containsKey(v.getTimestamp()) &&
-                    hbaseTransaction.getStartTimestamp() >= shadowCellCache.get(v.getTimestamp())) {
-                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), shadowCellCache.get(v.getTimestamp()));
-                return ReturnCode.NEXT_COL;
-            }
-
-            // Try to get shadow cell from region
-            final Get get = new Get(CellUtil.cloneRow(v));
-            get.setTimeStamp(v.getTimestamp()).setMaxVersions(1);
-            get.addColumn(CellUtil.cloneFamily(v), CellUtils.addShadowCellSuffix(CellUtils.FAMILY_DELETE_QUALIFIER));
-            Result deleteFamilySC = snapshotFilter.getTableAccessWrapper().get(get);
-
-            if (!deleteFamilySC.isEmpty() &&
-                    Bytes.toLong(CellUtil.cloneValue(deleteFamilySC.rawCells()[0] )) < hbaseTransaction.getStartTimestamp()){
-                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), Bytes.toLong(CellUtil.cloneValue(deleteFamilySC.rawCells()[0])));
-                return ReturnCode.NEXT_COL;
-            }
-
-            //At last go to commit table
-            Optional<Long> commitTimestamp = snapshotFilter.tryToLocateCellCommitTimestamp(hbaseTransaction.getEpoch(),
-                    v, shadowCellCache);
-            if (commitTimestamp.isPresent() && hbaseTransaction.getStartTimestamp() >= commitTimestamp.get()) {
-                familyDeletionCache.put(Bytes.toString(CellUtil.cloneFamily(v)), commitTimestamp.get());
-                return ReturnCode.NEXT_COL;
-            }
-
-            // Continue getting the next version of the delete family,
-            // until we get one in the snapshot or move to next cell
-            return ReturnCode.SKIP;
         }
 
-        if (familyDeletionCache.containsKey(Bytes.toString(CellUtil.cloneFamily(v)))
-                && familyDeletionCache.get(Bytes.toString(CellUtil.cloneFamily(v))) >= v.getTimestamp()) {
-            return ReturnCode.NEXT_COL;
-        }
-
-        if (isCellInSnapshot(v)) {
-
-            if (CellUtils.isTombstone(v)) {
-                return ReturnCode.NEXT_COL;
+        Optional<Long> ct = getCommitIfInSnapshot(v, CellUtils.isFamilyDeleteCell(v));
+        if (ct.isPresent()) {
+            commitCache.put(v.getTimestamp(), ct.get());
+            if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL &&
+                    snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
+                return runUserFilter(v, ReturnCode.INCLUDE);
             }
-
-            if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT) {
-                return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
-            } else if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
-                if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
-                    return runUserFilter(v, ReturnCode.INCLUDE);
-                } else {
+            if (CellUtils.isFamilyDeleteCell(v)) {
+                familyDeletionCache.put(createImmutableBytesWritable(v), ct.get());
+                if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
                     return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
+                } else {
+                    return ReturnCode.NEXT_COL;
                 }
             }
+            Long deleteCommit = familyDeletionCache.get(createImmutableBytesWritable(v));
+            if (deleteCommit != null && deleteCommit >= v.getTimestamp()) {
+                return ReturnCode.NEXT_COL;
+            }
+            if (CellUtils.isTombstone(v)) {
+                if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
+                    return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
+                } else {
+                    return ReturnCode.NEXT_COL;
+                }
+            }
+
+            return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
         }
+
         return ReturnCode.SKIP;
     }
 
+
+    private ImmutableBytesWritable createImmutableBytesWritable(Cell v) {
+        return new ImmutableBytesWritable(v.getFamilyArray(),
+                v.getFamilyOffset(),v.getFamilyLength());
+    }
 
     private ReturnCode runUserFilter(Cell v, ReturnCode snapshotReturn)
             throws IOException {
@@ -147,27 +129,37 @@ public class TransactionVisibilityFilter extends FilterBase {
 
     }
 
-
-    private boolean isCellInSnapshot(Cell v) throws IOException {
-        if (shadowCellCache.containsKey(v.getTimestamp()) &&
-                hbaseTransaction.getStartTimestamp() >= shadowCellCache.get(v.getTimestamp())) {
-            return true;
+    // For family delete cells, the sc hasn't arrived yet so get sc from region before going to ct
+    private Optional<Long> getCommitIfInSnapshot(Cell v, boolean getShadowCellBeforeCT) throws IOException {
+        Long cachedCommitTS = commitCache.get(v.getTimestamp());
+        if (cachedCommitTS != null && hbaseTransaction.getStartTimestamp() >= cachedCommitTS) {
+            return Optional.of(cachedCommitTS);
         }
         if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
-            return true;
+            return Optional.of(v.getTimestamp());
         }
-        Optional<Long> commitTS = snapshotFilter.getTSIfInSnapshot(v, hbaseTransaction, shadowCellCache);
-        if (commitTS.isPresent()) {
-            shadowCellCache.put(v.getTimestamp(), commitTS.get());
-            return true;
+
+        if (getShadowCellBeforeCT) {
+
+            // Try to get shadow cell from region
+            final Get get = new Get(CellUtil.cloneRow(v));
+            get.setTimeStamp(v.getTimestamp()).setMaxVersions(1);
+            get.addColumn(CellUtil.cloneFamily(v), CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
+            Result shadowCell = snapshotFilter.getTableAccessWrapper().get(get);
+
+            if (!shadowCell.isEmpty() &&
+                    Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0] )) <= hbaseTransaction.getStartTimestamp()){
+                return Optional.of(Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0])));
+            }
         }
-        return false;
+
+        return snapshotFilter.getTSIfInSnapshot(v, hbaseTransaction, commitCache);
     }
 
 
     @Override
     public void reset() throws IOException {
-        shadowCellCache.clear();
+        commitCache.clear();
         familyDeletionCache.clear();
         if (userFilter != null) {
             userFilter.reset();

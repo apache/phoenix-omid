@@ -107,14 +107,22 @@ public class TTable implements Closeable {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
         this.serverSideFilter = serverSideFilter;
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
+    }
+
+    public TTable(HTableInterface hTable, SnapshotFilter snapshotFilter ) throws IOException {
+        table = hTable;
+        healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        this.snapshotFilter = snapshotFilter;
     }
 
     public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         healerTable = new HTable(table.getConfiguration(), table.getTableName());
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
@@ -122,14 +130,16 @@ public class TTable implements Closeable {
         this.healerTable = healerTable;
         Configuration config = table.getConfiguration();
         serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
     }
 
     public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
         this.healerTable = healerTable;
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) : new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
+        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
     }
 
 
@@ -182,15 +192,15 @@ public class TTable implements Closeable {
             } else {
                 for (byte[] qualifier : qualifiers) {
                     tsget.addColumn(family, qualifier);
-                    tsget.addColumn(family, CellUtils.addShadowCellSuffix(qualifier));
+                    tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
                 }
                 tsget.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER);
-                tsget.addColumn(family, CellUtils.addShadowCellSuffix(CellUtils.FAMILY_DELETE_QUALIFIER));
+                tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             }
         }
         LOG.trace("Initial Get = {}", tsget);
 
-        return snapshotFilter.get(this, tsget, transaction);
+        return snapshotFilter.get(tsget, transaction);
     }
 
     static private void propagateAttributes(OperationWithAttributes from, OperationWithAttributes to) {
@@ -346,7 +356,7 @@ public class TTable implements Closeable {
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), timestamp);
                 tsput.add(kv);
                 tsput.add(CellUtil.cloneFamily(kv),
-                        CellUtils.addShadowCellSuffix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
+                        CellUtils.addShadowCellSuffixPrefix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
                         kv.getTimestamp(),
                         Bytes.toBytes(commitTimestamp));
             }
@@ -386,7 +396,7 @@ public class TTable implements Closeable {
 
                 if (autoCommit) {
                     tsput.add(CellUtil.cloneFamily(kv),
-                            CellUtils.addShadowCellSuffix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
+                            CellUtils.addShadowCellSuffixPrefix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
                             kv.getTimestamp(),
                             Bytes.toBytes(kv.getTimestamp()));
                 } else {
@@ -435,7 +445,7 @@ public class TTable implements Closeable {
                 continue;
             }
             for (byte[] qualifier : qualifiers) {
-                tsscan.addColumn(family, CellUtils.addShadowCellSuffix(qualifier));
+                tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
             }
             if (!qualifiers.isEmpty()) {
                 tsscan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
@@ -443,117 +453,6 @@ public class TTable implements Closeable {
         }
 
         return snapshotFilter.getScanner(this, tsscan, transaction);
-    }
-
-
-    List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-                                      int versionsToRequest, Map<String, Long> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
-        return snapshotFilter.filterCellsForSnapshot(rawCells, transaction, versionsToRequest, familyDeletionCache, attributeMap);
-    }
-
-
-    public class TransactionalClientScanner implements ResultScanner {
-
-        private HBaseTransaction state;
-        private ResultScanner innerScanner;
-        private int maxVersions;
-        Map<String, Long> familyDeletionCache;
-        private Map<String,byte[]> attributeMap;
-
-        TransactionalClientScanner(HBaseTransaction state, Scan scan, int maxVersions)
-            throws IOException {
-            this.state = state;
-            this.innerScanner = table.getScanner(scan);
-            this.maxVersions = maxVersions;
-            this.familyDeletionCache = new HashMap<String, Long>();
-            this.attributeMap = scan.getAttributesMap();
-        }
-
-
-        @Override
-        public Result next() throws IOException {
-            List<Cell> filteredResult = Collections.emptyList();
-            while (filteredResult.isEmpty()) {
-                Result result = innerScanner.next();
-                if (result == null) {
-                    return null;
-                }
-                if (!result.isEmpty()) {
-                    filteredResult = filterCellsForSnapshot(result.listCells(), state, maxVersions, familyDeletionCache, attributeMap);
-                }
-            }
-            return Result.create(filteredResult);
-        }
-
-        // In principle no need to override, copied from super.next(int) to make
-        // sure it works even if super.next(int)
-        // changes its implementation
-        @Override
-        public Result[] next(int nbRows) throws IOException {
-            // Collect values to be returned here
-            ArrayList<Result> resultSets = new ArrayList<>(nbRows);
-            for (int i = 0; i < nbRows; i++) {
-                Result next = next();
-                if (next != null) {
-                    resultSets.add(next);
-                } else {
-                    break;
-                }
-            }
-            return resultSets.toArray(new Result[resultSets.size()]);
-        }
-
-        @Override
-        public void close() {
-            innerScanner.close();
-        }
-
-        @Override
-        public Iterator<Result> iterator() {
-            return new ResultIterator(this);
-        }
-
-        // ------------------------------------------------------------------------------------------------------------
-        // --------------------------------- Helper class for TransactionalClientScanner ------------------------------
-        // ------------------------------------------------------------------------------------------------------------
-
-        class ResultIterator implements Iterator<Result> {
-
-            TransactionalClientScanner scanner;
-            Result currentResult;
-
-            ResultIterator(TransactionalClientScanner scanner) {
-                try {
-                    this.scanner = scanner;
-                    currentResult = scanner.next();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public boolean hasNext() {
-                return currentResult != null && !currentResult.isEmpty();
-            }
-
-            @Override
-            public Result next() {
-                try {
-                    Result result = currentResult;
-                    currentResult = scanner.next();
-                    return result;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public void remove() {
-                throw new RuntimeException("Not implemented");
-            }
-
-        }
-
     }
 
     /**

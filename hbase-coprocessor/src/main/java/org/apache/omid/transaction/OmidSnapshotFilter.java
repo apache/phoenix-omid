@@ -111,6 +111,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
         HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
+
+        // In order to get hbase FilterBase framework to keep getting more versions
         get.setMaxVersions();
         Filter newFilter = TransactionFilters.getVisibilityFilter(get.getFilter(),
                 snapshotFilter, hbaseTransaction);

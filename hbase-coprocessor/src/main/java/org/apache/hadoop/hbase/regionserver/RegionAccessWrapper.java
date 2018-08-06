@@ -20,10 +20,7 @@ package org.apache.hadoop.hbase.regionserver;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.omid.transaction.TableAccessWrapper;
 
 // This class wraps the Region object when doing server side filtering.
@@ -54,6 +51,11 @@ public class RegionAccessWrapper implements TableAccessWrapper {
     @Override
     public void put(Put put) throws IOException {
         region.put(put);
+    }
+
+    @Override
+    public ResultScanner getScanner(Scan scan) throws IOException {
+        return null;
     }
 
 }
