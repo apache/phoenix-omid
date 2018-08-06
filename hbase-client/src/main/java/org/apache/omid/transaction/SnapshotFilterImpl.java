@@ -409,35 +409,40 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         Map<Long, Long> commitCache = buildCommitCache(rawCells);
         buildFamilyDeletionCache(transaction, rawCells, familyDeletionCache, commitCache, attributeMap);
 
-        for (Collection<Cell> columnCells : groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(rawCells)) {
+        ImmutableList<Collection<Cell>> filteredCells;
+        if (transaction.getVisibilityLevel() == VisibilityLevel.SNAPSHOT_ALL) {
+            filteredCells = groupCellsByColumnFilteringShadowCells(rawCells);
+        } else {
+            filteredCells = groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(rawCells);
+        }
+
+        for (Collection<Cell> columnCells : filteredCells) {
             boolean snapshotValueFound = false;
             Cell oldestCell = null;
             for (Cell cell : columnCells) {
-                snapshotValueFound = checkFamilyDeletionCache(cell, transaction, familyDeletionCache, commitCache);
-
-                if (snapshotValueFound == true) {
-                    if (transaction.getVisibilityLevel() == VisibilityLevel.SNAPSHOT_ALL) {
-                        snapshotValueFound = false;
-                    } else {
-                        break;
-                    }
-                }
+                oldestCell = cell;
                 if (getTSIfInTransaction(cell, transaction).isPresent() ||
-                    getTSIfInSnapshot(cell, transaction, commitCache).isPresent()) {
-                    if (!CellUtils.isTombstone(cell)) {
-                        keyValuesInSnapshot.add(cell);
-                    }
+                        getTSIfInSnapshot(cell, transaction, commitCache).isPresent()) {
 
-                    // We can finish looking for additional results in two cases:
-                    // 1. if we found a result and we are not in SNAPSHOT_ALL mode.
-                    // 2. if we found a result that was not written by the current transaction.
-                    if (transaction.getVisibilityLevel() != VisibilityLevel.SNAPSHOT_ALL ||
-                        !getTSIfInTransaction(cell, transaction).isPresent()) {
+                    if (transaction.getVisibilityLevel() == VisibilityLevel.SNAPSHOT_ALL) {
+                        keyValuesInSnapshot.add(cell);
+                        if (getTSIfInTransaction(cell, transaction).isPresent()) {
+                            snapshotValueFound = false;
+                            continue;
+                        } else {
+                            snapshotValueFound = true;
+                            break;
+                        }
+                    } else {
+                        if (!checkFamilyDeletionCache(cell, transaction, familyDeletionCache, commitCache) &&
+                                !CellUtils.isTombstone(cell)) {
+                            keyValuesInSnapshot.add(cell);
+                        }
                         snapshotValueFound = true;
                         break;
+
                     }
                 }
-                oldestCell = cell;
             }
             if (!snapshotValueFound) {
                 assert (oldestCell != null);
@@ -477,7 +482,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
     }
 
     @Override
-    public ResultScanner getScanner(TTable ttable, Scan scan, HBaseTransaction transaction) throws IOException {
+    public ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException {
 
         return new TransactionalClientScanner(transaction, scan, 1);
 
@@ -537,6 +542,31 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             .asMap().values()
             .asList();
     }
+
+
+    static ImmutableList<Collection<Cell>> groupCellsByColumnFilteringShadowCells(List<Cell> rawCells) {
+
+        Predicate<Cell> shadowCellFilter = new Predicate<Cell>() {
+            @Override
+            public boolean apply(Cell cell) {
+                return cell != null && !CellUtils.isShadowCell(cell);
+            }
+        };
+
+        Function<Cell, ColumnWrapper> cellToColumnWrapper = new Function<Cell, ColumnWrapper>() {
+
+            @Override
+            public ColumnWrapper apply(Cell cell) {
+                return new ColumnWrapper(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
+            }
+
+        };
+
+        return Multimaps.index(Iterables.filter(rawCells, shadowCellFilter), cellToColumnWrapper)
+                .asMap().values()
+                .asList();
+    }
+
 
     public class TransactionalClientScanner implements ResultScanner {
 

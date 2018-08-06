@@ -34,7 +34,7 @@ public interface SnapshotFilter {
     
     public Result get(Get get, HBaseTransaction transaction) throws IOException;
 
-    public ResultScanner getScanner(TTable ttable, Scan scan, HBaseTransaction transaction) throws IOException;
+    public ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException;
 
     public List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
             int versionsToRequest, Map<String, Long> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException;

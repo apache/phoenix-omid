@@ -88,7 +88,11 @@ public class TransactionVisibilityFilter extends FilterBase {
             }
             Long deleteCommit = familyDeletionCache.get(createImmutableBytesWritable(v));
             if (deleteCommit != null && deleteCommit >= v.getTimestamp()) {
-                return ReturnCode.NEXT_COL;
+                if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
+                    return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
+                } else {
+                    return ReturnCode.NEXT_COL;
+                }
             }
             if (CellUtils.isTombstone(v)) {
                 if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
@@ -112,7 +116,7 @@ public class TransactionVisibilityFilter extends FilterBase {
 
     private ReturnCode runUserFilter(Cell v, ReturnCode snapshotReturn)
             throws IOException {
-
+        assert(snapshotReturn == ReturnCode.INCLUDE_AND_NEXT_COL || snapshotReturn == ReturnCode.INCLUDE);
         if (userFilter == null) {
             return snapshotReturn;
         }

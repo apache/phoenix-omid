@@ -17,6 +17,7 @@
  */
 package org.apache.omid.transaction;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
@@ -38,6 +39,8 @@ import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
 
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -46,7 +49,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -167,6 +174,7 @@ public class TestSnapshotFilter {
                 .build();
     }
 
+
     @Test(timeOut = 60_000)
     public void testGetFirstResult() throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
@@ -275,6 +283,84 @@ public class TestSnapshotFilter {
 
         tt.close();
     }
+
+    @Test(timeOut = 60_000)
+    public void testReadFromCommitTable() throws Exception {
+        final byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        final String TEST_TABLE = "testGetWithFilter";
+        final byte[] famName2 = Bytes.toBytes("test-fam2");
+
+        final CountDownLatch readAfterCommit = new CountDownLatch(1);
+        final CountDownLatch postCommitBegin = new CountDownLatch(1);
+
+        final AtomicBoolean readFailed = new AtomicBoolean(false);
+        final AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager();
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
+
+        doAnswer(new Answer<ListenableFuture<Void>>() {
+            @Override
+            public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                LOG.info("Releasing readAfterCommit barrier");
+                readAfterCommit.countDown();
+                LOG.info("Waiting postCommitBegin barrier");
+                postCommitBegin.await();
+                ListenableFuture<Void> result = (ListenableFuture<Void>) invocation.callRealMethod();
+                return result;
+            }
+        }).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
+
+        Thread readThread = new Thread("Read Thread") {
+            @Override
+            public void run() {
+
+                try {
+                    LOG.info("Waiting readAfterCommit barrier");
+                    readAfterCommit.await();
+
+                    Transaction tx4 = tm.begin();
+                    TTable tt = new TTable(hbaseConf, TEST_TABLE);
+                    Get get = new Get(rowName1);
+
+                    Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+
+                    get.setFilter(filter1);
+                    Result result = tt.get(tx4, get);
+
+                    if (result.size() == 2) {
+                        readFailed.set(false);
+                    }
+                    else {
+                        readFailed.set(false);
+                    }
+
+                    postCommitBegin.countDown();
+                } catch (Throwable e) {
+                    readFailed.set(false);
+                    LOG.error("Error whilst reading", e);
+                }
+            }
+        };
+        readThread.start();
+
+        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        final HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        table.put(t1, put1);
+        tm.commit(t1);
+
+        readThread.join();
+
+        assertFalse(readFailed.get(), "Read should have succeeded");
+
+    }
+
+
 
     @Test(timeOut = 60_000)
     public void testGetWithFilter() throws Throwable {
