@@ -17,15 +17,18 @@
  */
 package org.apache.omid.transaction;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
@@ -33,6 +36,14 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
+
+import org.apache.hadoop.hbase.filter.BinaryComparator;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.FamilyFilter;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterList;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
+import org.apache.hadoop.hbase.filter.SubstringComparator;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
@@ -41,6 +52,9 @@ import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
+
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -49,7 +63,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -170,9 +188,9 @@ public class TestSnapshotFilter {
                 .build();
     }
 
+
     @Test(timeOut = 60_000)
     public void testGetFirstResult() throws Throwable {
-
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
@@ -225,15 +243,243 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
+
+    // This test will fail if filtering is done before snapshot filtering
+    @Test(timeOut = 60_000)
+    public void testServerSideSnapshotFiltering() throws Throwable {
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testServerSideSnapshotFiltering";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName1, colName1, dataValue2);
+        tt.put(tx2, put2);
+
+        Transaction tx3 = tm.begin();
+        Get get = new Get(rowName1);
+
+        // If snapshot filtering is not done in the server then the first value is
+        // "testWrite-2" and the whole row will be filtered out.
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(
+                famName1,
+                colName1,
+                CompareFilter.CompareOp.EQUAL,
+                new SubstringComparator("testWrite-1"));
+
+        get.setFilter(filter);
+        Result results = tt.get(tx3, get);
+        assertTrue(results.size() == 1);
+    }
+
+
+    @Test(timeOut = 60_000)
+    public void testGetWithFamilyDelete() throws Throwable {
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] famName2 = Bytes.toBytes("test-fam2");
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        String TEST_TABLE = "testGetWithFamilyDelete";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName2, colName2, dataValue1);
+        tt.put(tx2, put2);
+        tm.commit(tx2);
+
+        Transaction tx3 = tm.begin();
+
+        Delete d = new Delete(rowName1);
+        d.deleteFamily(famName2);
+        tt.delete(tx3, d);
+
+
+        Transaction tx4 = tm.begin();
+
+        Get get = new Get(rowName1);
+
+        Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+
+        get.setFilter(filter1);
+        Result result = tt.get(tx4, get);
+        assertTrue(result.size() == 2, "Result should be 2");
+
+        tm.commit(tx3);
+
+        Transaction tx5 = tm.begin();
+        result = tt.get(tx5, get);
+        assertTrue(result.size() == 1, "Result should be 1");
+
+        tt.close();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testReadFromCommitTable() throws Exception {
+        final byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        final String TEST_TABLE = "testReadFromCommitTable";
+        final byte[] famName2 = Bytes.toBytes("test-fam2");
+
+        final CountDownLatch readAfterCommit = new CountDownLatch(1);
+        final CountDownLatch postCommitBegin = new CountDownLatch(1);
+
+        final AtomicBoolean readFailed = new AtomicBoolean(false);
+        final AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager();
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
+
+        doAnswer(new Answer<ListenableFuture<Void>>() {
+            @Override
+            public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                LOG.info("Releasing readAfterCommit barrier");
+                readAfterCommit.countDown();
+                LOG.info("Waiting postCommitBegin barrier");
+                postCommitBegin.await();
+                ListenableFuture<Void> result = (ListenableFuture<Void>) invocation.callRealMethod();
+                return result;
+            }
+        }).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
+
+        Thread readThread = new Thread("Read Thread") {
+            @Override
+            public void run() {
+
+                try {
+                    LOG.info("Waiting readAfterCommit barrier");
+                    readAfterCommit.await();
+
+                    Transaction tx4 = tm.begin();
+                    TTable tt = new TTable(hbaseConf, TEST_TABLE);
+                    Get get = new Get(rowName1);
+
+                    Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+
+                    get.setFilter(filter1);
+                    Result result = tt.get(tx4, get);
+
+                    if (result.size() == 2) {
+                        readFailed.set(false);
+                    }
+                    else {
+                        readFailed.set(false);
+                    }
+
+                    postCommitBegin.countDown();
+                } catch (Throwable e) {
+                    readFailed.set(false);
+                    LOG.error("Error whilst reading", e);
+                }
+            }
+        };
+        readThread.start();
+
+        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        final HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        table.put(t1, put1);
+        tm.commit(t1);
+
+        readThread.join();
+
+        assertFalse(readFailed.get(), "Read should have succeeded");
+
+    }
+
+
+
+    @Test(timeOut = 60_000)
+    public void testGetWithFilter() throws Throwable {
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] famName2 = Bytes.toBytes("test-fam2");
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        String TEST_TABLE = "testGetWithFilter";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName2, colName2, dataValue1);
+        tt.put(tx2, put2);
+        tm.commit(tx2);
+
+        Transaction tx3 = tm.begin();
+
+        Get get = new Get(rowName1);
+
+        Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+
+        get.setFilter(filter1);
+        Result result = tt.get(tx3, get);
+        assertTrue(result.size() == 2, "Result should be 2");
+
+
+        Filter filter2 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))));
+
+        get.setFilter(filter2);
+        result = tt.get(tx3, get);
+        assertTrue(result.size() == 1, "Result should be 2");
+
+        tm.commit(tx3);
+
+        tt.close();
+    }
+
+
     @Test(timeOut = 60_000)
     public void testGetSecondResult() throws Throwable {
-
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testGetSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -273,7 +519,7 @@ public class TestSnapshotFilter {
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -318,6 +564,59 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
+
+    @Test(timeOut = 60_000)
+    public void testScanWithFilter() throws Throwable {
+
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] famName2 = Bytes.toBytes("test-fam2");
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] colName2 = Bytes.toBytes("col2");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+
+        String TEST_TABLE = "testScanWithFilter";
+        createTableIfNotExists(TEST_TABLE, famName1, famName2);
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName2, colName2, dataValue1);
+        tt.put(tx2, put2);
+
+        tm.commit(tx2);
+        Transaction tx3 = tm.begin();
+
+        Scan scan = new Scan();
+        scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY)))));
+        scan.setStartRow(rowName1).setStopRow(rowName1);
+
+        ResultScanner iterableRS = tt.getScanner(tx3, scan);
+        Result result = iterableRS.next();
+        assertTrue(result.containsColumn(famName1, colName1));
+        assertFalse(result.containsColumn(famName2, colName2));
+
+        scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ONE,
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2))));
+
+        iterableRS = tt.getScanner(tx3, scan);
+        result = iterableRS.next();
+        assertTrue(result.containsColumn(famName1, colName1));
+        assertTrue(result.containsColumn(famName2, colName2));
+
+        tm.commit(tx3);
+        tt.close();
+    }
+
+
     @Test(timeOut = 60_000)
     public void testScanSecondResult() throws Throwable {
 
@@ -326,7 +625,7 @@ public class TestSnapshotFilter {
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -370,7 +669,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResults";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -420,7 +719,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResultsDifferentTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -473,7 +772,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResultsSameTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 

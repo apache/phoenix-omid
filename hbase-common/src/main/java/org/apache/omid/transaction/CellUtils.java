@@ -49,9 +49,13 @@ public final class CellUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(CellUtils.class);
     static final byte[] SHADOW_CELL_SUFFIX = "\u0080".getBytes(Charsets.UTF_8); // Non printable char (128 ASCII)
-    static byte[] DELETE_TOMBSTONE = Bytes.toBytes("__OMID_TOMBSTONE__");
-    public static final byte[] FAMILY_DELETE_QUALIFIER = new byte[0];
+    //Prefix starts with 0 to apear before other cells in TransactionVisibilityFilter
+    static final byte[] SHADOW_CELL_PREFIX = "\u0000\u0080".getBytes(Charsets.UTF_8);
+    static byte[] DELETE_TOMBSTONE = HConstants.EMPTY_BYTE_ARRAY;
+    static byte[] LEGACY_DELETE_TOMBSTONE = Bytes.toBytes("__OMID_TOMBSTONE__");
+    public static final byte[] FAMILY_DELETE_QUALIFIER = HConstants.EMPTY_BYTE_ARRAY;
     public static final String TRANSACTION_ATTRIBUTE = "__OMID_TRANSACTION__";
+    /**/
     public static final String CLIENT_GET_ATTRIBUTE = "__OMID_CLIENT_GET__";
     public static final String CONFLICT_FREE_MUTATION = "__OMID_CONFLICT_FREE_MUTATION__";
 
@@ -102,7 +106,7 @@ public final class CellUtils {
                                         byte[] qualifier,
                                         long version,
                                         CellGetter cellGetter) throws IOException {
-        return hasCell(row, family, addShadowCellSuffix(qualifier),
+        return hasCell(row, family, addShadowCellSuffixPrefix(qualifier),
                 version, cellGetter);
     }
 
@@ -113,10 +117,12 @@ public final class CellUtils {
      * @param qualLength the qualifier length
      * @return the suffixed qualifier
      */
-    public static byte[] addShadowCellSuffix(byte[] qualifierArray, int qualOffset, int qualLength) {
-        byte[] result = new byte[qualLength + SHADOW_CELL_SUFFIX.length];
-        System.arraycopy(qualifierArray, qualOffset, result, 0, qualLength);
-        System.arraycopy(SHADOW_CELL_SUFFIX, 0, result, qualLength, SHADOW_CELL_SUFFIX.length);
+    public static byte[] addShadowCellSuffixPrefix(byte[] qualifierArray, int qualOffset, int qualLength) {
+        byte[] result = new byte[qualLength + SHADOW_CELL_SUFFIX.length + SHADOW_CELL_PREFIX.length];
+        System.arraycopy(SHADOW_CELL_PREFIX, 0, result,0 , SHADOW_CELL_PREFIX.length);
+        System.arraycopy(qualifierArray, qualOffset, result, SHADOW_CELL_PREFIX.length, qualLength);
+        System.arraycopy(SHADOW_CELL_SUFFIX, 0, result, qualLength + SHADOW_CELL_PREFIX.length,
+                SHADOW_CELL_SUFFIX.length);
         return result;
     }
 
@@ -127,8 +133,8 @@ public final class CellUtils {
      *            the qualifier to be suffixed
      * @return the suffixed qualifier
      */
-    public static byte[] addShadowCellSuffix(byte[] qualifier) {
-        return addShadowCellSuffix(qualifier, 0, qualifier.length);
+    public static byte[] addShadowCellSuffixPrefix(byte[] qualifier) {
+        return addShadowCellSuffixPrefix(qualifier, 0, qualifier.length);
     }
 
     /**
@@ -139,12 +145,18 @@ public final class CellUtils {
      * @param qualLength the qualifier length
      * @return the new qualifier without the suffix
      */
-    public static byte[] removeShadowCellSuffix(byte[] qualifier, int qualOffset, int qualLength) {
-
+    public static byte[] removeShadowCellSuffixPrefix(byte[] qualifier, int qualOffset, int qualLength) {
         if (endsWith(qualifier, qualOffset, qualLength, SHADOW_CELL_SUFFIX)) {
-            return Arrays.copyOfRange(qualifier,
-                    qualOffset,
-                    qualOffset + (qualLength - SHADOW_CELL_SUFFIX.length));
+            if (startsWith(qualifier, qualOffset,qualLength, SHADOW_CELL_PREFIX)) {
+                return Arrays.copyOfRange(qualifier,
+                        qualOffset + SHADOW_CELL_PREFIX.length,
+                        qualOffset + (qualLength - SHADOW_CELL_SUFFIX.length));
+            } else {
+                //support backward competatbiliy
+                return Arrays.copyOfRange(qualifier,
+                        qualOffset,qualOffset + (qualLength - SHADOW_CELL_SUFFIX.length));
+            }
+
         }
 
         throw new IllegalArgumentException(
@@ -153,7 +165,7 @@ public final class CellUtils {
     }
 
     /**
-     * Returns the qualifier length removing the shadow cell suffix. In case that que suffix is not found,
+     * Returns the qualifier length removing the shadow cell suffix and prefix. In case that que suffix is not found,
      * just returns the length of the qualifier passed.
      * @param qualifier the qualifier to remove the suffix from
      * @param qualOffset the offset where the qualifier starts
@@ -163,11 +175,13 @@ public final class CellUtils {
     public static int qualifierLengthFromShadowCellQualifier(byte[] qualifier, int qualOffset, int qualLength) {
 
         if (endsWith(qualifier, qualOffset, qualLength, SHADOW_CELL_SUFFIX)) {
-            return qualLength - SHADOW_CELL_SUFFIX.length;
+            if (startsWith(qualifier,qualOffset, qualLength, SHADOW_CELL_PREFIX)) {
+                return qualLength - SHADOW_CELL_SUFFIX.length - SHADOW_CELL_PREFIX.length;
+            } else {
+                return qualLength - SHADOW_CELL_SUFFIX.length;
+            }
         }
-
         return qualLength;
-
     }
 
     /**
@@ -203,6 +217,17 @@ public final class CellUtils {
     }
 
     /**
+     * Returns whether a cell contains a qualifier that is a delete cell
+     * column qualifier or not.
+     * @param cell the cell to check if contains the delete cell qualifier
+     * @return whether the cell passed contains a delete cell qualifier or not
+     */
+    public static boolean isFamilyDeleteCell(Cell cell) {
+        return CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
+                CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
+    }
+
+    /**
      * Returns whether a cell contains a qualifier that is a shadow cell
      * column qualifier or not.
      * @param cell the cell to check if contains the shadow cell qualifier
@@ -227,24 +252,26 @@ public final class CellUtils {
         return result == 0;
     }
 
+    private static boolean startsWith(byte[] value, int offset, int length, byte[] prefix) {
+        if (length <= prefix.length) {
+            return false;
+        }
+
+        int result = Bytes.compareTo(value, offset, prefix.length,
+                prefix, 0, prefix.length);
+        return result == 0;
+    }
+
     /**
      * Returns if a cell is marked as a tombstone.
      * @param cell the cell to check
      * @return whether the cell is marked as a tombstone or not
      */
     public static boolean isTombstone(Cell cell) {
-        return CellUtil.matchingValue(cell, DELETE_TOMBSTONE);
+        return CellUtil.matchingValue(cell, DELETE_TOMBSTONE) ||
+                CellUtil.matchingValue(cell, LEGACY_DELETE_TOMBSTONE);
     }
 
-    /**
-     * Returns if a cell is a family deletion marker.
-     * @param cell the cell to check
-     * @return whether the cell is marked as a family deletion marker
-     */
-    public static boolean isFamilyDeleteCell(Cell cell) {
-        return CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
-                CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
-    }
 
     /**
      * Returns a new shadow cell created from a particular cell.
@@ -255,7 +282,7 @@ public final class CellUtils {
      * @return the brand-new shadow cell
      */
     public static Cell buildShadowCellFromCell(Cell cell, byte[] shadowCellValue) {
-        byte[] shadowCellQualifier = addShadowCellSuffix(cell.getQualifierArray(),
+        byte[] shadowCellQualifier = addShadowCellSuffixPrefix(cell.getQualifierArray(),
                 cell.getQualifierOffset(),
                 cell.getQualifierLength());
         return new KeyValue(
@@ -361,8 +388,13 @@ public final class CellUtils {
                 int qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
+                int qualifierOffset = cell.getQualifierOffset();
+                if (startsWith(cell.getQualifierArray(), cell.getQualifierOffset(),
+                        cell.getQualifierLength(), SHADOW_CELL_PREFIX)) {
+                    qualifierOffset = qualifierOffset + SHADOW_CELL_PREFIX.length;
+                }
                 if (!matchingQualifier(otherCell,
-                        cell.getQualifierArray(), cell.getQualifierOffset(), qualifierLength)) {
+                        cell.getQualifierArray(), qualifierOffset, qualifierLength)) {
                     return false;
                 }
             } else {
@@ -382,12 +414,17 @@ public final class CellUtils {
             hasher.putBytes(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength());
             hasher.putBytes(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
             int qualifierLength = cell.getQualifierLength();
-            if (isShadowCell()) { // Update qualifier length when qualifier is shadow cell
+            int qualifierOffset = cell.getQualifierOffset();
+            if (isShadowCell()) {
                 qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
+                if (startsWith(cell.getQualifierArray(), cell.getQualifierOffset(),
+                        cell.getQualifierLength(), SHADOW_CELL_PREFIX)) {
+                    qualifierOffset = qualifierOffset + SHADOW_CELL_PREFIX.length;
+                }
             }
-            hasher.putBytes(cell.getQualifierArray(), cell.getQualifierOffset(), qualifierLength);
+            hasher.putBytes(cell.getQualifierArray(),qualifierOffset , qualifierLength);
             hasher.putLong(cell.getTimestamp());
             return hasher.hash().asInt();
         }
@@ -405,7 +442,7 @@ public final class CellUtils {
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
                 helper.add("qualifier whithout shadow cell suffix",
-                        Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset(), qualifierLength));
+                        Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset() + 1, qualifierLength));
             }
             helper.add("ts", cell.getTimestamp());
             return helper.toString();

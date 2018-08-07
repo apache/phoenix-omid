@@ -18,53 +18,40 @@
 package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
+import java.util.Queue;
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.regionserver.RegionScanner;
-import org.apache.hadoop.hbase.regionserver.ScannerContext;
-import org.apache.omid.transaction.HBaseTransaction;
 import org.apache.omid.transaction.SnapshotFilterImpl;
 
 public class OmidRegionScanner implements RegionScanner {
 
     private RegionScanner scanner;
     private SnapshotFilterImpl snapshotFilter;
-    private HBaseTransaction transaction;
-    private int maxVersions;
-    private Map<String, Long> familyDeletionCache;
-    private Map<String,byte[]> attributeMap;
+    private final Queue<SnapshotFilterImpl> snapshotFilterQueue;
+
 
     public OmidRegionScanner(SnapshotFilterImpl snapshotFilter,
-                      RegionScanner s,
-                      HBaseTransaction transaction,
-                      int maxVersions,
-                      Map<String,byte[]> attributeMap) {
+                             RegionScanner s, Queue<SnapshotFilterImpl> snapshotFilterQueue) {
         this.snapshotFilter = snapshotFilter;
         this.scanner = s;
-        this.transaction = transaction;
-        this.maxVersions = maxVersions;
-        this.familyDeletionCache = new HashMap<String, Long>();
-        this.attributeMap = attributeMap;
+        this.snapshotFilterQueue = snapshotFilterQueue;
     }
 
     @Override
     public boolean next(List<Cell> results) throws IOException {
-       return next(results, Integer.MAX_VALUE);
+       return scanner.next(results);
     }
 
-    public boolean next(List<Cell> result, int limit) throws IOException {
-        return nextRaw(result, limit);
+    @Override
+    public boolean next(List<Cell> list, ScannerContext scannerContext) throws IOException {
+        return scanner.next(list, scannerContext);
     }
 
     @Override
     public void close() throws IOException {
         scanner.close();
+        snapshotFilterQueue.add(snapshotFilter);
     }
 
     @Override
@@ -79,7 +66,7 @@ public class OmidRegionScanner implements RegionScanner {
 
     @Override
     public boolean reseek(byte[] row) throws IOException {
-        throw new RuntimeException("Not implemented");
+        return scanner.reseek(row);
     }
 
     @Override
@@ -93,46 +80,19 @@ public class OmidRegionScanner implements RegionScanner {
     }
 
     @Override
-    public boolean nextRaw(List<Cell> result) throws IOException {
-        return nextRaw(result,Integer.MAX_VALUE);
-    }
-
-    public boolean next(List<Cell> result,
-            ScannerContext scannerContext) throws IOException {
-        return next(result, scannerContext.getBatchLimit());
-    }
-
-    public boolean nextRaw(List<Cell> result,
-            ScannerContext scannerContext) throws IOException {
-        return nextRaw(result, scannerContext.getBatchLimit());
-    }
-
     public int getBatch() {
-        return Integer.MAX_VALUE;
+        return scanner.getBatch();
     }
 
-    public boolean nextRaw(List<Cell> result, int limit) throws IOException {
-        try {
-            List<Cell> filteredResult = new ArrayList<Cell>();
-            while (filteredResult.isEmpty()) {
-                scanner.nextRaw(filteredResult);
-                if (filteredResult.isEmpty()) {
-                    return false;
-                }
-
-                filteredResult = snapshotFilter.filterCellsForSnapshot(filteredResult, transaction, maxVersions, familyDeletionCache, attributeMap);
-            }
-
-            for (Cell cell : filteredResult) {
-                result.add(cell);
-            }
-
-            return true;
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new DoNotRetryIOException(e);
-        }
+    @Override
+    public boolean nextRaw(List<Cell> result) throws IOException {
+        return scanner.nextRaw(result);
     }
+
+    @Override
+    public boolean nextRaw(List<Cell> list, ScannerContext scannerContext) throws IOException {
+        return scanner.nextRaw(list, scannerContext);
+    }
+
 
 }

@@ -17,15 +17,12 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.omid.committable.CommitTable;
-import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
@@ -272,7 +269,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
             Get get = new Get(hBaseCellId.getRow());
             byte[] family = hBaseCellId.getFamily();
-            byte[] shadowCellQualifier = CellUtils.addShadowCellSuffix(hBaseCellId.getQualifier());
+            byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(hBaseCellId.getQualifier());
             get.addColumn(family, shadowCellQualifier);
             get.setMaxVersions(1);
             get.setTimeStamp(startTimestamp);

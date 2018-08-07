@@ -23,21 +23,20 @@ import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.N
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
 
 import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -45,10 +44,8 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
-import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocatorImpl;
-import org.apache.omid.transaction.TTable.TransactionalClientScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +63,16 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     private TableAccessWrapper tableAccessWrapper;
 
+    public CommitTable.Client getCommitTableClient() {
+        return commitTableClient;
+    }
+
     private CommitTable.Client commitTableClient;
-    
+
+    public TableAccessWrapper getTableAccessWrapper() {
+        return tableAccessWrapper;
+    }
+
     public SnapshotFilterImpl(TableAccessWrapper tableAccessWrapper, CommitTable.Client commitTableClient) throws IOException {
         this.tableAccessWrapper = tableAccessWrapper;
         this.commitTableClient = commitTableClient;
@@ -108,14 +113,13 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         if (familyDeletionCommitTimestamp != null && familyDeletionCommitTimestamp >= cell.getTimestamp()) {
             return true;
         }
-
         return false;
     }
 
     private void healShadowCell(Cell cell, long commitTimestamp) {
         Put put = new Put(CellUtil.cloneRow(cell));
         byte[] family = CellUtil.cloneFamily(cell);
-        byte[] shadowCellQualifier = CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
+        byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                                                                    cell.getQualifierOffset(),
                                                                    cell.getQualifierLength());
         put.add(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
@@ -220,7 +224,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    private Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
+    public Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
             Cell cell,
             Map<Long, Long> commitCache)
                     throws IOException {
@@ -295,6 +299,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return commitCache;
     }
 
+
     private void buildFamilyDeletionCache(HBaseTransaction transaction, List<Cell> rawCells, Map<String, Long> familyDeletionCache, Map<Long, Long> commitCache, Map<String,byte[]> attributeMap) throws IOException {
         for (Cell cell : rawCells) {
             if (CellUtils.isFamilyDeleteCell(cell)) {
@@ -303,7 +308,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                 if (familyDeletionCache.containsKey(key))
                     return;
 
-                Optional<Long> commitTimeStamp = getTSIfInTransaction(cell, transaction, commitCache);
+                Optional<Long> commitTimeStamp = getTSIfInTransaction(cell, transaction);
 
                 if (!commitTimeStamp.isPresent()) {
                     commitTimeStamp = getTSIfInSnapshot(cell, transaction, commitCache);
@@ -343,8 +348,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
     }
 
-    private Optional<Long> getTSIfInTransaction(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache) {
 
+    public Optional<Long> getTSIfInTransaction(Cell kv, HBaseTransaction transaction) {
         long startTimestamp = transaction.getStartTimestamp();
         long readTimestamp = transaction.getReadTimestamp();
 
@@ -358,7 +363,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return Optional.absent();
     }
 
-    private Optional<Long> getTSIfInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
+
+    public Optional<Long> getTSIfInSnapshot(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
         throws IOException {
 
         Optional<Long> commitTimestamp = getCommitTimestamp(kv, transaction, commitCache);
@@ -373,7 +379,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
         Get pendingGet = new Get(CellUtil.cloneRow(cell));
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
-        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
+        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                                                                                        cell.getQualifierOffset(),
                                                                                        cell.getQualifierLength()));
         pendingGet.setMaxVersions(versionCount);
@@ -410,36 +416,40 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         Map<Long, Long> commitCache = buildCommitCache(rawCells);
         buildFamilyDeletionCache(transaction, rawCells, familyDeletionCache, commitCache, attributeMap);
 
-        for (Collection<Cell> columnCells : groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(rawCells)) {
+        ImmutableList<Collection<Cell>> filteredCells;
+        if (transaction.getVisibilityLevel() == VisibilityLevel.SNAPSHOT_ALL) {
+            filteredCells = groupCellsByColumnFilteringShadowCells(rawCells);
+        } else {
+            filteredCells = groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(rawCells);
+        }
+
+        for (Collection<Cell> columnCells : filteredCells) {
             boolean snapshotValueFound = false;
             Cell oldestCell = null;
             for (Cell cell : columnCells) {
-                snapshotValueFound = checkFamilyDeletionCache(cell, transaction, familyDeletionCache, commitCache);
+                oldestCell = cell;
+                if (getTSIfInTransaction(cell, transaction).isPresent() ||
+                        getTSIfInSnapshot(cell, transaction, commitCache).isPresent()) {
 
-                if (snapshotValueFound == true) {
                     if (transaction.getVisibilityLevel() == VisibilityLevel.SNAPSHOT_ALL) {
-                        snapshotValueFound = false;
-                    } else {
-                        break;
-                    }
-                }
-
-                if (getTSIfInTransaction(cell, transaction, commitCache).isPresent() ||
-                    getTSIfInSnapshot(cell, transaction, commitCache).isPresent()) {
-                    if (!CellUtil.matchingValue(cell, CellUtils.DELETE_TOMBSTONE)) {
                         keyValuesInSnapshot.add(cell);
-                    }
-
-                    // We can finish looking for additional results in two cases:
-                    // 1. if we found a result and we are not in SNAPSHOT_ALL mode.
-                    // 2. if we found a result that was not written by the current transaction.
-                    if (transaction.getVisibilityLevel() != VisibilityLevel.SNAPSHOT_ALL ||
-                        !getTSIfInTransaction(cell, transaction, commitCache).isPresent()) {
+                        if (getTSIfInTransaction(cell, transaction).isPresent()) {
+                            snapshotValueFound = false;
+                            continue;
+                        } else {
+                            snapshotValueFound = true;
+                            break;
+                        }
+                    } else {
+                        if (!checkFamilyDeletionCache(cell, transaction, familyDeletionCache, commitCache) &&
+                                !CellUtils.isTombstone(cell)) {
+                            keyValuesInSnapshot.add(cell);
+                        }
                         snapshotValueFound = true;
                         break;
+
                     }
                 }
-                oldestCell = cell;
             }
             if (!snapshotValueFound) {
                 assert (oldestCell != null);
@@ -467,21 +477,21 @@ public class SnapshotFilterImpl implements SnapshotFilter {
     }
 
     @Override
-    public Result get(TTable ttable, Get get, HBaseTransaction transaction) throws IOException {
+    public Result get(Get get, HBaseTransaction transaction) throws IOException {
         Result result = tableAccessWrapper.get(get);
 
         List<Cell> filteredKeyValues = Collections.emptyList();
         if (!result.isEmpty()) {
-            filteredKeyValues = ttable.filterCellsForSnapshot(result.listCells(), transaction, get.getMaxVersions(), new HashMap<String, Long>(), get.getAttributesMap());
+            filteredKeyValues = filterCellsForSnapshot(result.listCells(), transaction, get.getMaxVersions(), new HashMap<String, Long>(), get.getAttributesMap());
         }
 
         return Result.create(filteredKeyValues);
     }
 
     @Override
-    public ResultScanner getScanner(TTable ttable, Scan scan, HBaseTransaction transaction) throws IOException {
+    public ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException {
 
-        return ttable.new TransactionalClientScanner(transaction, scan, 1);
+        return new TransactionalClientScanner(transaction, scan, 1);
 
     }
 
@@ -519,8 +529,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
             @Override
             public boolean apply(Cell cell) {
-                boolean familyDeletionMarkerCondition = CellUtil.matchingQualifier(cell, CellUtils.FAMILY_DELETE_QUALIFIER) &&
-                                                        CellUtil.matchingValue(cell, HConstants.EMPTY_BYTE_ARRAY);
+                boolean familyDeletionMarkerCondition = CellUtils.isFamilyDeleteCell(cell);
 
                 return cell != null && !CellUtils.isShadowCell(cell) && !familyDeletionMarkerCondition;
             }
@@ -540,5 +549,138 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             .asMap().values()
             .asList();
     }
+
+
+    static ImmutableList<Collection<Cell>> groupCellsByColumnFilteringShadowCells(List<Cell> rawCells) {
+
+        Predicate<Cell> shadowCellFilter = new Predicate<Cell>() {
+            @Override
+            public boolean apply(Cell cell) {
+                return cell != null && !CellUtils.isShadowCell(cell);
+            }
+        };
+
+        Function<Cell, ColumnWrapper> cellToColumnWrapper = new Function<Cell, ColumnWrapper>() {
+
+            @Override
+            public ColumnWrapper apply(Cell cell) {
+                return new ColumnWrapper(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
+            }
+
+        };
+
+        return Multimaps.index(Iterables.filter(rawCells, shadowCellFilter), cellToColumnWrapper)
+                .asMap().values()
+                .asList();
+    }
+
+
+    public class TransactionalClientScanner implements ResultScanner {
+
+        private HBaseTransaction state;
+        private ResultScanner innerScanner;
+        private int maxVersions;
+        Map<String, Long> familyDeletionCache;
+        private Map<String,byte[]> attributeMap;
+
+        TransactionalClientScanner(HBaseTransaction state, Scan scan, int maxVersions)
+                throws IOException {
+            if (scan.hasFilter()) {
+                LOG.warn("Client scanner with filter will return un expected results. Use Coprocessor scanning");
+            }
+            this.state = state;
+            this.innerScanner = tableAccessWrapper.getScanner(scan);
+            this.maxVersions = maxVersions;
+            this.familyDeletionCache = new HashMap<String, Long>();
+            this.attributeMap = scan.getAttributesMap();
+        }
+
+
+        @Override
+        public Result next() throws IOException {
+            List<Cell> filteredResult = Collections.emptyList();
+            while (filteredResult.isEmpty()) {
+                Result result = innerScanner.next();
+                if (result == null) {
+                    return null;
+                }
+                if (!result.isEmpty()) {
+                    filteredResult = filterCellsForSnapshot(result.listCells(), state, maxVersions, familyDeletionCache, attributeMap);
+                }
+            }
+            return Result.create(filteredResult);
+        }
+
+        // In principle no need to override, copied from super.next(int) to make
+        // sure it works even if super.next(int)
+        // changes its implementation
+        @Override
+        public Result[] next(int nbRows) throws IOException {
+            // Collect values to be returned here
+            ArrayList<Result> resultSets = new ArrayList<>(nbRows);
+            for (int i = 0; i < nbRows; i++) {
+                Result next = next();
+                if (next != null) {
+                    resultSets.add(next);
+                } else {
+                    break;
+                }
+            }
+            return resultSets.toArray(new Result[resultSets.size()]);
+        }
+
+        @Override
+        public void close() {
+            innerScanner.close();
+        }
+
+        @Override
+        public Iterator<Result> iterator() {
+            return new ResultIterator(this);
+        }
+
+        // ------------------------------------------------------------------------------------------------------------
+        // --------------------------------- Helper class for TransactionalClientScanner ------------------------------
+        // ------------------------------------------------------------------------------------------------------------
+
+        class ResultIterator implements Iterator<Result> {
+
+            TransactionalClientScanner scanner;
+            Result currentResult;
+
+            ResultIterator(TransactionalClientScanner scanner) {
+                try {
+                    this.scanner = scanner;
+                    currentResult = scanner.next();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public boolean hasNext() {
+                return currentResult != null && !currentResult.isEmpty();
+            }
+
+            @Override
+            public Result next() {
+                try {
+                    Result result = currentResult;
+                    currentResult = scanner.next();
+                    return result;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new RuntimeException("Not implemented");
+            }
+
+        }
+
+    }
+
 
 }

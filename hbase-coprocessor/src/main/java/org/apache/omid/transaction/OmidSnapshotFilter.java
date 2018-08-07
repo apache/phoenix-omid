@@ -17,8 +17,13 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.InvalidProtocolBufferException;
 
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.filter.Filter;
+
+import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
+import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -28,24 +33,20 @@ import org.apache.omid.HBaseShims;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
-import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
-import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
-import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
+
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;
 
@@ -58,20 +59,17 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
     private HBaseCommitTableConfig commitTableConf = null;
     private Configuration conf = null;
-    @VisibleForTesting
-    private CommitTable.Client commitTableClient;
+    Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
 
-    private SnapshotFilterImpl snapshotFilter;
-
-    final static String OMID_SNAPSHOT_FILTER_CF_FLAG = "OMID_SNAPSHOT_FILTER_ENABLED";
-
-    public OmidSnapshotFilter() {
-        LOG.info("Compactor coprocessor initialized via empty constructor");
-    }
+    private CommitTable.Client inMemoryCommitTable = null;
 
     public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
         LOG.info("Compactor coprocessor initialized with constructor for testing");
-        this.commitTableClient = commitTableClient;
+        this.inMemoryCommitTable = commitTableClient;
+    }
+
+    public OmidSnapshotFilter() {
+        LOG.info("Compactor coprocessor initialized via empty constructor");
     }
 
     @Override
@@ -83,92 +81,99 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
-        if (commitTableClient == null) {
-            commitTableClient = initAndGetCommitTableClient();
-        }
-        snapshotFilter = new SnapshotFilterImpl(commitTableClient);
-        
         LOG.info("Snapshot filter started");
     }
 
     @Override
     public void stop(CoprocessorEnvironment e) throws IOException {
         LOG.info("Stopping snapshot filter coprocessor");
-        commitTableClient.close();
+        if (snapshotFilterQueue != null) {
+            for (SnapshotFilter snapshotFilter: snapshotFilterQueue) {
+                ((SnapshotFilterImpl)snapshotFilter).getCommitTableClient().close();
+            }
+        }
         LOG.info("Snapshot filter stopped");
     }
 
-    public void setCommitTableClient(CommitTable.Client commitTableClient) {
-        this.commitTableClient = commitTableClient;
-        this.snapshotFilter.setCommitTableClient(commitTableClient);
-    }
 
     @Override
-    public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> c, Get get, List<Cell> result) throws IOException {
-
-        if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
-
-        try {
-            get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, null);
-            RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(c.getEnvironment()));
-            Result res = regionAccessWrapper.get(get); // get parameters were set at the client side
-
-            snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
-
-            List<Cell> filteredKeyValues = Collections.emptyList();
-            if (!res.isEmpty()) {
-                TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
-
-                long id = transaction.getTimestamp();
-                long readTs = transaction.getReadTimestamp();
-                long epoch = transaction.getEpoch();
-                VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
-
-
-                HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
-                filteredKeyValues = snapshotFilter.filterCellsForSnapshot(res.listCells(), hbaseTransaction, get.getMaxVersions(), new HashMap<String, Long>(), get.getAttributesMap());
-            }
-
-            for (Cell cell : filteredKeyValues) {
-                result.add(cell);
-            }
-
-            c.bypass();
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new DoNotRetryIOException(e);
+    public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
+            throws IOException {
+        if (get.getFilter() != null) {
+            //This get had a filter and used a commit table client that must put back
+            assert (get.getFilter() instanceof TransactionVisibilityFilter);
+            TransactionVisibilityFilter filter = (TransactionVisibilityFilter)get.getFilter();
+            snapshotFilterQueue.add((SnapshotFilterImpl)filter.getSnapshotFilter());
         }
     }
 
+
     @Override
-    public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
-            Scan scan,
-            RegionScanner s) throws IOException {
+    public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
+            throws IOException {
+
+        if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
+
+        HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+        SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
+
+        // In order to get hbase FilterBase framework to keep getting more versions
+        get.setMaxVersions();
+        Filter newFilter = TransactionFilters.getVisibilityFilter(get.getFilter(),
+                snapshotFilter, hbaseTransaction);
+        get.setFilter(newFilter);
+    }
+
+
+    private SnapshotFilterImpl getSnapshotFilter(ObserverContext<RegionCoprocessorEnvironment> e)
+            throws IOException {
+        SnapshotFilterImpl snapshotFilter= snapshotFilterQueue.poll();
+        if (snapshotFilter == null) {
+            RegionAccessWrapper regionAccessWrapper =
+                    new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
+            snapshotFilter = new SnapshotFilterImpl(regionAccessWrapper, initAndGetCommitTableClient());
+        }
+        return snapshotFilter;
+    }
+
+
+    @Override
+    public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
+                                         Scan scan,
+                                         RegionScanner s) throws IOException {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
 
         if (byteTransaction == null) {
             return s;
         }
 
-        TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(byteTransaction);
+        HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction);
+        SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
 
+        scan.setMaxVersions();
+        Filter newFilter = TransactionFilters.getVisibilityFilter(scan.getFilter(),
+                snapshotFilter, hbaseTransaction);
+        scan.setFilter(newFilter);
+
+        return new OmidRegionScanner(snapshotFilter, s, snapshotFilterQueue);
+    }
+
+    private HBaseTransaction getHBaseTransaction(byte[] byteTransaction)
+            throws InvalidProtocolBufferException {
+        TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(byteTransaction);
         long id = transaction.getTimestamp();
         long readTs = transaction.getReadTimestamp();
         long epoch = transaction.getEpoch();
         VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
-        HBaseTransaction hbaseTransaction = new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
-
-        RegionAccessWrapper regionAccessWrapper = new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
-
-        snapshotFilter.setTableAccessWrapper(regionAccessWrapper);
-
-        return new OmidRegionScanner(snapshotFilter, s, hbaseTransaction, 1, scan.getAttributesMap());
+        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
         LOG.info("Trying to get the commit table client");
+        if (inMemoryCommitTable != null) {
+            return inMemoryCommitTable;
+        }
         CommitTable commitTable = new HBaseCommitTable(conf, commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
