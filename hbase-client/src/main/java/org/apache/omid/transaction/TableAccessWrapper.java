@@ -17,10 +17,16 @@
  */
 package org.apache.omid.transaction;
 
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.hadoop.hbase.client.*;
+
 
 //This interface is used to wrap the HTableInterface and Region object when doing client and server side filtering accordingly.
 public interface TableAccessWrapper {

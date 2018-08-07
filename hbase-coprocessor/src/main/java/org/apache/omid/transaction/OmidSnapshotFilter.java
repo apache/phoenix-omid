@@ -18,10 +18,10 @@
 package org.apache.omid.transaction;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.hadoop.hbase.client.Mutation;
+
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.regionserver.MiniBatchOperationInProgress;
+
 import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.omid.committable.CommitTable;
@@ -42,7 +42,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;

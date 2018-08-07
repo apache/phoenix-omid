@@ -30,7 +30,8 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import static com.codahale.metrics.MetricRegistry.name;
-import static org.apache.omid.tso.PersistEvent.Type.*;
+import static org.apache.omid.tso.PersistEvent.Type.COMMIT_RETRY;
+
 
 public class PersistenceProcessorHandler implements WorkHandler<PersistenceProcessorImpl.PersistBatchEvent> {
 

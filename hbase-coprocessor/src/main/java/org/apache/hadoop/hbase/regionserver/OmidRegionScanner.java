@@ -18,11 +18,10 @@
 package org.apache.hadoop.hbase.regionserver;
 
 import java.io.IOException;
-import java.util.*;
-
+import java.util.List;
+import java.util.Queue;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.omid.transaction.SnapshotFilter;
 import org.apache.omid.transaction.SnapshotFilterImpl;
 
 public class OmidRegionScanner implements RegionScanner {
