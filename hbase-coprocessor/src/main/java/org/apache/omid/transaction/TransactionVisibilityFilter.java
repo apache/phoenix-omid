@@ -151,9 +151,11 @@ public class TransactionVisibilityFilter extends FilterBase {
             get.addColumn(CellUtil.cloneFamily(v), CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             Result shadowCell = snapshotFilter.getTableAccessWrapper().get(get);
 
-            if (!shadowCell.isEmpty() &&
-                    Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0] )) <= hbaseTransaction.getStartTimestamp()){
-                return Optional.of(Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0])));
+            if (!shadowCell.isEmpty()) {
+                long commitTS = Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0]));
+                if (commitTS <= hbaseTransaction.getStartTimestamp()) {
+                    return Optional.of(commitTS);
+                }
             }
         }
 

@@ -22,11 +22,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.MiniHBaseCluster;
-import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
 import org.apache.hadoop.hbase.filter.*;
@@ -229,6 +225,49 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
+
+    // This test will fail if filtering is done before snapshot filtering
+    @Test(timeOut = 60_000)
+    public void testServerSideSnapshotFiltering() throws Throwable {
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testServerSideSnapshotFiltering";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName1, colName1, dataValue2);
+        tt.put(tx2, put2);
+
+        Transaction tx3 = tm.begin();
+        Get get = new Get(rowName1);
+
+        // If snapshot filtering is not done in the server then the first value is
+        // "testWrite-2" and the whole row will be filtered out.
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(
+                famName1,
+                colName1,
+                CompareFilter.CompareOp.EQUAL,
+                new SubstringComparator("testWrite-1"));
+
+        get.setFilter(filter);
+        Result results = tt.get(tx3, get);
+        assertTrue(results.size() == 1);
+    }
+
+
     @Test(timeOut = 60_000)
     public void testGetWithFamilyDelete() throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
@@ -238,7 +277,7 @@ public class TestSnapshotFilter {
         byte[] colName2 = Bytes.toBytes("col2");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetWithFilter";
+        String TEST_TABLE = "testGetWithFamilyDelete";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -290,7 +329,7 @@ public class TestSnapshotFilter {
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
-        final String TEST_TABLE = "testGetWithFilter";
+        final String TEST_TABLE = "testReadFromCommitTable";
         final byte[] famName2 = Bytes.toBytes("test-fam2");
 
         final CountDownLatch readAfterCommit = new CountDownLatch(1);
@@ -422,7 +461,7 @@ public class TestSnapshotFilter {
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testGetSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -462,7 +501,7 @@ public class TestSnapshotFilter {
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -518,7 +557,7 @@ public class TestSnapshotFilter {
         byte[] colName2 = Bytes.toBytes("col2");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testTable";
+        String TEST_TABLE = "testScanWithFilter";
         createTableIfNotExists(TEST_TABLE, famName1, famName2);
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -568,7 +607,7 @@ public class TestSnapshotFilter {
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -612,7 +651,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResults";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -662,7 +701,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResultsDifferentTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
@@ -715,7 +754,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = "testScanFewResultsSameTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(hbaseConf, TEST_TABLE);
 
