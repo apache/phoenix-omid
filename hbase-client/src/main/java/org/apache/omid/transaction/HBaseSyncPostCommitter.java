@@ -54,7 +54,7 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
     private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture) {
         Put put = new Put(cell.getRow());
         put.add(cell.getFamily(),
-                CellUtils.addShadowCellSuffix(cell.getQualifier(), 0, cell.getQualifier().length),
+                CellUtils.addShadowCellSuffixPrefix(cell.getQualifier(), 0, cell.getQualifier().length),
                 cell.getTimestamp(),
                 Bytes.toBytes(tx.getCommitTimestamp()));
         try {

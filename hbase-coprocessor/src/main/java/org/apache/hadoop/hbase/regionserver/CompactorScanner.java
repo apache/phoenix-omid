@@ -235,7 +235,7 @@ public class CompactorScanner implements InternalScanner {
             } else {
                 Get g = new Get(CellUtil.cloneRow(cell));
                 byte[] family = CellUtil.cloneFamily(cell);
-                byte[] qualifier = CellUtils.addShadowCellSuffix(cell.getQualifierArray(),
+                byte[] qualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
                 g.addColumn(family, qualifier);

@@ -17,22 +17,14 @@
  */
 package org.apache.omid.transaction;
 
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
+import com.beust.jcommander.internal.Nullable;
+import org.apache.hadoop.hbase.filter.Filter;
 
-import java.io.IOException;
-import java.util.List;
+public class TransactionFilters {
 
-
-
-//This interface is used to wrap the HTableInterface and Region object when doing client and server side filtering accordingly.
-public interface TableAccessWrapper {
-
-    public Result[] get(List<Get> get) throws IOException;
-    public Result get(Get get) throws IOException;
-    public void   put(Put put) throws IOException;
-    public ResultScanner getScanner(Scan scan) throws IOException;
+    public static Filter getVisibilityFilter(@Nullable Filter cellFilter,
+                                             SnapshotFilterImpl regionAccessWrapper,
+                                             HBaseTransaction hbaseTransaction) {
+        return new TransactionVisibilityFilter(cellFilter, regionAccessWrapper, hbaseTransaction);
+    }
 }

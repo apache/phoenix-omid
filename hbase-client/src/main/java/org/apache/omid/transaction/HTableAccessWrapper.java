@@ -17,13 +17,17 @@
  */
 package org.apache.omid.transaction;
 
-import java.io.IOException;
-import java.util.List;
-
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+
+import java.io.IOException;
+import java.util.List;
+
+
 
 // This class wraps the HTableInterface object when doing client side filtering.
 public class HTableAccessWrapper implements TableAccessWrapper {
@@ -49,6 +53,11 @@ public class HTableAccessWrapper implements TableAccessWrapper {
     @Override
     public void put(Put put) throws IOException {
         writeTable.put(put);
+    }
+
+    @Override
+    public ResultScanner getScanner(Scan scan) throws IOException {
+        return readTable.getScanner(scan);
     }
 
 }
