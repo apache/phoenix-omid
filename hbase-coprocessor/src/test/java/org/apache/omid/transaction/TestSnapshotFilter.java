@@ -286,6 +286,52 @@ public class TestSnapshotFilter {
     }
 
 
+    // This test will fail if filtering is done before snapshot filtering
+    @Test(timeOut = 60_000)
+    public void testServerSideSnapshotScannerFiltering() throws Throwable {
+        byte[] rowName1 = Bytes.toBytes("row1");
+        byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
+        byte[] colName1 = Bytes.toBytes("col1");
+        byte[] dataValue1 = Bytes.toBytes("testWrite-1");
+        byte[] dataValue2 = Bytes.toBytes("testWrite-2");
+
+        String TEST_TABLE = "testServerSideSnapshotFiltering";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+
+        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+        Put put1 = new Put(rowName1);
+        put1.add(famName1, colName1, dataValue1);
+        tt.put(tx1, put1);
+        tm.commit(tx1);
+
+        Transaction tx2 = tm.begin();
+        Put put2 = new Put(rowName1);
+        put2.add(famName1, colName1, dataValue2);
+//        tt.put(tx2, put2);
+
+        Transaction tx3 = tm.begin();
+
+        // If snapshot filtering is not done in the server then the first value is
+        // "testWrite-2" and the whole row will be filtered out.
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(
+                famName1,
+                colName1,
+                CompareFilter.CompareOp.EQUAL,
+                new SubstringComparator("testWrite-1"));
+
+
+        Scan scan = new Scan();
+        scan.setFilter(filter);
+
+        ResultScanner iterableRS = tt.getScanner(tx3, scan);
+        Result result = iterableRS.next();
+
+        assertTrue(result.size() == 1);
+    }
+
+
     @Test(timeOut = 60_000)
     public void testGetWithFamilyDelete() throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
