@@ -22,7 +22,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
 
-import org.apache.hadoop.hbase.regionserver.OmidRegionScanner;
+import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
@@ -45,7 +45,9 @@ import java.io.IOException;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;
@@ -59,8 +61,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
     private HBaseCommitTableConfig commitTableConf = null;
     private Configuration conf = null;
-    Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
-
+    private Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
+    private Map<Object, SnapshotFilterImpl> snapshotFilterMap = new ConcurrentHashMap();
     private CommitTable.Client inMemoryCommitTable = null;
 
     public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
@@ -154,9 +156,37 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         Filter newFilter = TransactionFilters.getVisibilityFilter(scan.getFilter(),
                 snapshotFilter, hbaseTransaction);
         scan.setFilter(newFilter);
-
-        return new OmidRegionScanner(snapshotFilter, s, snapshotFilterQueue);
+        snapshotFilterMap.put(scan, snapshotFilter);
+        return s;
     }
+
+    @Override
+    public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
+                                         Scan scan,
+                                         RegionScanner s) throws IOException {
+        byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
+
+        if (byteTransaction == null) {
+            return s;
+        }
+
+        SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(scan);
+        assert(snapshotFilter != null);
+        snapshotFilterMap.remove(scan);
+        snapshotFilterMap.put(s, snapshotFilter);
+        return s;
+    }
+
+    @Override
+    public void preScannerClose(ObserverContext<RegionCoprocessorEnvironment> e, InternalScanner s)
+            throws IOException {
+        SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(s);
+        if (snapshotFilter != null) {
+            snapshotFilterQueue.add(snapshotFilter);
+        }
+    }
+
+
 
     private HBaseTransaction getHBaseTransaction(byte[] byteTransaction)
             throws InvalidProtocolBufferException {
