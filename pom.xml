@@ -97,7 +97,7 @@
 
         <pluginRepository>
             <id>synergian-repo</id>
-            <url>https://raw.github.com/synergian/wagon-git/releases</url>
+            <url>https://raw.githubusercontent.com/synergian/wagon-git/releases</url>
         </pluginRepository>
 
     </pluginRepositories>
