@@ -47,10 +47,6 @@ public class TransactionVisibilityFilter extends FilterBase {
     // So no need to keep row name
     private final Map<ImmutableBytesWritable, Long> familyDeletionCache;
 
-    public SnapshotFilter getSnapshotFilter() {
-        return snapshotFilter;
-    }
-
     public TransactionVisibilityFilter(Filter cellFilter,
                                        SnapshotFilterImpl snapshotFilter,
                                        HBaseTransaction hbaseTransaction) {

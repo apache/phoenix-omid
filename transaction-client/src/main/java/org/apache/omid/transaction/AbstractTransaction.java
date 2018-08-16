@@ -175,7 +175,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         this.readTimestamp = this.writeTimestamp++;
 
         if (this.writeTimestamp % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN == 0) {
-            throw new TransactionException("Error: number of checkpoing cannot exceed " + (AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1));
+            throw new TransactionException("Error: number of checkpoing cannot exceed "
+                    + (AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1));
         }
     }
 

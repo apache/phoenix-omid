@@ -101,6 +101,7 @@ public class TestSnapshotFilter {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setPort(5678);
         tsoConfig.setConflictMapSize(1);
+        tsoConfig.setWaitStrategy("LOW_CPU");
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
         hbaseConf.setBoolean("omid.server.side.filter", true);
