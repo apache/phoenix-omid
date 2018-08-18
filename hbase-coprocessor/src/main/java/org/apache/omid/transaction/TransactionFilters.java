@@ -17,14 +17,15 @@
  */
 package org.apache.omid.transaction;
 
-import com.beust.jcommander.internal.Nullable;
+
 import org.apache.hadoop.hbase.filter.Filter;
 
 public class TransactionFilters {
 
-    public static Filter getVisibilityFilter(@Nullable Filter cellFilter,
+
+    public static Filter getVisibilityFilter(Filter cellFilter,
                                              SnapshotFilterImpl regionAccessWrapper,
                                              HBaseTransaction hbaseTransaction) {
-        return new TransactionVisibilityFilter(cellFilter, regionAccessWrapper, hbaseTransaction);
+        return new CellSkipFilter(new TransactionVisibilityFilter(cellFilter, regionAccessWrapper, hbaseTransaction));
     }
 }

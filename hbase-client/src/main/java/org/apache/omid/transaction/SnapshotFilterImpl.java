@@ -63,8 +63,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     private TableAccessWrapper tableAccessWrapper;
 
-    public CommitTable.Client getCommitTableClient() {
-        return commitTableClient;
+    public void closeCommitTableClient() throws IOException {
+        commitTableClient.close();
     }
 
     private CommitTable.Client commitTableClient;

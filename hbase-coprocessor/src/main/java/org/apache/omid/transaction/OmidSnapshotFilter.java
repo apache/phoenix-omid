@@ -90,8 +90,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     public void stop(CoprocessorEnvironment e) throws IOException {
         LOG.info("Stopping snapshot filter coprocessor");
         if (snapshotFilterQueue != null) {
-            for (SnapshotFilter snapshotFilter: snapshotFilterQueue) {
-                ((SnapshotFilterImpl)snapshotFilter).getCommitTableClient().close();
+            for (SnapshotFilterImpl snapshotFilter: snapshotFilterQueue) {
+                snapshotFilter.closeCommitTableClient();
             }
         }
         LOG.info("Snapshot filter stopped");
@@ -101,11 +101,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     @Override
     public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
             throws IOException {
-        if (get.getFilter() != null) {
-            //This get had a filter and used a commit table client that must put back
-            assert (get.getFilter() instanceof TransactionVisibilityFilter);
-            TransactionVisibilityFilter filter = (TransactionVisibilityFilter)get.getFilter();
-            snapshotFilterQueue.add((SnapshotFilterImpl)filter.getSnapshotFilter());
+        SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
+        if (snapshotFilter != null) {
+            snapshotFilterQueue.add(snapshotFilter);
         }
     }
 
@@ -118,14 +116,13 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
         HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
+        snapshotFilterMap.put(get, snapshotFilter);
 
-        // In order to get hbase FilterBase framework to keep getting more versions
         get.setMaxVersions();
         Filter newFilter = TransactionFilters.getVisibilityFilter(get.getFilter(),
                 snapshotFilter, hbaseTransaction);
         get.setFilter(newFilter);
     }
-
 
     private SnapshotFilterImpl getSnapshotFilter(ObserverContext<RegionCoprocessorEnvironment> e)
             throws IOException {
@@ -137,7 +134,6 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         }
         return snapshotFilter;
     }
-
 
     @Override
     public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
