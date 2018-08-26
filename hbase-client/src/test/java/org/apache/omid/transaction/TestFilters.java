@@ -17,8 +17,12 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -37,11 +41,8 @@ import org.mockito.stubbing.Answer;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 
 /**
  * Tests to verify that Get and Scan filters still work with transactions tables
@@ -75,7 +76,7 @@ public class TestFilters extends OmidTestBase {
         hbaseOmidClientConf.setConnectionString("localhost:1234");
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
         PostCommitActions syncPostCommitter = spy(
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
@@ -123,7 +124,7 @@ public class TestFilters extends OmidTestBase {
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
         hbaseOmidClientConf.getOmidClientConfiguration().setConnectionString("localhost:1234");
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
         PostCommitActions syncPostCommitter = spy(
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
@@ -156,8 +157,8 @@ public class TestFilters extends OmidTestBase {
         // create normal row with both cells
         Transaction t = tm.begin();
         Put p = new Put(row1);
-        p.add(family, col1, col1);
-        p.add(family, col2, col2);
+        p.addColumn(family, col1, col1);
+        p.addColumn(family, col2, col2);
         table.put(t, p);
         tm.commit(t);
 
@@ -171,8 +172,8 @@ public class TestFilters extends OmidTestBase {
 
         t = tm.begin();
         p = new Put(row2);
-        p.add(family, col1, col1);
-        p.add(family, col2, col2);
+        p.addColumn(family, col1, col1);
+        p.addColumn(family, col2, col2);
         table.put(t, p);
         try {
             tm.commit(t);
@@ -183,7 +184,7 @@ public class TestFilters extends OmidTestBase {
         // create normal row with only one cell
         t = tm.begin();
         p = new Put(row3);
-        p.add(family, col2, col2);
+        p.addColumn(family, col2, col2);
         table.put(t, p);
         try {
             tm.commit(t);

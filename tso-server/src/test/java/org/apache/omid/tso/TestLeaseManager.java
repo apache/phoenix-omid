@@ -17,7 +17,22 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Charsets;
+import static org.apache.omid.tso.client.TSOClient.DEFAULT_ZK_CLUSTER;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
+import java.io.IOException;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.CloseableUtils;
@@ -31,21 +46,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-
-import static org.apache.omid.tso.client.TSOClient.DEFAULT_ZK_CLUSTER;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import com.google.common.base.Charsets;
 
 public class TestLeaseManager {
 
@@ -361,7 +362,7 @@ public class TestLeaseManager {
 
         ArgumentCaptor<IllegalArgumentException> trowableIAE = ArgumentCaptor.forClass(IllegalArgumentException.class);
         verify(panicker, times(2)).panic(anyString(), trowableIAE.capture());
-        assertTrue(trowableIAE.getValue() instanceof IllegalArgumentException);
+        assertTrue(trowableIAE.getValue() != null);
         assertTrue(trowableIAE.getValue().getMessage().contains("Incorrect TSO Info found"));
 
         // 2nd Panic test) Simulate that a new master appeared in the meantime, force reelection
@@ -380,7 +381,7 @@ public class TestLeaseManager {
         ArgumentCaptor<LeaseManagement.LeaseManagementException> trowableLME =
                 ArgumentCaptor.forClass(LeaseManagement.LeaseManagementException.class);
         verify(panicker, times(2)).panic(anyString(), trowableLME.capture());
-        assertTrue(trowableLME.getValue() instanceof LeaseManagement.LeaseManagementException);
+        assertTrue(trowableLME.getValue() != null);
         assertTrue(trowableLME.getValue().getMessage().contains("Another TSO replica was found"));
     }
 

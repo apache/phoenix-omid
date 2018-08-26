@@ -17,7 +17,12 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.SettableFuture;
+import static org.mockito.Matchers.anySetOf;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -32,11 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.anySetOf;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+import com.google.common.util.concurrent.SettableFuture;
 
 @Test(groups = "sharedHBase")
 public class TestTransactionCleanup extends OmidTestBase {
@@ -80,13 +81,13 @@ public class TestTransactionCleanup extends OmidTestBase {
                 .when(mockedTSOClient).commit(eq(START_TS), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
 
         try (TransactionManager tm = newTransactionManager(context, mockedTSOClient);
-             TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+             TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Start a transaction and put some data in a column
             Transaction tx = tm.begin();
 
             Put put = new Put(row);
-            put.add(family, qual, data);
+            put.addColumn(family, qual, data);
             txTable.put(tx, put);
 
             // Abort transaction when committing, so the cleanup

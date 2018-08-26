@@ -17,6 +17,14 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Get;
@@ -25,14 +33,6 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "sharedHBase")
 public class TestReadPath extends OmidTestBase {
@@ -46,14 +46,14 @@ public class TestReadPath extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void testReadInterleaved(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         // Put some data on the DB
         Transaction t1 = tm.begin();
         Transaction t2 = tm.begin();
 
         Put put = new Put(row);
-        put.add(family, col, data);
+        put.addColumn(family, col, data);
         table.put(t1, put);
         tm.commit(t1);
 
@@ -65,12 +65,12 @@ public class TestReadPath extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void testReadWithSeveralUncommitted(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         // Put some data on the DB
         Transaction t = tm.begin();
         Put put = new Put(row);
-        put.add(family, col, data);
+        put.addColumn(family, col, data);
         table.put(t, put);
         tm.commit(t);
         List<Transaction> running = new ArrayList<>();
@@ -79,7 +79,7 @@ public class TestReadPath extends OmidTestBase {
         for (int i = 0; i < 10; ++i) {
             t = tm.begin();
             put = new Put(row);
-            put.add(family, col, uncommitted);
+            put.addColumn(family, col, uncommitted);
             table.put(t, put);
             running.add(t);
         }

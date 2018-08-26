@@ -17,8 +17,13 @@
  */
 package org.apache.omid.committable.hbase;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListenableFuture;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -26,10 +31,12 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
-import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.Client;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
@@ -44,12 +51,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ListenableFuture;
 
 public class TestHBaseCommitTable {
 
@@ -62,7 +65,7 @@ public class TestHBaseCommitTable {
     private static HBaseTestingUtility testutil;
     private static MiniHBaseCluster hbasecluster;
     protected static Configuration hbaseConf;
-    private static AggregationClient aggregationClient;
+    protected static Connection connection;
     private byte[] commitTableFamily;
     private byte[] lowWatermarkFamily;
 
@@ -77,8 +80,7 @@ public class TestHBaseCommitTable {
         LOG.info("Create hbase");
         testutil = new HBaseTestingUtility(hbaseConf);
         hbasecluster = testutil.startMiniCluster(1);
-        aggregationClient = new AggregationClient(hbaseConf);
-
+        connection = ConnectionFactory.createConnection(hbaseConf);
     }
 
     @AfterClass
@@ -90,9 +92,9 @@ public class TestHBaseCommitTable {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        HBaseAdmin admin = testutil.getHBaseAdmin();
+        Admin admin = testutil.getHBaseAdmin();
 
-        if (!admin.tableExists(TEST_TABLE)) {
+        if (!admin.tableExists(TableName.valueOf(TEST_TABLE))) {
             HTableDescriptor desc = new HTableDescriptor(TABLE_NAME);
 
             HColumnDescriptor datafam = new HColumnDescriptor(commitTableFamily);
@@ -103,12 +105,13 @@ public class TestHBaseCommitTable {
             lowWatermarkFam.setMaxVersions(Integer.MAX_VALUE);
             desc.addFamily(lowWatermarkFam);
 
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation");
+            // Move to HBaseSims for 2.0 support
+            // For 2.0, use TableDescriptorBuilder to build TableDescriptor
             admin.createTable(desc);
         }
 
-        if (admin.isTableDisabled(TEST_TABLE)) {
-            admin.enableTable(TEST_TABLE);
+        if (admin.isTableDisabled(TableName.valueOf(TEST_TABLE))) {
+            admin.enableTable(TableName.valueOf(TEST_TABLE));
         }
         HTableDescriptor[] tables = admin.listTables();
         for (HTableDescriptor t : tables) {
@@ -120,9 +123,9 @@ public class TestHBaseCommitTable {
     public void tearDown() {
         try {
             LOG.info("tearing Down");
-            HBaseAdmin admin = testutil.getHBaseAdmin();
-            admin.disableTable(TEST_TABLE);
-            admin.deleteTable(TEST_TABLE);
+            Admin admin = testutil.getHBaseAdmin();
+            admin.disableTable(TableName.valueOf(TEST_TABLE));
+            admin.deleteTable(TableName.valueOf(TEST_TABLE));
 
         } catch (Exception e) {
             LOG.error("Error tearing down", e);
@@ -289,10 +292,17 @@ public class TestHBaseCommitTable {
 
     }
 
-    private static long rowCount(TableName table, byte[] family) throws Throwable {
+    private static long rowCount(TableName tableName, byte[] family) throws Throwable {
         Scan scan = new Scan();
         scan.addFamily(family);
-        return aggregationClient.rowCount(table, new LongColumnInterpreter(), scan);
+        Table table = connection.getTable(tableName);
+        try (ResultScanner scanner = table.getScanner(scan)) {
+            int count = 0;
+            while (scanner.next() != null) {
+                count++;
+            }
+            return count;
+        }
     }
 
 }

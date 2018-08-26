@@ -17,13 +17,22 @@
  */
 package org.apache.omid.transaction;
 
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
+
+import java.io.IOException;
+
+import javax.annotation.Nullable;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
@@ -37,14 +46,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.annotation.Nullable;
-import java.io.IOException;
-
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.fail;
-
 @Test(groups = "sharedHBase")
 public class TestTxMgrFailover extends OmidTestBase {
 
@@ -54,7 +55,6 @@ public class TestTxMgrFailover extends OmidTestBase {
     private static final String TSO_SERVER_HOST = "localhost";
 
     private static final long TX1_ST = 1L;
-    private static final long TX1_CT = 2L;
 
     private static final byte[] qualifier = Bytes.toBytes("test-qual");
     private static final byte[] row1 = Bytes.toBytes("row1");
@@ -103,14 +103,14 @@ public class TestTxMgrFailover extends OmidTestBase {
         tso.queueResponse(new ProgrammableTSOServer.TimestampResponse(TX1_ST));
         tso.queueResponse(new ProgrammableTSOServer.AbortResponse(TX1_ST));
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
             HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
             assertEquals(tx1.getStartTimestamp(), TX1_ST);
             Put put = new Put(row1);
-            put.add(TEST_FAMILY.getBytes(), qualifier, data1);
+            put.addColumn(TEST_FAMILY.getBytes(), qualifier, data1);
             txTable.put(tx1, put);
-            assertEquals(hBaseUtils.countRows(new HTable(hbaseConf, TEST_TABLE)), 1, "Rows should be 1!");
-            checkOperationSuccessOnCell(KeyValue.Type.Put, data1, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
+            assertEquals(hBaseUtils.countRows(txTable.getHTable()), 1, "Rows should be 1!");
+            checkOperationSuccessOnCell(txTable.getHTable(), KeyValue.Type.Put, data1, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
                     qualifier);
 
             try {
@@ -125,7 +125,7 @@ public class TestTxMgrFailover extends OmidTestBase {
             assertEquals(tx1.getStatus(), Status.ROLLEDBACK);
             assertEquals(tx1.getCommitTimestamp(), 0);
             // Check the cleanup process did its job and the committed data is NOT there
-            checkOperationSuccessOnCell(KeyValue.Type.Delete, null, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
+            checkOperationSuccessOnCell(txTable.getHTable(), KeyValue.Type.Delete, null, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
                     qualifier);
         }
 
@@ -135,14 +135,15 @@ public class TestTxMgrFailover extends OmidTestBase {
     // Helper methods
     // ----------------------------------------------------------------------------------------------------------------
 
-    protected void checkOperationSuccessOnCell(KeyValue.Type targetOp,
+    protected void checkOperationSuccessOnCell(Table table,
+                                               KeyValue.Type targetOp,
                                                @Nullable byte[] expectedValue,
                                                byte[] tableName,
                                                byte[] row,
                                                byte[] fam,
                                                byte[] col) {
 
-        try (HTable table = new HTable(hbaseConf, tableName)) {
+        try {
             Get get = new Get(row).setMaxVersions(1);
             Result result = table.get(get);
             Cell latestCell = result.getColumnLatestCell(fam, col);

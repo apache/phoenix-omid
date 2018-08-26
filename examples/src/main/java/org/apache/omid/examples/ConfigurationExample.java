@@ -17,21 +17,23 @@
  */
 package org.apache.omid.examples;
 
+import static org.apache.omid.tso.client.OmidClientConfiguration.ConnType.DIRECT;
+
+import java.io.IOException;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.transaction.HBaseOmidClientConfiguration;
 import org.apache.omid.transaction.HBaseTransactionManager;
 import org.apache.omid.transaction.RollbackException;
 import org.apache.omid.transaction.TTable;
 import org.apache.omid.transaction.Transaction;
 import org.apache.omid.transaction.TransactionManager;
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-
-import static org.apache.omid.tso.client.OmidClientConfiguration.ConnType.DIRECT;
 
 /**
  * ****************************************************************************************************************
@@ -100,21 +102,22 @@ public class ConfigurationExample {
 
         LOG.info("Creating access to Omid Transaction Manager & Transactional Table '{}'", userTableName);
         try (TransactionManager tm = HBaseTransactionManager.newInstance(configuration);
-             TTable txTable = new TTable(userTableName))
+             Connection conn = ConnectionFactory.createConnection();
+             TTable txTable = new TTable(conn, userTableName))
         {
             for (int i = 0; i < 100; i++) {
                 Transaction tx = tm.begin();
                 LOG.info("Transaction #{} {} STARTED", i, tx);
 
                 Put row1 = new Put(exampleRow1);
-                row1.add(family, qualifier, dataValue1);
+                row1.addColumn(family, qualifier, dataValue1);
                 txTable.put(tx, row1);
                 LOG.info("Transaction {} trying to write a new value in [TABLE:ROW/CF/Q] => {}:{}/{}/{} = {} ",
                          tx, userTableName, Bytes.toString(exampleRow1), Bytes.toString(family),
                          Bytes.toString(qualifier), Bytes.toString(dataValue1));
 
                 Put row2 = new Put(exampleRow2);
-                row2.add(family, qualifier, dataValue2);
+                row2.addColumn(family, qualifier, dataValue2);
                 txTable.put(tx, row2);
                 LOG.info("Transaction {} trying to write a new value in [TABLE:ROW/CF/Q] => {}:{}/{}/{} = {} ",
                          tx, userTableName, Bytes.toString(exampleRow2), Bytes.toString(family),

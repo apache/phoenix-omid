@@ -17,9 +17,25 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -28,17 +44,18 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
 import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -59,24 +76,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 public class TestCompaction {
 
@@ -96,7 +98,7 @@ public class TestCompaction {
 
     private Injector injector;
 
-    private HBaseAdmin admin;
+    private Admin admin;
     private Configuration hbaseConf;
     private HBaseTestingUtility hbaseTestUtil;
     private MiniHBaseCluster hbaseCluster;
@@ -106,6 +108,7 @@ public class TestCompaction {
     private AggregationClient aggregationClient;
     private CommitTable commitTable;
     private PostCommitActions syncPostCommitter;
+    private Connection connection;
 
     @BeforeClass
     public void setupTestCompation() throws Exception {
@@ -122,8 +125,9 @@ public class TestCompaction {
         hbaseConf.setInt("hbase.hstore.compaction.max", 2);
 
         setupHBase();
+        connection = ConnectionFactory.createConnection(hbaseConf);
         aggregationClient = new AggregationClient(hbaseConf);
-        admin = new HBaseAdmin(hbaseConf);
+        admin = connection.getAdmin();
         createRequiredHBaseTables(hBaseTimestampStorageConfig, hBaseCommitTableConfig);
         setupTSO();
 
@@ -149,7 +153,7 @@ public class TestCompaction {
     }
 
     private void createTableIfNotExists(String tableName, byte[]... families) throws IOException {
-        if (!admin.tableExists(tableName)) {
+        if (!admin.tableExists(TableName.valueOf(tableName))) {
             LOG.info("Creating {} table...", tableName);
             HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
 
@@ -209,7 +213,7 @@ public class TestCompaction {
     public void testStandardTXsWithShadowCellsAndWithSTBelowAndAboveLWMArePresevedAfterCompaction() throws Throwable {
         String TEST_TABLE = "testStandardTXsWithShadowCellsAndWithSTBelowAndAboveLWMArePresevedAfterCompaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         final int ROWS_TO_ADD = 5;
 
@@ -222,13 +226,13 @@ public class TestCompaction {
                 LOG.info("AssignedLowWatermark " + fakeAssignedLowWatermark);
             }
             Put put = new Put(Bytes.toBytes(rowId));
-            put.add(fam, qual, data);
+            put.addColumn(fam, qual, data);
             txTable.put(tx, put);
             tm.commit(tx);
         }
 
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
+        admin.flush(TableName.valueOf(TEST_TABLE));
 
         // Return a LWM that triggers compaction & stays between 1 and the max start timestamp assigned to previous TXs
         LOG.info("Regions in table {}: {}", TEST_TABLE, hbaseCluster.getRegions(Bytes.toBytes(TEST_TABLE)).size());
@@ -241,7 +245,7 @@ public class TestCompaction {
         doReturn(f).when(commitTableClient).readLowWatermark();
         omidCompactor.commitTableClientQueue.add(commitTableClient);
         LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
+        admin.majorCompact(TableName.valueOf(TEST_TABLE));
 
         LOG.info("Sleeping for 3 secs");
         Thread.sleep(3000);
@@ -255,7 +259,7 @@ public class TestCompaction {
     public void testTXWithoutShadowCellsAndWithSTBelowLWMGetsShadowCellHealedAfterCompaction() throws Exception {
         String TEST_TABLE = "testTXWithoutShadowCellsAndWithSTBelowLWMGetsShadowCellHealedAfterCompaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         // The following line emulates a crash after commit that is observed in (*) below
         doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
@@ -266,7 +270,7 @@ public class TestCompaction {
 
         // Test shadow cell are created properly
         Put put = new Put(Bytes.toBytes(row));
-        put.add(fam, qual, data);
+        put.addColumn(fam, qual, data);
         txTable.put(problematicTx, put);
         try {
             tm.commit(problematicTx);
@@ -293,10 +297,10 @@ public class TestCompaction {
         omidCompactor.commitTableClientQueue.add(commitTableClient);
 
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
+        admin.flush(TableName.valueOf(TEST_TABLE));
 
         LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
+        admin.majorCompact(TableName.valueOf(TEST_TABLE));
 
         LOG.info("Sleeping for 3 secs");
         Thread.sleep(3000);
@@ -317,13 +321,13 @@ public class TestCompaction {
                 TEST_TABLE =
                 "testNeverendingTXsWithSTBelowAndAboveLWMAreDiscardedAndPreservedRespectivelyAfterCompaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         // The KV in this transaction should be discarded
         HBaseTransaction neverendingTxBelowLowWatermark = (HBaseTransaction) tm.begin();
         long rowId = randomGenerator.nextLong();
         Put put = new Put(Bytes.toBytes(rowId));
-        put.add(fam, qual, data);
+        put.addColumn(fam, qual, data);
         txTable.put(neverendingTxBelowLowWatermark, put);
         assertTrue(CellUtils.hasCell(Bytes.toBytes(rowId), fam, qual, neverendingTxBelowLowWatermark.getStartTimestamp(),
                                      new TTableCellGetterAdapter(txTable)),
@@ -336,7 +340,7 @@ public class TestCompaction {
         HBaseTransaction neverendingTxAboveLowWatermark = (HBaseTransaction) tm.begin();
         long anotherRowId = randomGenerator.nextLong();
         put = new Put(Bytes.toBytes(anotherRowId));
-        put.add(fam, qual, data);
+        put.addColumn(fam, qual, data);
         txTable.put(neverendingTxAboveLowWatermark, put);
         assertTrue(CellUtils.hasCell(Bytes.toBytes(anotherRowId), fam, qual, neverendingTxAboveLowWatermark.getStartTimestamp(),
                                      new TTableCellGetterAdapter(txTable)),
@@ -347,7 +351,7 @@ public class TestCompaction {
 
         assertEquals(rowCount(TEST_TABLE, fam), 2, "Rows in table before flushing should be 2");
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
+        admin.flush(TableName.valueOf(TEST_TABLE));
         assertEquals(rowCount(TEST_TABLE, fam), 2, "Rows in table after flushing should be 2");
 
         // Return a LWM that triggers compaction and stays between both ST of TXs, so assign 1st TX's start timestamp
@@ -361,7 +365,7 @@ public class TestCompaction {
         doReturn(f).when(commitTableClient).readLowWatermark();
         omidCompactor.commitTableClientQueue.add(commitTableClient);
         LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE);
+        admin.majorCompact(TableName.valueOf(TEST_TABLE));
 
         LOG.info("Sleeping for 3 secs");
         Thread.sleep(3000);
@@ -390,14 +394,14 @@ public class TestCompaction {
     public void testRowsUnalteredWhenCommitTableCannotBeReached() throws Throwable {
         String TEST_TABLE = "testRowsUnalteredWhenCommitTableCannotBeReached";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         // The KV in this transaction should be discarded but in the end should remain there because
         // the commit table won't be accessed (simulating an error on access)
         HBaseTransaction neverendingTx = (HBaseTransaction) tm.begin();
         long rowId = randomGenerator.nextLong();
         Put put = new Put(Bytes.toBytes(rowId));
-        put.add(fam, qual, data);
+        put.addColumn(fam, qual, data);
         txTable.put(neverendingTx, put);
         assertTrue(CellUtils.hasCell(Bytes.toBytes(rowId), fam, qual, neverendingTx.getStartTimestamp(),
                                      new TTableCellGetterAdapter(txTable)),
@@ -408,7 +412,7 @@ public class TestCompaction {
 
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one rows in table before flushing");
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
+        admin.flush(TableName.valueOf(TEST_TABLE));
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one rows in table after flushing");
 
         // Break access to CommitTable functionality in Compactor
@@ -423,7 +427,7 @@ public class TestCompaction {
         omidCompactor.commitTableClientQueue.add(commitTableClient);
 
         LOG.info("Compacting table {}", TEST_TABLE);
-        admin.majorCompact(TEST_TABLE); // Should trigger the error when accessing CommitTable funct.
+        admin.majorCompact(TableName.valueOf(TEST_TABLE)); // Should trigger the error when accessing CommitTable funct.
 
         LOG.info("Sleeping for 3 secs");
         Thread.sleep(3000);
@@ -443,13 +447,13 @@ public class TestCompaction {
     public void testOriginalTableParametersAreAvoidedAlsoWhenCompacting() throws Throwable {
         String TEST_TABLE = "testOriginalTableParametersAreAvoidedAlsoWhenCompacting";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         long rowId = randomGenerator.nextLong();
         for (int versionCount = 0; versionCount <= (2 * MAX_VERSIONS); versionCount++) {
             Transaction tx = tm.begin();
             Put put = new Put(Bytes.toBytes(rowId));
-            put.add(fam, qual, Bytes.toBytes("testWrite-" + versionCount));
+            put.addColumn(fam, qual, Bytes.toBytes("testWrite-" + versionCount));
             txTable.put(tx, put);
             tm.commit(tx);
         }
@@ -466,7 +470,7 @@ public class TestCompaction {
 
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one row in table before flushing");
         LOG.info("Flushing table {}", TEST_TABLE);
-        admin.flush(TEST_TABLE);
+        admin.flush(TableName.valueOf(TEST_TABLE));
         assertEquals(rowCount(TEST_TABLE, fam), 1, "There should be only one row in table after flushing");
 
         // Return a LWM that triggers compaction
@@ -502,26 +506,26 @@ public class TestCompaction {
     public void testOldCellsAreDiscardedAfterCompaction() throws Exception {
         String TEST_TABLE = "testOldCellsAreDiscardedAfterCompaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         byte[] rowId = Bytes.toBytes("row");
 
         // Create 3 transactions modifying the same cell in a particular row
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         Put put1 = new Put(rowId);
-        put1.add(fam, qual, Bytes.toBytes("testValue 1"));
+        put1.addColumn(fam, qual, Bytes.toBytes("testValue 1"));
         txTable.put(tx1, put1);
         tm.commit(tx1);
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Put put2 = new Put(rowId);
-        put2.add(fam, qual, Bytes.toBytes("testValue 2"));
+        put2.addColumn(fam, qual, Bytes.toBytes("testValue 2"));
         txTable.put(tx2, put2);
         tm.commit(tx2);
 
         HBaseTransaction tx3 = (HBaseTransaction) tm.begin();
         Put put3 = new Put(rowId);
-        put3.add(fam, qual, Bytes.toBytes("testValue 3"));
+        put3.addColumn(fam, qual, Bytes.toBytes("testValue 3"));
         txTable.put(tx3, put3);
         tm.commit(tx3);
 
@@ -566,7 +570,7 @@ public class TestCompaction {
         assertEquals(Bytes.toBytes("testValue 3"), result.getValue(fam, qual));
         // Write a new value
         Put newPut1 = new Put(rowId);
-        newPut1.add(fam, qual, Bytes.toBytes("new testValue 1"));
+        newPut1.addColumn(fam, qual, Bytes.toBytes("new testValue 1"));
         txTable.put(newTx1, newPut1);
 
         // Start a second new transaction
@@ -608,7 +612,7 @@ public class TestCompaction {
     public void testDuplicateDeletes() throws Throwable {
         String TEST_TABLE = "testDuplicateDeletes";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         // jump through hoops to trigger a minor compaction.
         // a minor compaction will only run if there are enough
@@ -620,7 +624,7 @@ public class TestCompaction {
         byte[] firstRow = "FirstRow".getBytes();
         HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
         Put put0 = new Put(firstRow);
-        put0.add(fam, qual, Bytes.toBytes("testWrite-1"));
+        put0.addColumn(fam, qual, Bytes.toBytes("testWrite-1"));
         txTable.put(tx0, put0);
         tm.commit(tx0);
 
@@ -631,7 +635,7 @@ public class TestCompaction {
         byte[] rowToBeCompactedAway = "compactMe".getBytes();
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         Put put1 = new Put(rowToBeCompactedAway);
-        put1.add(fam, qual, Bytes.toBytes("testWrite-1"));
+        put1.addColumn(fam, qual, Bytes.toBytes("testWrite-1"));
         txTable.put(tx1, put1);
         txTable.flushCommits();
 
@@ -639,13 +643,13 @@ public class TestCompaction {
         byte[] row = "iCauseErrors".getBytes();
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Put put2 = new Put(row);
-        put2.add(fam, qual, Bytes.toBytes("testWrite-1"));
+        put2.addColumn(fam, qual, Bytes.toBytes("testWrite-1"));
         txTable.put(tx2, put2);
         tm.commit(tx2);
 
         HBaseTransaction tx3 = (HBaseTransaction) tm.begin();
         Put put3 = new Put(row);
-        put3.add(fam, qual, Bytes.toBytes("testWrite-1"));
+        put3.addColumn(fam, qual, Bytes.toBytes("testWrite-1"));
         txTable.put(tx3, put3);
         txTable.flushCommits();
 
@@ -655,7 +659,7 @@ public class TestCompaction {
         List<HBaseCellId> newWriteSet = new ArrayList<>();
         final AtomicBoolean flushFailing = new AtomicBoolean(true);
         for (HBaseCellId id : writeSet) {
-            HTableInterface failableHTable = spy(id.getTable());
+            TTable failableHTable = spy(id.getTable());
             doAnswer(new Answer<Void>() {
                 @Override
                 public Void answer(InvocationOnMock invocation)
@@ -693,7 +697,7 @@ public class TestCompaction {
         byte[] anotherRow = "someotherrow".getBytes();
         HBaseTransaction tx4 = (HBaseTransaction) tm.begin();
         Put put4 = new Put(anotherRow);
-        put4.add(fam, qual, Bytes.toBytes("testWrite-1"));
+        put4.addColumn(fam, qual, Bytes.toBytes("testWrite-1"));
         txTable.put(tx4, put4);
         tm.commit(tx4);
 
@@ -702,7 +706,7 @@ public class TestCompaction {
 
         // trigger minor compaction and give it time to run
         setCompactorLWM(tx4.getStartTimestamp(), TEST_TABLE);
-        admin.compact(TEST_TABLE);
+        admin.compact(TableName.valueOf(TEST_TABLE));
         Thread.sleep(3000);
 
         // check if the cell that should be compacted, is compacted
@@ -715,24 +719,24 @@ public class TestCompaction {
     public void testNonOmidCFIsUntouched() throws Throwable {
         String TEST_TABLE = "testNonOmidCFIsUntouched";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
-        admin.disableTable(TEST_TABLE);
+        admin.disableTable(TableName.valueOf(TEST_TABLE));
         byte[] nonOmidCF = Bytes.toBytes("nonOmidCF");
         byte[] nonOmidQual = Bytes.toBytes("nonOmidCol");
         HColumnDescriptor nonomidfam = new HColumnDescriptor(nonOmidCF);
         nonomidfam.setMaxVersions(MAX_VERSIONS);
-        admin.addColumn(TEST_TABLE, nonomidfam);
-        admin.enableTable(TEST_TABLE);
+        admin.addColumn(TableName.valueOf(TEST_TABLE), nonomidfam);
+        admin.enableTable(TableName.valueOf(TEST_TABLE));
 
         byte[] rowId = Bytes.toBytes("testRow");
         Transaction tx = tm.begin();
         Put put = new Put(rowId);
-        put.add(fam, qual, Bytes.toBytes("testValue"));
+        put.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx, put);
 
         Put nonTxPut = new Put(rowId);
-        nonTxPut.add(nonOmidCF, nonOmidQual, Bytes.toBytes("nonTxVal"));
+        nonTxPut.addColumn(nonOmidCF, nonOmidQual, Bytes.toBytes("nonTxVal"));
         txTable.getHTable().put(nonTxPut);
         txTable.flushCommits(); // to make sure it left the client
 
@@ -759,21 +763,21 @@ public class TestCompaction {
     public void testACellDeletedNonTransactionallyDoesNotAppearWhenAMajorCompactionOccurs() throws Throwable {
         String TEST_TABLE = "testACellDeletedNonTransactionallyDoesNotAppearWhenAMajorCompactionOccurs";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
-        HTable table = new HTable(hbaseConf, TEST_TABLE);
+        Table table = txTable.getHTable();
 
         // Write first a value transactionally
         HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("row1");
         Put p0 = new Put(rowId);
-        p0.add(fam, qual, Bytes.toBytes("testValue-0"));
+        p0.addColumn(fam, qual, Bytes.toBytes("testValue-0"));
         txTable.put(tx0, p0);
         tm.commit(tx0);
 
         // Then perform a non-transactional Delete
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         table.delete(d);
 
         // Trigger a major compaction
@@ -800,9 +804,9 @@ public class TestCompaction {
     public void testACellDeletedNonTransactionallyIsPreservedWhenMinorCompactionOccurs() throws Throwable {
         String TEST_TABLE = "testACellDeletedNonTransactionallyIsPreservedWhenMinorCompactionOccurs";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
-        HTable table = new HTable(hbaseConf, TEST_TABLE);
+        Table table = txTable.getHTable();
 
         // Configure the environment to create a minor compaction
 
@@ -810,7 +814,7 @@ public class TestCompaction {
         HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("row1");
         Put p0 = new Put(rowId);
-        p0.add(fam, qual, Bytes.toBytes("testValue-0"));
+        p0.addColumn(fam, qual, Bytes.toBytes("testValue-0"));
         txTable.put(tx0, p0);
         tm.commit(tx0);
 
@@ -820,7 +824,7 @@ public class TestCompaction {
         // Write another value transactionally
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         Put p1 = new Put(rowId);
-        p1.add(fam, qual, Bytes.toBytes("testValue-1"));
+        p1.addColumn(fam, qual, Bytes.toBytes("testValue-1"));
         txTable.put(tx1, p1);
         tm.commit(tx1);
 
@@ -830,7 +834,7 @@ public class TestCompaction {
         // Write yet another value transactionally
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Put p2 = new Put(rowId);
-        p2.add(fam, qual, Bytes.toBytes("testValue-2"));
+        p2.addColumn(fam, qual, Bytes.toBytes("testValue-2"));
         txTable.put(tx2, p2);
         tm.commit(tx2);
 
@@ -839,7 +843,7 @@ public class TestCompaction {
 
         // Then perform a non-transactional Delete
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         table.delete(d);
 
         // create the fourth hfile
@@ -848,7 +852,7 @@ public class TestCompaction {
         // Trigger the minor compaction
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
         setCompactorLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
-        admin.compact(TEST_TABLE);
+        admin.compact(TableName.valueOf(TEST_TABLE));
         Thread.sleep(5000);
 
         // Then perform a non-tx (raw) scan...
@@ -887,14 +891,14 @@ public class TestCompaction {
     public void testTombstonesAreNotCleanedUpWhenMinorCompactionOccurs() throws Throwable {
         String TEST_TABLE = "testTombstonesAreNotCleanedUpWhenMinorCompactionOccurs";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         // Configure the environment to create a minor compaction
 
         HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case1");
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue-0"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue-0"));
         txTable.put(tx0, p);
         tm.commit(tx0);
 
@@ -904,7 +908,7 @@ public class TestCompaction {
         // Create the tombstone
         HBaseTransaction deleteTx = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(deleteTx, d);
         tm.commit(deleteTx);
 
@@ -913,7 +917,7 @@ public class TestCompaction {
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         Put p1 = new Put(rowId);
-        p1.add(fam, qual, Bytes.toBytes("testValue-11"));
+        p1.addColumn(fam, qual, Bytes.toBytes("testValue-11"));
         txTable.put(tx1, p1);
         tm.commit(tx1);
 
@@ -922,14 +926,14 @@ public class TestCompaction {
 
         HBaseTransaction lastTx = (HBaseTransaction) tm.begin();
         Put p2 = new Put(rowId);
-        p2.add(fam, qual, Bytes.toBytes("testValue-222"));
+        p2.addColumn(fam, qual, Bytes.toBytes("testValue-222"));
         txTable.put(lastTx, p2);
         tm.commit(lastTx);
 
         // Trigger the minor compaction
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
         setCompactorLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
-        admin.compact(TEST_TABLE);
+        admin.compact(TableName.valueOf(TEST_TABLE));
         Thread.sleep(5000);
 
         // Checks on results after compaction
@@ -958,12 +962,12 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase1() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase1";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case1");
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx1, p);
         tm.commit(tx1);
 
@@ -972,7 +976,7 @@ public class TestCompaction {
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx2, d);
         tm.commit(tx2);
 
@@ -994,18 +998,18 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase2() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase2";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case2");
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx1, p);
         tm.commit(tx1);
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx2, d);
         tm.commit(tx2);
 
@@ -1031,18 +1035,18 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase3() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase3";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case3");
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx1, p);
         tm.commit(tx1);
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx2, d);
 
         HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
@@ -1067,12 +1071,12 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase4() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase4";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case4");
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx1, p);
         tm.commit(tx1);
 
@@ -1080,7 +1084,7 @@ public class TestCompaction {
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx2, d);
         compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
 
@@ -1102,12 +1106,12 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase5() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase5";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         byte[] rowId = Bytes.toBytes("case5");
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx1, d);
         tm.commit(tx1);
 
@@ -1128,18 +1132,18 @@ public class TestCompaction {
     public void testTombstonesAreCleanedUpCase6() throws Exception {
         String TEST_TABLE = "testTombstonesAreCleanedUpCase6";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         byte[] rowId = Bytes.toBytes("case6");
 
         HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
         Delete d = new Delete(rowId);
-        d.deleteColumn(fam, qual);
+        d.addColumn(fam, qual);
         txTable.delete(tx1, d);
         tm.commit(tx1);
 
         HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
         Put p = new Put(rowId);
-        p.add(fam, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
         txTable.put(tx2, p);
         tm.commit(tx2);
 
@@ -1173,12 +1177,12 @@ public class TestCompaction {
     }
 
     private void compactWithLWM(long lwm, String tableName) throws Exception {
-        admin.flush(tableName);
+        admin.flush(TableName.valueOf(tableName));
 
         LOG.info("Regions in table {}: {}", tableName, hbaseCluster.getRegions(Bytes.toBytes(tableName)).size());
         setCompactorLWM(lwm, tableName);
         LOG.info("Compacting table {}", tableName);
-        admin.majorCompact(tableName);
+        admin.majorCompact(TableName.valueOf(tableName));
 
         LOG.info("Sleeping for 3 secs");
         Thread.sleep(3000);

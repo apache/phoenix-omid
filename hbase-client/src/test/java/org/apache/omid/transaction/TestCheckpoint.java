@@ -17,9 +17,12 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertTrue;
+
 import java.util.List;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -31,8 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "sharedHBase")
 public class TestCheckpoint extends OmidTestBase {
@@ -53,7 +54,7 @@ public class TestCheckpoint extends OmidTestBase {
     public void testFewCheckPoints(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -67,7 +68,7 @@ public class TestCheckpoint extends OmidTestBase {
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
         Get g = new Get(rowName1).setMaxVersions(1);
@@ -79,7 +80,7 @@ public class TestCheckpoint extends OmidTestBase {
         hbaseTx1.checkpoint();
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue2);
+        row1.addColumn(famName1, colName1, dataValue2);
         tt.put(tx1, row1);
 
         r = tt.get(tx1, g);
@@ -95,7 +96,7 @@ public class TestCheckpoint extends OmidTestBase {
         hbaseTx1.checkpoint();
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue3);
+        row1.addColumn(famName1, colName1, dataValue3);
         tt.put(tx1, row1);
 
         r = tt.get(tx1, g);
@@ -115,13 +116,13 @@ public class TestCheckpoint extends OmidTestBase {
         assertTrue(r.size() == 3, "Expected 3 results and found " + r.size());
 
         List<Cell> cells = r.getColumnCells(famName1, colName1);
-        assertTrue(Bytes.equals(dataValue3, cells.get(0).getValue()),
+        assertTrue(Bytes.equals(dataValue3, CellUtil.cloneValue(cells.get(0))),
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
-        assertTrue(Bytes.equals(dataValue2, cells.get(1).getValue()),
+        assertTrue(Bytes.equals(dataValue2, CellUtil.cloneValue(cells.get(1))),
               "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
-        assertTrue(Bytes.equals(dataValue1, cells.get(2).getValue()),
+        assertTrue(Bytes.equals(dataValue1, CellUtil.cloneValue(cells.get(2))),
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
         tt.close();
@@ -130,7 +131,7 @@ public class TestCheckpoint extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testSNAPSHOT(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -142,7 +143,7 @@ public class TestCheckpoint extends OmidTestBase {
         Transaction tx1 = tm.begin();
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue0);
+        row1.addColumn(famName1, colName1, dataValue0);
         tt.put(tx1, row1);
 
         tm.commit(tx1);
@@ -158,7 +159,7 @@ public class TestCheckpoint extends OmidTestBase {
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
 
@@ -169,7 +170,7 @@ public class TestCheckpoint extends OmidTestBase {
         hbaseTx1.checkpoint();
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue2);
+        row1.addColumn(famName1, colName1, dataValue2);
         tt.put(tx1, row1);
 
         r = tt.get(tx1, g);
@@ -188,7 +189,7 @@ public class TestCheckpoint extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testSNAPSHOT_ALL(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -200,7 +201,7 @@ public class TestCheckpoint extends OmidTestBase {
         Transaction tx1 = tm.begin();
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue0);
+        row1.addColumn(famName1, colName1, dataValue0);
         tt.put(tx1, row1);
 
         tm.commit(tx1);
@@ -216,7 +217,7 @@ public class TestCheckpoint extends OmidTestBase {
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
         g = new Get(rowName1).setMaxVersions(100);
@@ -228,7 +229,7 @@ public class TestCheckpoint extends OmidTestBase {
         hbaseTx1.checkpoint();
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue2);
+        row1.addColumn(famName1, colName1, dataValue2);
         tt.put(tx1, row1);
 
         r = tt.get(tx1, g);
@@ -242,13 +243,13 @@ public class TestCheckpoint extends OmidTestBase {
         assertTrue(r.size() == 3, "Expected 3 results and found " + r.size());
 
         List<Cell> cells = r.getColumnCells(famName1, colName1);
-        assertTrue(Bytes.equals(dataValue2, cells.get(0).getValue()),
+        assertTrue(Bytes.equals(dataValue2, CellUtil.cloneValue(cells.get(0))),
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
-        assertTrue(Bytes.equals(dataValue1, cells.get(1).getValue()),
+        assertTrue(Bytes.equals(dataValue1, CellUtil.cloneValue(cells.get(1))),
               "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
-        assertTrue(Bytes.equals(dataValue0, cells.get(2).getValue()),
+        assertTrue(Bytes.equals(dataValue0, CellUtil.cloneValue(cells.get(2))),
                 "Unexpected value for SI read " + tx1 + ": " + Bytes.toString(r.getValue(famName1, colName1)));
 
         tt.close();
@@ -257,7 +258,7 @@ public class TestCheckpoint extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testSNAPSHOT_EXCLUDE_CURRENT(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -270,7 +271,7 @@ public class TestCheckpoint extends OmidTestBase {
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
         Get g = new Get(rowName1).setMaxVersions(1);
@@ -282,7 +283,7 @@ public class TestCheckpoint extends OmidTestBase {
         hbaseTx1.checkpoint();
 
         row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue2);
+        row1.addColumn(famName1, colName1, dataValue2);
         tt.put(tx1, row1);
 
         r = tt.get(tx1, g);
@@ -301,7 +302,7 @@ public class TestCheckpoint extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testDeleteAfterCheckpoint(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -311,7 +312,7 @@ public class TestCheckpoint extends OmidTestBase {
         Transaction tx1 = tm.begin();
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
         tm.commit(tx1);

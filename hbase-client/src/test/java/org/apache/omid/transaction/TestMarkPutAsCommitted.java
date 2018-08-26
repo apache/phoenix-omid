@@ -17,7 +17,12 @@
  */
 package org.apache.omid.transaction;
 
-import org.apache.hadoop.hbase.Cell;
+import static org.apache.omid.transaction.CellUtils.hasCell;
+import static org.apache.omid.transaction.CellUtils.hasShadowCell;
+import static org.testng.Assert.assertTrue;
+
+import java.util.Arrays;
+
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -26,15 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.omid.transaction.CellUtils.hasCell;
-import static org.apache.omid.transaction.CellUtils.hasShadowCell;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "sharedHBase")
 public class TestMarkPutAsCommitted extends OmidTestBase {
@@ -54,13 +50,13 @@ public class TestMarkPutAsCommitted extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
         // Test shadow cells are created properly
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         
         put = TTable.markPutAsCommitted(put, t1.getWriteTimestamp(), t1.getWriteTimestamp());
       
@@ -78,12 +74,12 @@ public class TestMarkPutAsCommitted extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
 
         table.put(t1, put);
 
@@ -106,7 +102,7 @@ public class TestMarkPutAsCommitted extends OmidTestBase {
         HBaseTransaction t3 = (HBaseTransaction) tm.begin();
 
         Put put1 = new Put(row);
-        put1.add(family, qualifier, data2);
+        put1.addColumn(family, qualifier, data2);
 
         put1 = TTable.markPutAsCommitted(put1, t3.getWriteTimestamp(), t3.getWriteTimestamp());
 
