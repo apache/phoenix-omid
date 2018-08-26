@@ -17,8 +17,29 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.InMemoryCommitTable;
@@ -30,20 +51,6 @@ import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
 import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.apache.omid.tso.client.TSOClient;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.MiniHBaseCluster;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -52,11 +59,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeGroups;
 import org.testng.annotations.BeforeMethod;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-
-import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 public abstract class OmidTestBase {
 
@@ -65,6 +69,7 @@ public abstract class OmidTestBase {
     static HBaseTestingUtility hBaseUtils;
     private static MiniHBaseCluster hbaseCluster;
     static Configuration hbaseConf;
+    static Connection connection;
 
     protected static final String TEST_TABLE = "test";
     protected static final String TEST_FAMILY = "data";
@@ -119,6 +124,7 @@ public abstract class OmidTestBase {
 
         hBaseUtils = new HBaseTestingUtility(hbaseConf);
         hbaseCluster = hBaseUtils.startMiniCluster(1);
+        connection = ConnectionFactory.createConnection(hbaseConf);
         hBaseUtils.createTable(Bytes.toBytes(hBaseTimestampStorageConfig.getTableName()),
                                new byte[][]{hBaseTimestampStorageConfig.getFamilyName().getBytes()},
                                Integer.MAX_VALUE);
@@ -210,17 +216,19 @@ public abstract class OmidTestBase {
     public void afterMethod() {
         try {
             LOG.info("tearing Down");
-            HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
+            Admin admin = hBaseUtils.getHBaseAdmin();
             deleteTable(admin, TableName.valueOf(TEST_TABLE));
             createTestTable();
-            deleteTable(admin, TableName.valueOf(hBaseCommitTableConfig.getTableName()));
+            if (hBaseCommitTableConfig != null) {
+                deleteTable(admin, TableName.valueOf(hBaseCommitTableConfig.getTableName()));
+            }
             createCommitTable();
         } catch (Exception e) {
             LOG.error("Error tearing down", e);
         }
     }
 
-    void deleteTable(HBaseAdmin admin, TableName tableName) throws IOException {
+    void deleteTable(Admin admin, TableName tableName) throws IOException {
         if (admin.tableExists(tableName)) {
             if (admin.isTableDisabled(tableName)) {
                 admin.deleteTable(tableName);
@@ -231,16 +239,16 @@ public abstract class OmidTestBase {
         }
     }
 
-    static boolean verifyValue(byte[] tableName, byte[] row,
+    static boolean verifyValue(Table table, byte[] row,
                                byte[] fam, byte[] col, byte[] value) {
 
-        try (HTable table = new HTable(hbaseConf, tableName)) {
+        try {
             Get g = new Get(row).setMaxVersions(1);
             Result r = table.get(g);
             Cell cell = r.getColumnLatestCell(fam, col);
 
             if (LOG.isTraceEnabled()) {
-                LOG.trace("Value for " + Bytes.toString(tableName) + ":"
+                LOG.trace("Value for " + table.getName().getNameAsString() + ":"
                                   + Bytes.toString(row) + ":" + Bytes.toString(fam)
                                   + Bytes.toString(col) + "=>" + Bytes.toString(CellUtil.cloneValue(cell))
                                   + " (" + Bytes.toString(value) + " expected)");
@@ -248,7 +256,7 @@ public abstract class OmidTestBase {
 
             return Bytes.equals(CellUtil.cloneValue(cell), value);
         } catch (IOException e) {
-            LOG.error("Error reading row " + Bytes.toString(tableName) + ":"
+            LOG.error("Error reading row " + table.getName().getNameAsString() + ":"
                               + Bytes.toString(row) + ":" + Bytes.toString(fam)
                               + Bytes.toString(col), e);
             return false;

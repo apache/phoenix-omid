@@ -17,14 +17,6 @@
  */
 package org.apache.omid.transaction;
 
-import org.apache.omid.tso.client.TSOClient;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.testng.ITestContext;
-import org.testng.annotations.Test;
-
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anySetOf;
 import static org.mockito.Mockito.doReturn;
@@ -34,6 +26,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.tso.client.TSOClient;
+import org.testng.ITestContext;
+import org.testng.annotations.Test;
 
 // TODO These tests should be adapted to a future test for AbstractTransactionManager as they should be DB independent
 @Test(groups = "sharedHBase")
@@ -74,12 +74,12 @@ public class TestHBaseTransactionManager extends OmidTestBase {
         TSOClient tsoClient = spy(getClient(context));
         TransactionManager tm = newTransactionManager(context, tsoClient);
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Add initial data in a transactional context
             Transaction tx1 = tm.begin();
             Put put = new Put(row1);
-            put.add(testFamily, qualifier, data1);
+            put.addColumn(testFamily, qualifier, data1);
             txTable.put(tx1, put);
             tm.commit(tx1);
 

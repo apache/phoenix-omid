@@ -96,7 +96,7 @@ public class CacheEvaluation {
         Runtime.getRuntime().gc();
         writer.println("# Free mem (MB) :" + (Runtime.getRuntime().freeMemory() / (double) (1024 * 1024)));
         writer.println("# Elapsed (s): " + elapsedSeconds);
-        writer.println("# Elapsed per 100 ops (ms): " + (elapsed / (double) totalOps / 100 / (double) 1000000));
+        writer.println("# Elapsed per 100 ops (ms): " + (elapsed / (double) totalOps / 100 / 1000000));
         writer.println("# Ops per s : " + (totalOps / elapsedSeconds));
         writer.println("# Avg gap: " + (tempAvg));
         writer.println("# Std dev gap: " + Math.sqrt((tempStdDev / ENTRIES)));

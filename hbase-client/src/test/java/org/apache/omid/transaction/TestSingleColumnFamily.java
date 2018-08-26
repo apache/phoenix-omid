@@ -17,6 +17,8 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertTrue;
+
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -27,8 +29,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "sharedHBase")
 public class TestSingleColumnFamily extends OmidTestBase {
 
@@ -37,14 +37,14 @@ public class TestSingleColumnFamily extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void testSingleColumnFamily(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable table1 = new TTable(hbaseConf, TEST_TABLE);
+        TTable table1 = new TTable(connection, TEST_TABLE);
         int num = 10;
         Transaction t = tm.begin();
         for (int j = 0; j < num; j++) {
             byte[] data = Bytes.toBytes(j);
             Put put = new Put(data);
-            put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value1"), data);
-            put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value2"), data);
+            put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value1"), data);
+            put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value2"), data);
             table1.put(t, put);
         }
         //tm.tryCommit(t);
@@ -68,7 +68,7 @@ public class TestSingleColumnFamily extends OmidTestBase {
             byte[] data = Bytes.toBytes(j);
             byte[] ndata = Bytes.toBytes(j * 10);
             Put put = new Put(data);
-            put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value2"), ndata);
+            put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes("value2"), ndata);
             table1.put(t, put);
         }
         tm.commit(t);

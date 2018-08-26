@@ -17,6 +17,8 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertTrue;
+
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -26,14 +28,11 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "sharedHBase")
 public class TestMultiplePut extends OmidTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestMultiplePut.class);
 
-    private static final byte[] testTable = Bytes.toBytes(TEST_TABLE);
     private static final byte[] family = Bytes.toBytes(TEST_FAMILY);
     private static final byte[] col1 = Bytes.toBytes("col1");
     private static final byte[] col2 = Bytes.toBytes("col2");
@@ -44,24 +43,24 @@ public class TestMultiplePut extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             Transaction tx = tm.begin();
 
             byte[] rowToAdd = Bytes.toBytes(1000);
 
             Put put1 = new Put(rowToAdd);
-            put1.add(family, col1, data);
+            put1.addColumn(family, col1, data);
             txTable.put(tx, put1);
 
             Put put2 = new Put(rowToAdd);
-            put2.add(family, col2, data);
+            put2.addColumn(family, col2, data);
             txTable.put(tx, put2);
 
             tm.commit(tx);
 
-            assertTrue(verifyValue(testTable, rowToAdd, family, col1, data), "Invalid value in table");
-            assertTrue(verifyValue(testTable, rowToAdd, family, col2, data), "Invalid value in table");
+            assertTrue(verifyValue(txTable.getHTable(), rowToAdd, family, col1, data), "Invalid value in table");
+            assertTrue(verifyValue(txTable.getHTable(), rowToAdd, family, col2, data), "Invalid value in table");
         }
 
     }
@@ -73,7 +72,7 @@ public class TestMultiplePut extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             Transaction tx = tm.begin();
 
@@ -81,7 +80,7 @@ public class TestMultiplePut extends OmidTestBase {
                 byte[] rowToAdd = Bytes.toBytes(i);
                 byte[] dataForRowCol = Bytes.toBytes("testData" + i);
                 Put put = new Put(rowToAdd);
-                put.add(family, col1, dataForRowCol);
+                put.addColumn(family, col1, dataForRowCol);
                 txTable.put(tx, put);
             }
 
@@ -90,13 +89,13 @@ public class TestMultiplePut extends OmidTestBase {
             // Check some of the added values are there in the table
             byte[] rowToCheck = Bytes.toBytes(0);
             byte[] dataToCheck = Bytes.toBytes("testData" + 0);
-            assertTrue(verifyValue(testTable, rowToCheck, family, col1, dataToCheck), "Invalid value in table");
+            assertTrue(verifyValue(txTable.getHTable(), rowToCheck, family, col1, dataToCheck), "Invalid value in table");
             rowToCheck = Bytes.toBytes(NUM_ROWS_TO_ADD / 2);
             dataToCheck = Bytes.toBytes("testData" + (NUM_ROWS_TO_ADD / 2));
-            assertTrue(verifyValue(testTable, rowToCheck, family, col1, dataToCheck), "Invalid value in table");
+            assertTrue(verifyValue(txTable.getHTable(), rowToCheck, family, col1, dataToCheck), "Invalid value in table");
             rowToCheck = Bytes.toBytes(NUM_ROWS_TO_ADD);
             dataToCheck = Bytes.toBytes("testData" + NUM_ROWS_TO_ADD);
-            assertTrue(verifyValue(testTable, rowToCheck, family, col1, dataToCheck), "Invalid value in table");
+            assertTrue(verifyValue(txTable.getHTable(), rowToCheck, family, col1, dataToCheck), "Invalid value in table");
 
         }
     }
@@ -108,14 +107,14 @@ public class TestMultiplePut extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             Transaction tx = tm.begin();
 
             for (int i = 0; i < NUM_ROWS_TO_ADD; i++) {
                 byte[] rowToAdd = Bytes.toBytes(i);
                 Put put = new Put(rowToAdd);
-                put.add(family, col1, Bytes.toBytes("testData" + i));
+                put.addColumn(family, col1, Bytes.toBytes("testData" + i));
                 txTable.put(tx, put);
             }
 

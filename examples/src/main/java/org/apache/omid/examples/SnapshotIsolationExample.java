@@ -17,9 +17,11 @@
  */
 package org.apache.omid.examples;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Arrays;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -32,8 +34,7 @@ import org.apache.omid.transaction.TransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Arrays;
+import com.google.common.base.Preconditions;
 
 /**
  * ****************************************************************************************************************
@@ -118,7 +119,7 @@ public class SnapshotIsolationExample {
 
         LOG.info("Creating access to Omid Transaction Manager & Transactional Table '{}'", userTableName);
         tm = HBaseTransactionManager.newInstance();
-        txTable = new TTable(userTableName);
+        txTable = new TTable(ConnectionFactory.createConnection(), userTableName);
     }
 
     void execute() throws IOException, RollbackException {

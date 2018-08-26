@@ -17,23 +17,22 @@
  */
 package org.apache.omid.transaction;
 
+import static com.google.common.base.Charsets.UTF_8;
+
+import org.apache.omid.tso.client.CellId;
+
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
-import org.apache.omid.tso.client.CellId;
-import org.apache.hadoop.hbase.client.HTableInterface;
-
-import static com.google.common.base.Charsets.UTF_8;
-
 public class HBaseCellId implements CellId {
 
-    private final HTableInterface table;
+    private final TTable table;
     private final byte[] row;
     private final byte[] family;
     private final byte[] qualifier;
     private long timestamp;
 
-    public HBaseCellId(HTableInterface table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
+    public HBaseCellId(TTable table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
         this.timestamp = timestamp;
         this.table = table;
         this.row = row;
@@ -41,7 +40,7 @@ public class HBaseCellId implements CellId {
         this.qualifier = qualifier;
     }
 
-    public HTableInterface getTable() {
+    public TTable getTable() {
         return table;
     }
 
@@ -61,6 +60,7 @@ public class HBaseCellId implements CellId {
         return timestamp;
     }
 
+    @Override
     public String toString() {
         return new String(table.getTableName(), UTF_8)
                 + ":" + new String(row, UTF_8)

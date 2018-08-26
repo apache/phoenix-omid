@@ -19,6 +19,7 @@ package org.apache.omid.transaction;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -29,21 +30,21 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.OperationWithAttributes;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
@@ -57,87 +58,67 @@ import com.google.common.base.Optional;
 
 /**
  * Provides transactional methods for accessing and modifying a given snapshot of data identified by an opaque {@link
- * Transaction} object. It mimics the behavior in {@link org.apache.hadoop.hbase.client.HTableInterface}
+ * Transaction} object. It mimics the behavior in {@link org.apache.hadoop.hbase.client.Table}
  */
 public class TTable implements Closeable {
 
     private static Logger LOG = LoggerFactory.getLogger(TTable.class);
 
-    private final HTableInterface healerTable;
-
-    private HTableInterface table;
+    private Table table;
 
     private SnapshotFilter snapshotFilter;
 
     private boolean serverSideFilter;
-
+    
+    private final List<Mutation> mutations;
+    
+    private boolean autoFlush = true;
+    
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
 
-    public TTable(Configuration conf, byte[] tableName) throws IOException {
-        this(new HTable(conf, tableName));
+    public TTable(Connection connection, byte[] tableName) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)));
     }
 
-    public TTable(Configuration conf, byte[] tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(new HTable(conf, tableName), commitTableClient);
+    public TTable(Connection connection, byte[] tableName, CommitTable.Client commitTableClient) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient);
     }
 
-    public TTable(String tableName) throws IOException {
-        this(HBaseConfiguration.create(), Bytes.toBytes(tableName));
+    public TTable(Connection connection, String tableName) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)));
     }
 
-    public TTable(Configuration conf, String tableName) throws IOException {
-        this(conf, Bytes.toBytes(tableName));
+    public TTable(Connection connection, String tableName, CommitTable.Client commitTableClient) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient);
     }
 
-    public TTable(Configuration conf, String tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(conf, Bytes.toBytes(tableName), commitTableClient);
-    }
-
-    public TTable(HTableInterface hTable) throws IOException {
+    public TTable(Table hTable) throws IOException {
         this(hTable, hTable.getConfiguration().getBoolean("omid.server.side.filter", false));
     }
 
-    public TTable(HTableInterface hTable, boolean serverSideFilter) throws IOException {
+    public TTable(Table hTable, boolean serverSideFilter) throws IOException {
         table = hTable;
-        healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        mutations = new ArrayList<Mutation>();
         this.serverSideFilter = serverSideFilter;
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
-                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, hTable));
     }
 
-    public TTable(HTableInterface hTable, SnapshotFilter snapshotFilter ) throws IOException {
+    public TTable(Table hTable, SnapshotFilter snapshotFilter ) throws IOException {
         table = hTable;
-        healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        mutations = new ArrayList<Mutation>();
         this.snapshotFilter = snapshotFilter;
     }
 
-    public TTable(HTableInterface hTable, CommitTable.Client commitTableClient) throws IOException {
+    public TTable(Table hTable, CommitTable.Client commitTableClient) throws IOException {
         table = hTable;
-        healerTable = new HTable(table.getConfiguration(), table.getTableName());
+        mutations = new ArrayList<Mutation>();
         serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
         snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
-                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, hTable), commitTableClient);
     }
-
-    public TTable(HTableInterface hTable, HTableInterface healerTable) throws IOException {
-        table = hTable;
-        this.healerTable = healerTable;
-        Configuration config = table.getConfiguration();
-        serverSideFilter = (config == null) ? false : config.getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
-                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable));
-    }
-
-    public TTable(HTableInterface hTable, HTableInterface healerTable, CommitTable.Client commitTableClient) throws IOException {
-        table = hTable;
-        this.healerTable = healerTable;
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
-                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, healerTable), commitTableClient);
-    }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Closeable implementation
@@ -151,7 +132,6 @@ public class TTable implements Closeable {
     @Override
     public void close() throws IOException {
         table.close();
-        healerTable.close();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -159,7 +139,7 @@ public class TTable implements Closeable {
     // ----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Transactional version of {@link HTableInterface#get(Get get)}
+     * Transactional version of {@link Table#get(Get get)}
      *
      * @param get an instance of Get
      * @param tx  an instance of transaction to be used
@@ -215,12 +195,12 @@ public class TTable implements Closeable {
                 byte[] family = entryF.getKey();
                 for (Entry<byte[], NavigableMap<Long, byte[]>> entryQ : entryF.getValue().entrySet()) {
                     byte[] qualifier = entryQ.getKey();
-                    tx.addWriteSetElement(new HBaseCellId(table, deleteP.getRow(), family, qualifier,
+                    tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, qualifier,
                             tx.getWriteTimestamp()));
                 }
-                deleteP.add(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
+                deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                         HConstants.EMPTY_BYTE_ARRAY);
-                tx.addWriteSetElement(new HBaseCellId(table, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+                tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                                                 tx.getWriteTimestamp()));
             }
         }
@@ -230,16 +210,16 @@ public class TTable implements Closeable {
         Set<byte[]> fset = deleteG.getFamilyMap().keySet();
 
         for (byte[] family : fset) {
-            deleteP.add(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
+            deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                     HConstants.EMPTY_BYTE_ARRAY);
-            tx.addWriteSetElement(new HBaseCellId(table, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+            tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                     tx.getWriteTimestamp()));
 
         }
     }
 
     /**
-     * Transactional version of {@link HTableInterface#delete(Delete delete)}
+     * Transactional version of {@link Table#delete(Delete delete)}
      *
      * @param delete an instance of Delete
      * @param tx     an instance of transaction to be used
@@ -268,12 +248,12 @@ public class TTable implements Closeable {
                 CellUtils.validateCell(cell, writeTimestamp);
                 switch (KeyValue.Type.codeToType(cell.getTypeByte())) {
                     case DeleteColumn:
-                        deleteP.add(CellUtil.cloneFamily(cell),
+                        deleteP.addColumn(CellUtil.cloneFamily(cell),
                                     CellUtil.cloneQualifier(cell),
                                     writeTimestamp,
                                     CellUtils.DELETE_TOMBSTONE);
                         transaction.addWriteSetElement(
-                            new HBaseCellId(table,
+                            new HBaseCellId(this,
                                             delete.getRow(),
                                             CellUtil.cloneFamily(cell),
                                             CellUtil.cloneQualifier(cell),
@@ -285,12 +265,12 @@ public class TTable implements Closeable {
                         break;
                     case Delete:
                         if (cell.getTimestamp() == HConstants.LATEST_TIMESTAMP) {
-                            deleteP.add(CellUtil.cloneFamily(cell),
+                            deleteP.addColumn(CellUtil.cloneFamily(cell),
                                         CellUtil.cloneQualifier(cell),
                                         writeTimestamp,
                                         CellUtils.DELETE_TOMBSTONE);
                             transaction.addWriteSetElement(
-                                new HBaseCellId(table,
+                                new HBaseCellId(this,
                                                 delete.getRow(),
                                                 CellUtil.cloneFamily(cell),
                                                 CellUtil.cloneQualifier(cell),
@@ -314,7 +294,7 @@ public class TTable implements Closeable {
         }
 
         if (!deleteP.isEmpty()) {
-            table.put(deleteP);
+            addMutation(deleteP);
         }
 
     }
@@ -324,7 +304,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link HTableInterface#put(Put put)}
+     * Transactional version of {@link Table#put(Put put)}
      *
      * @param put an instance of Put
      * @param tx  an instance of transaction to be used
@@ -351,7 +331,7 @@ public class TTable implements Closeable {
                 KeyValue kv = KeyValueUtil.ensureKeyValue(c);
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), timestamp);
                 tsput.add(kv);
-                tsput.add(CellUtil.cloneFamily(kv),
+                tsput.addColumn(CellUtil.cloneFamily(kv),
                         CellUtils.addShadowCellSuffixPrefix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
                         kv.getTimestamp(),
                         Bytes.toBytes(commitTimestamp));
@@ -365,10 +345,10 @@ public class TTable implements Closeable {
     /**
      * @param put an instance of Put
      * @param tx  an instance of transaction to be used
-     * @param autoCommit  denotes whether to automatically commit the put
+     * @param addShadowCell  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs.
      */
-    public void put(Transaction tx, Put put, boolean autoCommit) throws IOException {
+    public void put(Transaction tx, Put put, boolean addShadowCell) throws IOException {
 
         throwExceptionIfOpSetsTimerange(put);
 
@@ -390,14 +370,14 @@ public class TTable implements Closeable {
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
                 tsput.add(kv);
 
-                if (autoCommit) {
-                    tsput.add(CellUtil.cloneFamily(kv),
+                if (addShadowCell) {
+                    tsput.addColumn(CellUtil.cloneFamily(kv),
                             CellUtils.addShadowCellSuffixPrefix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
                             kv.getTimestamp(),
                             Bytes.toBytes(kv.getTimestamp()));
                 } else {
                     byte[] conflictFree = put.getAttribute(CellUtils.CONFLICT_FREE_MUTATION);
-                    HBaseCellId cellId = new HBaseCellId(table,
+                    HBaseCellId cellId = new HBaseCellId(this,
                             CellUtil.cloneRow(kv),
                             CellUtil.cloneFamily(kv),
                             CellUtil.cloneQualifier(kv),
@@ -411,12 +391,18 @@ public class TTable implements Closeable {
                 }
             }
         }
-
-        table.put(tsput);
+        addMutation(tsput);
     }
 
+    private void addMutation(Mutation m) throws IOException {
+        mutations.add(m);
+        if (autoFlush) {
+            flushCommits();
+        }
+    }
+    
     /**
-     * Transactional version of {@link HTableInterface#getScanner(Scan scan)}
+     * Transactional version of {@link Table#getScanner(Scan scan)}
      *
      * @param scan an instance of Scan
      * @param tx   an instance of transaction to be used
@@ -452,16 +438,15 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Delegates to {@link HTable#getTableName()}
      *
      * @return array of byte
      */
     public byte[] getTableName() {
-        return table.getTableName();
+        return table.getName().getName();
     }
 
     /**
-     * Delegates to {@link HTable#getConfiguration()}
+     * Delegates to {@link Table#getConfiguration()}
      *
      * @return standard configuration object
      */
@@ -470,7 +455,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Delegates to {@link HTable#getTableDescriptor()}
+     * Delegates to {@link Table#getTableDescriptor()}
      *
      * @return HTableDescriptor an instance of HTableDescriptor
      * @throws IOException if a remote or network exception occurs.
@@ -480,7 +465,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link HTableInterface#exists(Get get)}
+     * Transactional version of {@link Table#exists(Get get)}
      *
      * @param transaction an instance of transaction to be used
      * @param get         an instance of Get
@@ -508,7 +493,7 @@ public class TTable implements Closeable {
      */
 
     /**
-     * Transactional version of {@link HTableInterface#get(List gets)}
+     * Transactional version of {@link Table#get(List gets)}
      *
      * @param transaction an instance of transaction to be used
      * @param gets        list of Get instances
@@ -525,7 +510,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link HTableInterface#getScanner(byte[] family)}
+     * Transactional version of {@link Table#getScanner(byte[] family)}
      *
      * @param transaction an instance of transaction to be used
      * @param family      column family
@@ -539,7 +524,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link HTableInterface#getScanner(byte[] family, byte[] qualifier)}
+     * Transactional version of {@link Table#getScanner(byte[] family, byte[] qualifier)}
      *
      * @param transaction an instance of transaction to be used
      * @param family      column family
@@ -555,7 +540,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link HTableInterface#put(List puts)}
+     * Transactional version of {@link Table#put(List puts)}
      *
      * @param transaction an instance of transaction to be used
      * @param puts        List of puts
@@ -563,12 +548,31 @@ public class TTable implements Closeable {
      */
     public void put(Transaction transaction, List<Put> puts) throws IOException {
         for (Put put : puts) {
-            put(transaction, put);
+            put(transaction, put, false);
         }
     }
 
     /**
-     * Transactional version of {@link HTableInterface#delete(List deletes)}
+     * Transactional version of {@link Table#put(List puts)}
+     *
+     * @param transaction an instance of transaction to be used
+     * @param puts        List of puts
+     * @throws IOException if a remote or network exception occurs
+     */
+    public void batch(Transaction transaction, List<Mutation> mutations) throws IOException {
+        for (Mutation mutation : mutations) {
+            if (mutation instanceof Put) {
+                put(transaction, (Put)mutation);
+            } else if (mutation instanceof Delete) {
+                delete(transaction, (Delete)mutation);
+            } else {
+                throw new UnsupportedOperationException("Unsupported mutation: " + mutation);
+            }
+        }
+    }
+
+    /**
+     * Transactional version of {@link Table#delete(List deletes)}
      *
      * @param transaction an instance of transaction to be used
      * @param deletes        List of deletes
@@ -581,48 +585,32 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Provides access to the underliying HTable in order to configure it or to perform unsafe (non-transactional)
+     * Provides access to the underliying Table in order to configure it or to perform unsafe (non-transactional)
      * operations. The latter would break the transactional guarantees of the whole system.
      *
-     * @return The underlying HTable object
+     * @return The underlying Table object
      */
-    public HTableInterface getHTable() {
+    public Table getHTable() {
         return table;
     }
 
-    /**
-     * Delegates to {@link HTable#setAutoFlush(boolean autoFlush)}
-     */
     public void setAutoFlush(boolean autoFlush) {
-        table.setAutoFlush(autoFlush, true);
+        this.autoFlush = autoFlush;
     }
 
-    /**
-     * Delegates to {@link HTable#isAutoFlush()}
-     */
     public boolean isAutoFlush() {
-        return table.isAutoFlush();
+        return autoFlush;
     }
 
-    /**
-     * Delegates to see HTable.getWriteBufferSize()
-     */
-    public long getWriteBufferSize() {
-        return table.getWriteBufferSize();
-    }
-
-    /**
-     * Delegates to see HTable.setWriteBufferSize()
-     */
-    public void setWriteBufferSize(long writeBufferSize) throws IOException {
-        table.setWriteBufferSize(writeBufferSize);
-    }
-
-    /**
-     * Delegates to see HTable.flushCommits()
-     */
     public void flushCommits() throws IOException {
-        table.flushCommits();
+        try {
+            table.batch(this.mutations, new Object[mutations.size()]);
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+            throw new RuntimeException(e);
+        } finally {
+            this.mutations.clear();
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

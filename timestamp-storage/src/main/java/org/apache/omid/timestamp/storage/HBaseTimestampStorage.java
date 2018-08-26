@@ -17,19 +17,23 @@
  */
 package org.apache.omid.timestamp.storage;
 
+import static com.google.common.base.Charsets.UTF_8;
+
+import java.io.IOException;
+
+import javax.inject.Inject;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
-import java.io.IOException;
-
-import static com.google.common.base.Charsets.UTF_8;
 
 /**
  * Stores the max timestamp assigned by the TO in HBase.
@@ -45,12 +49,13 @@ public class HBaseTimestampStorage implements TimestampStorage {
     private static final byte[] TSO_ROW = "MAX_TIMESTAMP_R".getBytes(UTF_8);
     private static final byte[] TSO_QUALIFIER = "MAX_TIMESTAMP_Q".getBytes(UTF_8);
 
-    private final HTable table;
+    private final Table table;
     private final byte[] cfName;
 
     @Inject
     public HBaseTimestampStorage(Configuration hbaseConfig, HBaseTimestampStorageConfig config) throws IOException {
-        this.table = new HTable(hbaseConfig, config.getTableName());
+        Connection conn = ConnectionFactory.createConnection(hbaseConfig);
+        this.table = conn.getTable(TableName.valueOf(config.getTableName()));
         this.cfName = config.getFamilyName().getBytes(UTF_8);
     }
 
@@ -61,7 +66,7 @@ public class HBaseTimestampStorage implements TimestampStorage {
             throw new IllegalArgumentException("Negative value received for maxTimestamp" + newMaxTimestamp);
         }
         Put put = new Put(TSO_ROW);
-        put.add(cfName, TSO_QUALIFIER, Bytes.toBytes(newMaxTimestamp));
+        put.addColumn(cfName, TSO_QUALIFIER, Bytes.toBytes(newMaxTimestamp));
         byte[] previousVal = null;
         if (previousMaxTimestamp != INITIAL_MAX_TS_VALUE) {
             previousVal = Bytes.toBytes(previousMaxTimestamp);
