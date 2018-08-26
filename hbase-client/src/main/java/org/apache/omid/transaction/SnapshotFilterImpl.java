@@ -23,7 +23,6 @@ import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.N
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
 
 import java.io.IOException;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -41,6 +40,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.metrics.ScanMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
@@ -122,7 +122,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                                                                    cell.getQualifierOffset(),
                                                                    cell.getQualifierLength());
-        put.add(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
+        put.addColumn(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
         try {
             tableAccessWrapper.put(put);
         } catch (IOException e) {
@@ -632,6 +632,18 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         @Override
         public void close() {
             innerScanner.close();
+        }
+        
+        // So that Omid works with both HBase 1.3 and 1.4 without needing
+        // a new profile. Since this doesn't existing in 1.3, we don't
+        // add an @Override for it.
+        public ScanMetrics getScanMetrics() {
+            return null;
+        }
+        
+        // Same as above
+        public boolean renewLease() {
+            return false;
         }
 
         @Override

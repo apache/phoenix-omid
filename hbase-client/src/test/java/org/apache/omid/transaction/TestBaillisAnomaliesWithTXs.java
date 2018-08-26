@@ -17,6 +17,14 @@
  */
 package org.apache.omid.transaction;
 
+import static org.slf4j.LoggerFactory.getLogger;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
+
+import java.io.IOException;
+import java.util.Arrays;
+
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -30,14 +38,6 @@ import org.slf4j.Logger;
 import org.testng.ITestContext;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.Arrays;
-
-import static org.slf4j.LoggerFactory.getLogger;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.fail;
 
 /**
  * These tests try to analyze the transactional anomalies described by P. Baillis et al. in
@@ -89,7 +89,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
@@ -103,7 +103,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 2) insert into test (id, value) values(3, 30); -- T2
         Put newRow = new Put(rowId3);
-        newRow.add(famName, colName, dataValue3);
+        newRow.addColumn(famName, colName, dataValue3);
         txTable.put(tx2, newRow);
 
         // 3) Commit TX 2
@@ -129,7 +129,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -143,7 +143,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
             Put row = new Put(updateRes.getRow());
             int val = Bytes.toInt(updateRes.getValue(famName, colName));
             LOG.info("Updating row id {} with value {}", Bytes.toString(updateRes.getRow()), val);
-            row.add(famName, colName, Bytes.toBytes(val + 10));
+            row.addColumn(famName, colName, Bytes.toBytes(val + 10));
             txTable.put(tx1, row);
             updateRes = tx1Scanner.next();
             count++;
@@ -198,7 +198,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -237,12 +237,12 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 3) update test set value = 11 where id = 1; -- T1
         Put updateRow1Tx1 = new Put(rowId1);
-        updateRow1Tx1.add(famName, colName, Bytes.toBytes("11"));
+        updateRow1Tx1.addColumn(famName, colName, Bytes.toBytes("11"));
         txTable.put(tx1, updateRow1Tx1);
 
         // 4) update test set value = 11 where id = 1; -- T2
         Put updateRow1Tx2 = new Put(rowId1);
-        updateRow1Tx2.add(famName, colName, Bytes.toBytes("11"));
+        updateRow1Tx2.addColumn(famName, colName, Bytes.toBytes("11"));
         txTable.put(tx2, updateRow1Tx2);
 
         // 5) commit -- T1
@@ -274,7 +274,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -329,12 +329,12 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 4) update test set value = 12 where id = 1; -- T2
         Put updateRow1Tx2 = new Put(rowId1);
-        updateRow1Tx2.add(famName, colName, Bytes.toBytes("12"));
+        updateRow1Tx2.addColumn(famName, colName, Bytes.toBytes("12"));
         txTable.put(tx1, updateRow1Tx2);
 
         // 5) update test set value = 18 where id = 1; -- T2
         Put updateRow2Tx2 = new Put(rowId2);
-        updateRow2Tx2.add(famName, colName, Bytes.toBytes("18"));
+        updateRow2Tx2.addColumn(famName, colName, Bytes.toBytes("18"));
         txTable.put(tx2, updateRow2Tx2);
 
         // 6) commit -- T2
@@ -374,7 +374,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -387,9 +387,9 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         // 3) update test set value = 12 where id = 1; -- T2
         // 4) update test set value = 18 where id = 2; -- T2
         Put updateRow1Tx2 = new Put(rowId1);
-        updateRow1Tx2.add(famName, colName, Bytes.toBytes(12));
+        updateRow1Tx2.addColumn(famName, colName, Bytes.toBytes(12));
         Put updateRow2Tx2 = new Put(rowId2);
-        updateRow2Tx2.add(famName, colName, Bytes.toBytes(18));
+        updateRow2Tx2.addColumn(famName, colName, Bytes.toBytes(18));
         txTable.put(tx2, Arrays.asList(updateRow1Tx2, updateRow2Tx2));
 
         // 5) commit; -- T2
@@ -435,7 +435,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -492,12 +492,12 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 3) update test set value = 11 where id = 1; -- T1
         Put updateRow1Tx1 = new Put(rowId1);
-        updateRow1Tx1.add(famName, colName, Bytes.toBytes("11"));
+        updateRow1Tx1.addColumn(famName, colName, Bytes.toBytes("11"));
         txTable.put(tx1, updateRow1Tx1);
 
         // 4) update test set value = 21 where id = 2; -- T2
         Put updateRow2Tx2 = new Put(rowId2);
-        updateRow2Tx2.add(famName, colName, Bytes.toBytes("21"));
+        updateRow2Tx2.addColumn(famName, colName, Bytes.toBytes("21"));
         txTable.put(tx2, updateRow2Tx2);
 
         // 5) commit; -- T1
@@ -523,7 +523,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 0) Start transactions
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
@@ -542,12 +542,12 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 3) insert into test (id, value) values(3, 30); -- T1
         Put insertRow3Tx1 = new Put(rowId1);
-        insertRow3Tx1.add(famName, colName, Bytes.toBytes("30"));
+        insertRow3Tx1.addColumn(famName, colName, Bytes.toBytes("30"));
         txTable.put(tx1, insertRow3Tx1);
 
         // 4) insert into test (id, value) values(4, 42); -- T2
         Put updateRow4Tx2 = new Put(rowId2);
-        updateRow4Tx2.add(famName, colName, Bytes.toBytes("42"));
+        updateRow4Tx2.addColumn(famName, colName, Bytes.toBytes("42"));
         txTable.put(tx2, updateRow4Tx2);
 
         // 5) commit; -- T1
@@ -570,14 +570,14 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
     private void loadBaseDataOnTestTable(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         Transaction initializationTx = tm.begin();
         Put row1 = new Put(rowId1);
-        row1.add(famName, colName, dataValue1);
+        row1.addColumn(famName, colName, dataValue1);
         txTable.put(initializationTx, row1);
         Put row2 = new Put(rowId2);
-        row2.add(famName, colName, dataValue2);
+        row2.addColumn(famName, colName, dataValue2);
         txTable.put(initializationTx, row2);
 
         tm.commit(initializationTx);

@@ -17,12 +17,18 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -33,10 +39,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 @Test(groups = "sharedHBase")
 public class TestTransactionConflict extends OmidTestBase {
 
@@ -45,7 +47,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflict(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -60,11 +62,11 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
 
         tm.commit(t2);
@@ -79,27 +81,29 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestMultiTableConflict(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
         String table2 = TEST_TABLE + 2;
         TableName table2Name = TableName.valueOf(table2);
 
-        HBaseAdmin admin = new HBaseAdmin(hbaseConf);
+        try (Connection conn = ConnectionFactory.createConnection(hbaseConf);
+             Admin admin = conn.getAdmin()) {
+            TableName htable2 = TableName.valueOf(table2);
 
-        if (!admin.tableExists(table2)) {
-            HTableDescriptor desc = new HTableDescriptor(table2Name);
-            HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-            datafam.setMaxVersions(Integer.MAX_VALUE);
-            desc.addFamily(datafam);
-
-            admin.createTable(desc);
+            if (!admin.tableExists(htable2)) {
+                HTableDescriptor desc = new HTableDescriptor(table2Name);
+                HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
+                datafam.setMaxVersions(Integer.MAX_VALUE);
+                desc.addFamily(datafam);
+    
+                admin.createTable(desc);
+            }
+    
+            if (admin.isTableDisabled(htable2)) {
+                admin.enableTable(htable2);
+            }
         }
 
-        if (admin.isTableDisabled(table2)) {
-            admin.enableTable(table2);
-        }
-        admin.close();
-
-        TTable tt2 = new TTable(hbaseConf, table2);
+        TTable tt2 = new TTable(connection, table2);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -115,15 +119,15 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
         tt2.put(t1, p);
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
         p2 = new Put(row2);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt2.put(t2, p2);
 
         tm.commit(t2);
@@ -150,7 +154,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestCleanupAfterConflict(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -165,7 +169,7 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
         Get g = new Get(row).setMaxVersions();
@@ -176,7 +180,7 @@ public class TestTransactionConflict extends OmidTestBase {
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
 
         r = tt.getHTable().get(g);
@@ -207,7 +211,7 @@ public class TestTransactionConflict extends OmidTestBase {
     public void testCleanupWithDeleteRow(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -225,7 +229,7 @@ public class TestTransactionConflict extends OmidTestBase {
             byte[] row = Bytes.toBytes("test-del" + i);
 
             Put p = new Put(row);
-            p.add(fam, col, data1);
+            p.addColumn(fam, col, data1);
             tt.put(t1, p);
         }
         tm.commit(t1);
@@ -248,7 +252,7 @@ public class TestTransactionConflict extends OmidTestBase {
         Transaction t3 = tm.begin();
         LOG.info("Transaction created " + t3);
         Put p = new Put(modrow);
-        p.add(fam, col, data2);
+        p.addColumn(fam, col, data2);
         tt.put(t3, p);
 
         tm.commit(t3);
@@ -277,7 +281,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void testMultipleCellChangesOnSameRow(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         Transaction t2 = tm.begin();
@@ -290,12 +294,12 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data = Bytes.toBytes("testWrite-1");
 
         Put p2 = new Put(row);
-        p2.add(fam, col1, data);
+        p2.addColumn(fam, col1, data);
         tt.put(t2, p2);
         tm.commit(t2);
 
         Put p1 = new Put(row);
-        p1.add(fam, col2, data);
+        p1.addColumn(fam, col2, data);
         tt.put(t1, p1);
         tm.commit(t1);
     }
@@ -303,7 +307,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictWithAdditionalConflictFreeWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -318,21 +322,21 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.markPutAsConflictFreeMutation(p);
         tt.put(t1, p);
 
         p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.markPutAsConflictFreeMutation(p2);
         tt.put(t2, p2);
 
@@ -348,7 +352,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictFreeWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -363,23 +367,23 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.markPutAsConflictFreeMutation(p);
         tt.put(t1, p);
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.markPutAsConflictFreeMutation(p2);
         tt.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.markPutAsConflictFreeMutation(p);
         tt.put(t1, p);
 
         p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.markPutAsConflictFreeMutation(p2);
         tt.put(t2, p2);
 
@@ -395,7 +399,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictFreeWritesWithOtherWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -411,21 +415,21 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
         Put p2 = new Put(row1);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.markPutAsConflictFreeMutation(p);
         tt.put(t1, p);
 
         p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.markPutAsConflictFreeMutation(p2);
         tt.put(t2, p2);
 
@@ -441,7 +445,7 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestCleanupConflictFreeWritesAfterConflict(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -457,7 +461,7 @@ public class TestTransactionConflict extends OmidTestBase {
         byte[] data2 = Bytes.toBytes("testWrite-2");
 
         Put p = new Put(row);
-        p.add(fam, col, data1);
+        p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
         Get g = new Get(row).setMaxVersions();
@@ -468,11 +472,11 @@ public class TestTransactionConflict extends OmidTestBase {
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
 
         Put p2 = new Put(row);
-        p2.add(fam, col, data2);
+        p2.addColumn(fam, col, data2);
         tt.put(t2, p2);
 
         Put p3 = new Put(row1);
-        p3.add(fam, col, data2);
+        p3.addColumn(fam, col, data2);
         tt.markPutAsConflictFreeMutation(p3);
         tt.put(t2, p3);
 

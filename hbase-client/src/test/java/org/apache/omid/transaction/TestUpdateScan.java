@@ -17,6 +17,9 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -34,9 +37,6 @@ import org.testng.Assert;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "sharedHBase")
 public class TestUpdateScan extends OmidTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(TestUpdateScan.class);
@@ -48,13 +48,13 @@ public class TestUpdateScan extends OmidTestBase {
     public void testGet(ITestContext context) throws Exception {
         try {
             TransactionManager tm = newTransactionManager(context);
-            TTable table = new TTable(hbaseConf, TEST_TABLE);
+            TTable table = new TTable(connection, TEST_TABLE);
             Transaction t = tm.begin();
             int[] lInts = new int[]{100, 243, 2342, 22, 1, 5, 43, 56};
             for (int i = 0; i < lInts.length; i++) {
                 byte[] data = Bytes.toBytes(lInts[i]);
                 Put put = new Put(data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
                 table.put(t, put);
             }
             int startKeyValue = lInts[3];
@@ -105,15 +105,15 @@ public class TestUpdateScan extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void testScan(ITestContext context) throws Exception {
 
-        try (TTable table = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable table = new TTable(connection, TEST_TABLE)) {
             TransactionManager tm = newTransactionManager(context);
             Transaction t = tm.begin();
             int[] lInts = new int[]{100, 243, 2342, 22, 1, 5, 43, 56};
             for (int lInt : lInts) {
                 byte[] data = Bytes.toBytes(lInt);
                 Put put = new Put(data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL_2), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL_2), data);
                 table.put(t, put);
             }
 
@@ -154,13 +154,13 @@ public class TestUpdateScan extends OmidTestBase {
     public void testScanUncommitted(ITestContext context) throws Exception {
         try {
             TransactionManager tm = newTransactionManager(context);
-            TTable table = new TTable(hbaseConf, TEST_TABLE);
+            TTable table = new TTable(connection, TEST_TABLE);
             Transaction t = tm.begin();
             int[] lIntsA = new int[]{100, 243, 2342, 22, 1, 5, 43, 56};
             for (int aLIntsA : lIntsA) {
                 byte[] data = Bytes.toBytes(aLIntsA);
                 Put put = new Put(data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
                 table.put(t, put);
             }
             tm.commit(t);
@@ -170,7 +170,7 @@ public class TestUpdateScan extends OmidTestBase {
             for (int aLIntsB : lIntsB) {
                 byte[] data = Bytes.toBytes(aLIntsB);
                 Put put = new Put(data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
                 table.put(tu, put);
             }
 
@@ -179,7 +179,7 @@ public class TestUpdateScan extends OmidTestBase {
             for (int aLIntsC : lIntsC) {
                 byte[] data = Bytes.toBytes(aLIntsC);
                 Put put = new Put(data);
-                put.add(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
+                put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(TEST_COL), data);
                 table.put(t, put);
             }
             tm.commit(t);

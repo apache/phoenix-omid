@@ -17,28 +17,6 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.omid.committable.CommitTable;
-import org.apache.omid.metrics.NullMetricsProvider;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.ITestContext;
-import org.testng.annotations.Test;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -49,18 +27,40 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.metrics.NullMetricsProvider;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.ITestContext;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 @Test(groups = "sharedHBase")
 public class TestAsynchronousPostCommitter extends OmidTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestAsynchronousPostCommitter.class);
 
     private static final byte[] family = Bytes.toBytes(TEST_FAMILY);
-    private static final byte[] nonExistentFamily = Bytes.toBytes("non-existent");
     private static final byte[] qualifier = Bytes.toBytes("test-qual");
 
     byte[] row1 = Bytes.toBytes("test-is-committed1");
     byte[] row2 = Bytes.toBytes("test-is-committed2");
-
+    
     @Test(timeOut = 30_000)
     public void testPostCommitActionsAreCalledAsynchronously(ITestContext context) throws Exception {
 
@@ -107,16 +107,16 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
             }
         }).when(syncPostCommitter).removeCommitTableEntry(any(AbstractTransaction.class));
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Execute tx with async post commit actions
             Transaction tx1 = tm.begin();
 
             Put put1 = new Put(row1);
-            put1.add(family, qualifier, Bytes.toBytes("hey!"));
+            put1.addColumn(family, qualifier, Bytes.toBytes("hey!"));
             txTable.put(tx1, put1);
             Put put2 = new Put(row2);
-            put2.add(family, qualifier, Bytes.toBytes("hou!"));
+            put2.addColumn(family, qualifier, Bytes.toBytes("hou!"));
             txTable.put(tx1, put2);
 
             tm.commit(tx1);
@@ -214,16 +214,16 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
         }).when(syncPostCommitter).removeCommitTableEntry(any(AbstractTransaction.class));
 
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Execute tx with async post commit actions
             Transaction tx1 = tm.begin();
 
             Put put1 = new Put(row1);
-            put1.add(family, qualifier, Bytes.toBytes("hey!"));
+            put1.addColumn(family, qualifier, Bytes.toBytes("hey!"));
             txTable.put(tx1, put1);
             Put put2 = new Put(row2);
-            put2.add(family, qualifier, Bytes.toBytes("hou!"));
+            put2.addColumn(family, qualifier, Bytes.toBytes("hou!"));
             txTable.put(tx1, put2);
 
             tm.commit(tx1);
@@ -283,16 +283,16 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
         }).when(syncPostCommitter).removeCommitTableEntry(any(AbstractTransaction.class));
 
 
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Execute tx with async post commit actions
             Transaction tx1 = tm.begin();
 
             Put put1 = new Put(row1);
-            put1.add(family, qualifier, Bytes.toBytes("hey!"));
+            put1.addColumn(family, qualifier, Bytes.toBytes("hey!"));
             txTable.put(tx1, put1);
             Put put2 = new Put(row2);
-            put2.add(family, qualifier, Bytes.toBytes("hou!"));
+            put2.addColumn(family, qualifier, Bytes.toBytes("hou!"));
             txTable.put(tx1, put2);
 
             tm.commit(tx1);

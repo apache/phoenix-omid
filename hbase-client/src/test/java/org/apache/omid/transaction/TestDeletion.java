@@ -17,9 +17,15 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -30,13 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "sharedHBase")
 public class TestDeletion extends OmidTestBase {
@@ -66,7 +65,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteFamilyRow(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
@@ -80,7 +79,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -98,7 +97,7 @@ public class TestDeletion extends OmidTestBase {
         assertEquals(countFamColA, null);
 
         Transaction t3 = tm.begin();
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t3, d);
 
         tscan = tm.begin();
@@ -116,7 +115,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteFamilyCell(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -128,7 +127,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -146,7 +145,7 @@ public class TestDeletion extends OmidTestBase {
         assertEquals(countFamColA, null);
 
         Transaction t3 = tm.begin();
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t3, d);
 
         tscan = tm.begin();
@@ -162,7 +161,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteFamily(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -175,7 +174,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -198,7 +197,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteFamilyRowLevelCA(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
@@ -213,7 +212,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -238,7 +237,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteFamilyAborts(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
@@ -255,7 +254,7 @@ public class TestDeletion extends OmidTestBase {
         tm.commit(t1);
 
         Delete d = new Delete(modrow);
-        d.deleteFamily(famA);
+        d.addFamily(famA);
         tt.delete(t2, d);
 
         try {
@@ -279,7 +278,7 @@ public class TestDeletion extends OmidTestBase {
     public void runTestDeleteColumn(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -293,7 +292,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteColumn(famA, colA);
+        d.addColumn(famA, colA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -314,13 +313,13 @@ public class TestDeletion extends OmidTestBase {
     }
 
     /**
-     * This test is very similar to #runTestDeleteColumn() but exercises Delete#deleteColumns()
+     * This test is very similar to #runTestDeleteColumn() but exercises Delete#addColumns()
      */
     @Test(timeOut = 10_000)
     public void runTestDeleteColumns(ITestContext context) throws Exception {
 
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -334,7 +333,7 @@ public class TestDeletion extends OmidTestBase {
 
         Transaction t2 = tm.begin();
         Delete d = new Delete(modrow);
-        d.deleteColumns(famA, colA);
+        d.addColumns(famA, colA);
         tt.delete(t2, d);
 
         Transaction tscan = tm.begin();
@@ -358,7 +357,7 @@ public class TestDeletion extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestDeleteRow(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -397,12 +396,12 @@ public class TestDeletion extends OmidTestBase {
         // Setup initial environment for the test
         // --------------------------------------------------------------------
         TransactionManager tm = newTransactionManager(context);
-        TTable txTable = new TTable(hbaseConf, TEST_TABLE);
+        TTable txTable = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
         LOG.info("{} writing initial data created ", tx1);
         Put p = new Put(Bytes.toBytes("row1"));
-        p.add(famA, colA, data1);
+        p.addColumn(famA, colA, data1);
         txTable.put(tx1, p);
         tm.commit(tx1);
 
@@ -412,17 +411,16 @@ public class TestDeletion extends OmidTestBase {
         Transaction deleteTx = tm.begin();
         LOG.info("{} trying to delete a non-existing family created ", deleteTx);
         Delete del = new Delete(Bytes.toBytes("row1"));
-        del.deleteFamily(famB);
+        del.addFamily(famB);
         // This delete should not put data on HBase
         txTable.delete(deleteTx, del);
 
         // --------------------------------------------------------------------
         // Check data has not been written to HBase
         // --------------------------------------------------------------------
-        HTable table = new HTable(hbaseConf, TEST_TABLE);
         Get get = new Get(Bytes.toBytes("row1"));
         get.setTimeStamp(deleteTx.getTransactionId());
-        Result result = table.get(get);
+        Result result = txTable.getHTable().get(get);
         assertTrue(result.isEmpty());
 
     }
@@ -445,7 +443,7 @@ public class TestDeletion extends OmidTestBase {
 
             Put p = new Put(row);
             for (FamCol col : famCols) {
-                p.add(col.fam, col.col, data1);
+                p.addColumn(col.fam, col.col, data1);
             }
             tt.put(t1, p);
         }

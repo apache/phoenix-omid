@@ -17,26 +17,11 @@
  */
 package org.apache.omid.committable.hbase;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.AbstractFuture;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.CodedOutputStream;
-import org.apache.omid.committable.CommitTable;
-import org.apache.omid.committable.CommitTable.CommitTimestamp.Location;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_QUALIFIER;
+import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.INVALID_TX_QUALIFIER;
+import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_QUALIFIER;
+import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_ROW;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -47,16 +32,36 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_QUALIFIER;
-import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.INVALID_TX_QUALIFIER;
-import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_QUALIFIER;
-import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_ROW;
+import javax.inject.Inject;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.committable.CommitTable.CommitTimestamp.Location;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.CodedOutputStream;
 
 public class HBaseCommitTable implements CommitTable {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseCommitTable.class);
 
-    private final Configuration hbaseConfig;
+    private final Connection hbaseConnection;
     private final String tableName;
     private final byte[] commitTableFamily;
     private final byte[] lowWatermarkFamily;
@@ -65,15 +70,16 @@ public class HBaseCommitTable implements CommitTable {
     /**
      * Create a hbase commit table.
      * Note that we do not take ownership of the passed htable, it is just used to construct the writer and client.
+     * @throws IOException 
      */
     @Inject
-    public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config) {
+    public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config) throws IOException {
         this(hbaseConfig, config, KeyGeneratorImplementations.defaultKeyGenerator());
     }
 
-    public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config, KeyGenerator keygen) {
+    public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config, KeyGenerator keygen) throws IOException {
 
-        this.hbaseConfig = hbaseConfig;
+        this.hbaseConnection = ConnectionFactory.createConnection(hbaseConfig);
         this.tableName = config.getTableName();
         this.commitTableFamily = config.getCommitTableFamily();
         this.lowWatermarkFamily = config.getLowWatermarkFamily();
@@ -88,13 +94,13 @@ public class HBaseCommitTable implements CommitTable {
     private class HBaseWriter implements Writer {
 
         private static final long INITIAL_LWM_VALUE = -1L;
-        final HTable table;
+        final Table table;
         // Our own buffer for operations
         final List<Put> writeBuffer = new LinkedList<>();
         volatile long lowWatermarkToStore = INITIAL_LWM_VALUE;
 
         HBaseWriter() throws IOException {
-            table = new HTable(hbaseConfig, tableName);
+            table = hbaseConnection.getTable(TableName.valueOf(tableName));
         }
 
         @Override
@@ -102,7 +108,7 @@ public class HBaseCommitTable implements CommitTable {
             assert (startTimestamp < commitTimestamp);
             Put put = new Put(startTimestampToKey(startTimestamp), startTimestamp);
             byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
-            put.add(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
+            put.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
             writeBuffer.add(put);
         }
 
@@ -138,7 +144,7 @@ public class HBaseCommitTable implements CommitTable {
             long lowWatermark = lowWatermarkToStore;
             if(lowWatermark != INITIAL_LWM_VALUE) {
                 Put put = new Put(LOW_WATERMARK_ROW);
-                put.add(lowWatermarkFamily, LOW_WATERMARK_QUALIFIER, Bytes.toBytes(lowWatermark));
+                put.addColumn(lowWatermarkFamily, LOW_WATERMARK_QUALIFIER, Bytes.toBytes(lowWatermark));
                 writeBuffer.add(put);
             }
         }
@@ -147,17 +153,19 @@ public class HBaseCommitTable implements CommitTable {
 
     class HBaseClient implements Client, Runnable {
 
-        final HTable table;
-        final HTable deleteTable;
+        final Table table;
+        final Table deleteTable;
         final ExecutorService deleteBatchExecutor;
         final BlockingQueue<DeleteRequest> deleteQueue;
         boolean isClosed = false; // @GuardedBy("this")
         final static int DELETE_BATCH_SIZE = 1024;
 
         HBaseClient() throws IOException {
-            table = new HTable(hbaseConfig, tableName);
-            table.setAutoFlush(false, true);
-            deleteTable = new HTable(hbaseConfig, tableName);
+            // TODO: create TTable here instead
+            table = hbaseConnection.getTable(TableName.valueOf(tableName));
+            // FIXME: why is this using autoFlush of false? Why would every Delete
+            // need to be send through a separate RPC?
+            deleteTable = hbaseConnection.getTable(TableName.valueOf(tableName));
             deleteQueue = new ArrayBlockingQueue<>(DELETE_BATCH_SIZE);
 
             deleteBatchExecutor = Executors.newSingleThreadExecutor(
@@ -254,7 +262,7 @@ public class HBaseCommitTable implements CommitTable {
             try {
                 byte[] row = startTimestampToKey(startTimestamp);
                 Put invalidationPut = new Put(row, startTimestamp);
-                invalidationPut.add(commitTableFamily, INVALID_TX_QUALIFIER, null);
+                invalidationPut.addColumn(commitTableFamily, INVALID_TX_QUALIFIER, null);
 
                 // We need to write to the invalid column only if the commit timestamp
                 // is empty. This has to be done atomically. Otherwise, if we first

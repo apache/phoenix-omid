@@ -17,18 +17,16 @@
  */
 package org.apache.omid.tools.hbase;
 
-import com.beust.jcommander.IParameterValidator;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.ParametersDelegate;
+import java.io.IOException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.HBaseShims;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -39,7 +37,12 @@ import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import com.beust.jcommander.IParameterValidator;
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.ParametersDelegate;
 
 /**
  * Helper class to create required HBase tables by Omid
@@ -78,7 +81,8 @@ public class OmidTableManager {
 
         HBaseLogin.loginIfNeeded(mainConfig.loginFlags);
 
-        try (HBaseAdmin hBaseAdmin = new HBaseAdmin(hbaseConf)) {
+        try (Connection conn = ConnectionFactory.createConnection(hbaseConf);
+             Admin hBaseAdmin = conn.getAdmin()) {
             byte[][] tableFamilies;
             byte[][] splitKeys = new byte[0][0];
             String tableName;
@@ -134,13 +138,14 @@ public class OmidTableManager {
 
     }
 
-    private static void createTable(HBaseAdmin admin, String tableName, byte[][] families, byte[][] splitKeys,
+    private static void createTable(Admin admin, String tableName, byte[][] families, byte[][] splitKeys,
                                     int maxVersions)
             throws IOException {
 
         LOG.info("About to create Table named {} with {} splits", tableName, splitKeys.length);
 
-        if (admin.tableExists(tableName)) {
+        TableName hTableName = TableName.valueOf(tableName); 
+        if (admin.tableExists(hTableName)) {
             LOG.error("Table {} already exists. Table creation cancelled", tableName);
             return;
         }
@@ -156,7 +161,7 @@ public class OmidTableManager {
 
         admin.createTable(tableDescriptor, splitKeys);
 
-        LOG.info("Table {} created. Regions: {}", tableName, admin.getTableRegions(Bytes.toBytes(tableName)).size());
+        LOG.info("Table {} created. Regions: {}", tableName, admin.getTableRegions(hTableName).size());
 
     }
 
@@ -191,6 +196,7 @@ public class OmidTableManager {
 
     public static class IntegerGreaterThanZero implements IParameterValidator {
 
+        @Override
         public void validate(String name, String value) throws ParameterException {
             int n = Integer.parseInt(value);
             if (n <= 0) {

@@ -17,17 +17,18 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Charsets;
+import static org.testng.Assert.fail;
+
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.fail;
+import com.google.common.base.Charsets;
 
 @Test(groups = "noHBase")
 public class TestTTableBehaviour {
@@ -41,7 +42,7 @@ public class TestTTableBehaviour {
     public void testUserOperationsDontAllowTimestampSpecification() throws Exception {
 
         // Component under test
-        TTable tt = new TTable(Mockito.mock(HTableInterface.class), Mockito.mock(HTableInterface.class));
+        TTable tt = new TTable(Mockito.mock(Table.class), false);
 
         long randomTimestampValue = Bytes.toLong("deadbeef".getBytes());
 
@@ -49,7 +50,7 @@ public class TestTTableBehaviour {
 
         // Test put fails when a timestamp is specified in the put
         Put put = new Put(row, randomTimestampValue);
-        put.add(famName, colName, dataValue);
+        put.addColumn(famName, colName, dataValue);
         try {
             tt.put(tx, put);
             fail("Should have thrown an IllegalArgumentException due to timestamp specification");
@@ -59,7 +60,7 @@ public class TestTTableBehaviour {
 
         // Test put fails when a timestamp is specified in a qualifier
         put = new Put(row);
-        put.add(famName, colName, randomTimestampValue, dataValue);
+        put.addColumn(famName, colName, randomTimestampValue, dataValue);
         try {
             tt.put(tx, put);
             fail("Should have thrown an IllegalArgumentException due to timestamp specification");
@@ -98,7 +99,7 @@ public class TestTTableBehaviour {
 
         // Test delete fails when a timestamp is specified in a qualifier
         delete = new Delete(row);
-        delete.deleteColumn(famName, colName, randomTimestampValue);
+        delete.addColumn(famName, colName, randomTimestampValue);
         try {
             tt.delete(tx, delete);
             fail("Should have thrown an IllegalArgumentException due to timestamp specification");
@@ -116,11 +117,11 @@ public class TestTTableBehaviour {
         byte[] nonValidQualifier1 = "blahblah\u0080".getBytes(Charsets.UTF_8);
         byte[] validQualifierIncludingOldShadowCellSuffix = "blahblah:OMID_CTS".getBytes(Charsets.UTF_8);
 
-        TTable table = new TTable(Mockito.mock(HTableInterface.class), Mockito.mock(HTableInterface.class));
+        TTable table = new TTable(Mockito.mock(Table.class), false);
 
         HBaseTransaction t1 = Mockito.mock(HBaseTransaction.class);
         Put put = new Put(row);
-        put.add(famName, nonValidQualifier1, dataValue);
+        put.addColumn(famName, nonValidQualifier1, dataValue);
         try {
             table.put(t1, put);
             fail("Shouldn't be able to put this");
@@ -128,7 +129,7 @@ public class TestTTableBehaviour {
             // correct
         }
         Delete del = new Delete(row);
-        del.deleteColumn(famName, nonValidQualifier1);
+        del.addColumn(famName, nonValidQualifier1);
         try {
             table.delete(t1, del);
             fail("Shouldn't be able to delete this");
@@ -137,14 +138,14 @@ public class TestTTableBehaviour {
         }
 
         put = new Put(row);
-        put.add(famName, validQualifierIncludingOldShadowCellSuffix, dataValue);
+        put.addColumn(famName, validQualifierIncludingOldShadowCellSuffix, dataValue);
         try {
             table.put(t1, put);
         } catch (IllegalArgumentException iae) {
             fail("Qualifier shouldn't be rejected anymore");
         }
         del = new Delete(row);
-        del.deleteColumn(famName, validQualifierIncludingOldShadowCellSuffix);
+        del.addColumn(famName, validQualifierIncludingOldShadowCellSuffix);
         try {
             table.delete(t1, del);
         } catch (IllegalArgumentException iae) {
