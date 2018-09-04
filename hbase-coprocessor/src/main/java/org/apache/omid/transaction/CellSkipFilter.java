@@ -114,12 +114,6 @@ public class CellSkipFilter extends FilterBase {
         return filter.hasFilterRow();
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
-        return filter.getNextKeyHint(currentKV);
-    }
-
     @Override
     public Cell getNextCellHint(Cell currentKV) throws IOException {
         return filter.getNextCellHint(currentKV);

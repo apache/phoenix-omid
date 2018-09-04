@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
@@ -56,8 +57,6 @@ import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
-import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.HBaseShims;
 import org.apache.omid.TestUtils;
@@ -105,10 +104,10 @@ public class TestCompaction {
 
     private TSOServer tso;
 
-    private AggregationClient aggregationClient;
+
     private CommitTable commitTable;
     private PostCommitActions syncPostCommitter;
-    private Connection connection;
+    private static Connection connection;
 
     @BeforeClass
     public void setupTestCompation() throws Exception {
@@ -123,10 +122,8 @@ public class TestCompaction {
         // settings required for #testDuplicateDeletes()
         hbaseConf.setInt("hbase.hstore.compaction.min", 2);
         hbaseConf.setInt("hbase.hstore.compaction.max", 2);
-
         setupHBase();
         connection = ConnectionFactory.createConnection(hbaseConf);
-        aggregationClient = new AggregationClient(hbaseConf);
         admin = connection.getAdmin();
         createRequiredHBaseTables(hBaseTimestampStorageConfig, hBaseCommitTableConfig);
         setupTSO();
@@ -163,10 +160,10 @@ public class TestCompaction {
                 desc.addFamily(datafam);
             }
 
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation");
+            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,Coprocessor.PRIORITY_HIGHEST,null);
             admin.createTable(desc);
             for (byte[] family : families) {
-                CompactorUtil.enableOmidCompaction(hbaseConf, TableName.valueOf(tableName), family);
+                CompactorUtil.enableOmidCompaction(connection, TableName.valueOf(tableName), family);
             }
         }
 
@@ -715,7 +712,7 @@ public class TestCompaction {
                     "Cell should not be be there");
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 60_00000)
     public void testNonOmidCFIsUntouched() throws Throwable {
         String TEST_TABLE = "testNonOmidCFIsUntouched";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
@@ -1189,10 +1186,16 @@ public class TestCompaction {
         LOG.info("Waking up after 3 secs");
     }
 
-    private long rowCount(String tableName, byte[] family) throws Throwable {
+    private static long rowCount(String tableName, byte[] family) throws Throwable {
         Scan scan = new Scan();
         scan.addFamily(family);
-        return aggregationClient.rowCount(TableName.valueOf(tableName), new LongColumnInterpreter(), scan);
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        try (ResultScanner scanner = table.getScanner(scan)) {
+            int count = 0;
+            while (scanner.next() != null) {
+                count++;
+            }
+            return count;
+        }
     }
-
 }

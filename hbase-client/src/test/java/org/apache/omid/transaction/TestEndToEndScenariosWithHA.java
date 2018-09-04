@@ -162,7 +162,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
         LOG.info("Cleanup");
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
         deleteTable(admin, TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
-        hBaseUtils.createTable(Bytes.toBytes(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME),
+        hBaseUtils.createTable(TableName.valueOf((DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)),
                                new byte[][]{DEFAULT_TIMESTAMP_STORAGE_CF_NAME.getBytes()},
                                Integer.MAX_VALUE);
         tso1.stopAndWait();

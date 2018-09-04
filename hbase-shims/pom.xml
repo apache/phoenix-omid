@@ -15,6 +15,7 @@
     <modules>
         <module>hbase-0</module>
         <module>hbase-1</module>
+        <module>hbase-2</module>
     </modules>
 
     <dependencies>
@@ -25,6 +26,9 @@
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-common</artifactId>
         </dependency>
+
+        
+
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
@@ -41,6 +45,16 @@
         </dependency>
 
         <!-- end storage related -->
+
+        <!-- testing -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-testing-util</artifactId>
+        </dependency>
+
+
+
+        <!-- end testing related -->
 
         <!-- distributed comm -->
 

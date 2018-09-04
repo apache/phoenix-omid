@@ -131,11 +131,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Java Version -->
-        <java.version>1.7</java.version>
+        <java.version>1.8</java.version>
 
         <!-- 3rd-Party Library Versioning -->
         <hbase0.version>0.98.10.1-hadoop1</hbase0.version>
         <hbase1.version>1.2.5</hbase1.version>
+        <hbase2.version>2.0.1</hbase2.version>
+        <hadoop1.version>2.7.5</hadoop1.version>
+        <hadoop2.version>3.0.0</hadoop2.version>
         <guava.version>14.0.1</guava.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
@@ -541,9 +544,6 @@
 
         <profile>
             <id>hbase-0</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <hbase.version>${hbase0.version}</hbase.version>
             </properties>
@@ -552,7 +552,19 @@
         <profile>
             <id>hbase-1</id>
             <properties>
+                <hadoop.version>${hadoop1.version}</hadoop.version>
                 <hbase.version>${hbase1.version}</hbase.version>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>hbase-2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <hadoop.version>${hadoop2.version}</hadoop.version>
+                <hbase.version>${hbase2.version}</hbase.version>
             </properties>
         </profile>
 

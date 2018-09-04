@@ -74,6 +74,7 @@ public class TestHBaseCommitTable {
     public void setUpClass() throws Exception {
         // HBase setup
         hbaseConf = HBaseConfiguration.create();
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         DefaultHBaseCommitTableStorageModule module = new DefaultHBaseCommitTableStorageModule();
         commitTableFamily = module.getFamilyName().getBytes();
         lowWatermarkFamily = module.getLowWatermarkFamily().getBytes();

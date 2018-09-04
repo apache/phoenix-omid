@@ -29,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
@@ -103,7 +104,18 @@ public class TestSnapshotFilter {
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
         hbaseConf.setBoolean("omid.server.side.filter", true);
-        hbaseConf.setInt("hbase.master.info.port", 16011);
+        hbaseConf.setInt("hbase.hconnection.threads.core", 5);
+        hbaseConf.setInt("hbase.hconnection.threads.max", 10);
+        // Tunn down handler threads in regionserver
+        hbaseConf.setInt("hbase.regionserver.handler.count", 10);
+
+        // Set to random port
+        hbaseConf.setInt("hbase.master.port", 0);
+        hbaseConf.setInt("hbase.master.info.port", 0);
+        hbaseConf.setInt("hbase.regionserver.port", 0);
+        hbaseConf.setInt("hbase.regionserver.info.port", 0);
+
+
         HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
 
@@ -145,8 +157,17 @@ public class TestSnapshotFilter {
                 desc.addFamily(datafam);
             }
 
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation");
+            int priority = Coprocessor.PRIORITY_HIGHEST;
+
+            desc.addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null);
+            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null);
+
             admin.createTable(desc);
+            try {
+                hbaseTestUtil.waitTableAvailable(TableName.valueOf(tableName),5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
     }
@@ -342,6 +363,8 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testGetWithFamilyDelete";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
+        assertTrue(admin.getTableDescriptor(TableName.valueOf(TEST_TABLE)).getCoprocessors().contains(OmidSnapshotFilter.class.getName()));
+
         TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
@@ -361,7 +384,7 @@ public class TestSnapshotFilter {
         Transaction tx3 = tm.begin();
 
         Delete d = new Delete(rowName1);
-        d.deleteFamily(famName2);
+        d.addFamily(famName2);
         tt.delete(tx3, d);
 
 
@@ -854,4 +877,5 @@ public class TestSnapshotFilter {
 
         tt.close();
     }
+
 }

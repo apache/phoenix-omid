@@ -43,7 +43,7 @@ public class TestOmidTableManager {
     public void setUpClass() throws Exception {
         // HBase setup
         hbaseConf = HBaseConfiguration.create();
-
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         hBaseTestUtil = new HBaseTestingUtility(hbaseConf);
         hBaseTestUtil.startMiniCluster(1);
 
