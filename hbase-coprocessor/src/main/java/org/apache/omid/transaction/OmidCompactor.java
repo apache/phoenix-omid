@@ -19,14 +19,14 @@ package org.apache.omid.transaction;
 
 import com.google.common.annotations.VisibleForTesting;
 
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.omid.HBaseShims;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
@@ -35,11 +35,12 @@ import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
-import org.apache.hadoop.hbase.util.Bytes;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -78,6 +79,10 @@ public class OmidCompactor extends BaseRegionObserver {
         this(false);
     }
 
+    public Optional getRegionObserver() {
+        return Optional.of(this);
+    }
+
     public OmidCompactor(boolean enableCompactorForAllFamilies) {
         LOG.info("Compactor coprocessor initialized");
         this.enableCompactorForAllFamilies = enableCompactorForAllFamilies;
@@ -109,7 +114,8 @@ public class OmidCompactor extends BaseRegionObserver {
         LOG.info("Compactor coprocessor stopped");
     }
 
-    @Override
+
+
     public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
                                       Store store,
                                       InternalScanner scanner,
@@ -120,10 +126,8 @@ public class OmidCompactor extends BaseRegionObserver {
             if (enableCompactorForAllFamilies) {
                 omidCompactable = true;
             } else {
-                HTableDescriptor desc = env.getEnvironment().getRegion().getTableDesc();
-                HColumnDescriptor famDesc
-                = desc.getFamily(Bytes.toBytes(store.getColumnFamilyName()));
-                omidCompactable = Boolean.valueOf(famDesc.getValue(OMID_COMPACTABLE_CF_FLAG));
+
+                omidCompactable = HBaseShims.OmidCompactionEnabled(env, store, OMID_COMPACTABLE_CF_FLAG);
             }
 
             // only column families tagged as compactable are compacted

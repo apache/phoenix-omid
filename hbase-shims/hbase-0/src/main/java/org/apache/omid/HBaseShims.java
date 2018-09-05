@@ -17,6 +17,7 @@
  */
 package org.apache.omid;
 
+import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
@@ -56,4 +57,7 @@ public class HBaseShims {
 
     }
 
+    public static CellComparator cellComparatorInstance() {
+        return new CellComparator();
+    }
 }

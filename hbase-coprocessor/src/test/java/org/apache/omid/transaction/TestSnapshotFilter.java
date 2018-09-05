@@ -17,26 +17,33 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
-
+import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
-
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.FamilyFilter;
@@ -52,7 +59,6 @@ import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -62,16 +68,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 public class TestSnapshotFilter {
 
@@ -85,16 +84,16 @@ public class TestSnapshotFilter {
 
     private Injector injector;
 
-    private HBaseAdmin admin;
+    private Admin admin;
     private Configuration hbaseConf;
     private HBaseTestingUtility hbaseTestUtil;
     private MiniHBaseCluster hbaseCluster;
 
     private TSOServer tso;
 
-    private AggregationClient aggregationClient;
     private CommitTable commitTable;
     private PostCommitActions syncPostCommitter;
+    private Connection connection;
 
     @BeforeClass
     public void setupTestSnapshotFilter() throws Exception {
@@ -105,13 +104,24 @@ public class TestSnapshotFilter {
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
         hbaseConf.setBoolean("omid.server.side.filter", true);
-        hbaseConf.setInt("hbase.master.info.port", 16011);
+        hbaseConf.setInt("hbase.hconnection.threads.core", 5);
+        hbaseConf.setInt("hbase.hconnection.threads.max", 10);
+        // Tunn down handler threads in regionserver
+        hbaseConf.setInt("hbase.regionserver.handler.count", 10);
+
+        // Set to random port
+        hbaseConf.setInt("hbase.master.port", 0);
+        hbaseConf.setInt("hbase.master.info.port", 0);
+        hbaseConf.setInt("hbase.regionserver.port", 0);
+        hbaseConf.setInt("hbase.regionserver.info.port", 0);
+
+
         HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
 
         setupHBase();
-        aggregationClient = new AggregationClient(hbaseConf);
-        admin = new HBaseAdmin(hbaseConf);
+        connection = ConnectionFactory.createConnection(hbaseConf);
+        admin = connection.getAdmin();
         createRequiredHBaseTables(hBaseTimestampStorageConfig, hBaseCommitTableConfig);
         setupTSO();
 
@@ -137,7 +147,7 @@ public class TestSnapshotFilter {
     }
 
     private void createTableIfNotExists(String tableName, byte[]... families) throws IOException {
-        if (!admin.tableExists(tableName)) {
+        if (!admin.tableExists(TableName.valueOf(tableName))) {
             LOG.info("Creating {} table...", tableName);
             HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
 
@@ -147,8 +157,17 @@ public class TestSnapshotFilter {
                 desc.addFamily(datafam);
             }
 
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation");
+            int priority = Coprocessor.PRIORITY_HIGHEST;
+
+            desc.addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null);
+            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null);
+
             admin.createTable(desc);
+            try {
+                hbaseTestUtil.waitTableAvailable(TableName.valueOf(tableName),5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
     }
@@ -199,12 +218,12 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testGetFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
      
         tm.commit(tx1);
@@ -224,7 +243,7 @@ public class TestSnapshotFilter {
         Transaction tx3 = tm.begin();
 
         Put put3 = new Put(rowName1);
-        put3.add(famName1, colName1, dataValue1);
+        put3.addColumn(famName1, colName1, dataValue1);
         tt.put(tx3, put3);
 
         tm.commit(tx3);
@@ -257,17 +276,17 @@ public class TestSnapshotFilter {
         String TEST_TABLE = "testServerSideSnapshotFiltering";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
 
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName1, colName1, dataValue2);
+        put2.addColumn(famName1, colName1, dataValue2);
         tt.put(tx2, put2);
 
         Transaction tx3 = tm.begin();
@@ -299,17 +318,17 @@ public class TestSnapshotFilter {
         String TEST_TABLE = "testServerSideSnapshotFiltering";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
 
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName1, colName1, dataValue2);
+        put2.addColumn(famName1, colName1, dataValue2);
 //        tt.put(tx2, put2);
 
         Transaction tx3 = tm.begin();
@@ -344,26 +363,28 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testGetWithFamilyDelete";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        assertTrue(admin.getTableDescriptor(TableName.valueOf(TEST_TABLE)).getCoprocessors().contains(OmidSnapshotFilter.class.getName()));
+
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
 
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName2, colName2, dataValue1);
+        put2.addColumn(famName2, colName2, dataValue1);
         tt.put(tx2, put2);
         tm.commit(tx2);
 
         Transaction tx3 = tm.begin();
 
         Delete d = new Delete(rowName1);
-        d.deleteFamily(famName2);
+        d.addFamily(famName2);
         tt.delete(tx3, d);
 
 
@@ -425,7 +446,7 @@ public class TestSnapshotFilter {
                     readAfterCommit.await();
 
                     Transaction tx4 = tm.begin();
-                    TTable tt = new TTable(hbaseConf, TEST_TABLE);
+                    TTable tt = new TTable(connection, TEST_TABLE);
                     Get get = new Get(rowName1);
 
                     Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
@@ -451,10 +472,10 @@ public class TestSnapshotFilter {
         };
         readThread.start();
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
         final HBaseTransaction t1 = (HBaseTransaction) tm.begin();
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         table.put(t1, put1);
         tm.commit(t1);
 
@@ -477,19 +498,19 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testGetWithFilter";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
 
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName2, colName2, dataValue1);
+        put2.addColumn(famName2, colName2, dataValue1);
         tt.put(tx2, put2);
         tm.commit(tx2);
 
@@ -528,19 +549,19 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testGetSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
         
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName1, colName1, dataValue1);
+        put2.addColumn(famName1, colName1, dataValue1);
         tt.put(tx2, put2);
         
         Transaction tx3 = tm.begin();
@@ -568,12 +589,12 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put row1 = new Put(rowName1);
-        row1.add(famName1, colName1, dataValue1);
+        row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
         tm.commit(tx1);
@@ -592,7 +613,7 @@ public class TestSnapshotFilter {
         Transaction tx3 = tm.begin();
 
         Put put3 = new Put(rowName1);
-        put3.add(famName1, colName1, dataValue1);
+        put3.addColumn(famName1, colName1, dataValue1);
         tt.put(tx3, put3);
 
         tm.commit(tx3);
@@ -623,17 +644,17 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanWithFilter";
         createTableIfNotExists(TEST_TABLE, famName1, famName2);
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
-        put2.add(famName2, colName2, dataValue1);
+        put2.addColumn(famName2, colName2, dataValue1);
         tt.put(tx2, put2);
 
         tm.commit(tx2);
@@ -673,12 +694,12 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName1, colName1, dataValue1);
+        put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
 
         tm.commit(tx1);
@@ -686,7 +707,7 @@ public class TestSnapshotFilter {
         Transaction tx2 = tm.begin();
 
         Put put2 = new Put(rowName1);
-        put2.add(famName1, colName1, dataValue1);
+        put2.addColumn(famName1, colName1, dataValue1);
         tt.put(tx2, put2);
 
         Transaction tx3 = tm.begin();
@@ -717,12 +738,12 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanFewResults";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName, colName1, dataValue1);
+        put1.addColumn(famName, colName1, dataValue1);
         tt.put(tx1, put1);
 
         tm.commit(tx1);
@@ -730,7 +751,7 @@ public class TestSnapshotFilter {
         Transaction tx2 = tm.begin();
 
         Put put2 = new Put(rowName2);
-        put2.add(famName, colName2, dataValue2);
+        put2.addColumn(famName, colName2, dataValue2);
         tt.put(tx2, put2);
 
         tm.commit(tx2);
@@ -767,15 +788,15 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanFewResultsDifferentTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName, colName1, dataValue1);
+        put1.addColumn(famName, colName1, dataValue1);
         tt.put(tx1, put1);
         Put put2 = new Put(rowName2);
-        put2.add(famName, colName2, dataValue2);
+        put2.addColumn(famName, colName2, dataValue2);
         tt.put(tx1, put2);
 
         tm.commit(tx1);
@@ -783,7 +804,7 @@ public class TestSnapshotFilter {
         Transaction tx2 = tm.begin();
 
         put2 = new Put(rowName2);
-        put2.add(famName, colName2, dataValue2);
+        put2.addColumn(famName, colName2, dataValue2);
         tt.put(tx2, put2);
 
         tm.commit(tx2);
@@ -820,15 +841,15 @@ public class TestSnapshotFilter {
 
         String TEST_TABLE = "testScanFewResultsSameTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
-        TTable tt = new TTable(hbaseConf, TEST_TABLE);
+        TTable tt = new TTable(connection, TEST_TABLE);
 
         Transaction tx1 = tm.begin();
 
         Put put1 = new Put(rowName1);
-        put1.add(famName, colName1, dataValue1);
+        put1.addColumn(famName, colName1, dataValue1);
         tt.put(tx1, put1);
         Put put2 = new Put(rowName2);
-        put2.add(famName, colName2, dataValue2);
+        put2.addColumn(famName, colName2, dataValue2);
         tt.put(tx1, put2);
 
         tm.commit(tx1);
@@ -836,7 +857,7 @@ public class TestSnapshotFilter {
         Transaction tx2 = tm.begin();
 
         put2 = new Put(rowName2);
-        put2.add(famName, colName2, dataValue2);
+        put2.addColumn(famName, colName2, dataValue2);
         tt.put(tx2, put2);
 
         Transaction tx3 = tm.begin();
@@ -856,4 +877,5 @@ public class TestSnapshotFilter {
 
         tt.close();
     }
+
 }

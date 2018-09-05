@@ -17,16 +17,13 @@
  */
 package org.apache.omid.transaction;
 
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+
+import org.apache.hadoop.hbase.client.Delete;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
@@ -45,9 +42,9 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
 
     private void deleteCell(HBaseCellId cell) {
         Delete delete = new Delete(cell.getRow());
-        delete.deleteColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
+        delete.addColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
         try {
-            cell.getTable().delete(delete);
+            cell.getTable().getHTable().delete(delete);
         } catch (IOException e) {
             LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
         }
@@ -74,7 +71,7 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
      */
     public void flushTables() throws IOException {
 
-        for (HTableInterface writtenTable : getWrittenTables()) {
+        for (TTable writtenTable : getWrittenTables()) {
             writtenTable.flushCommits();
         }
 
@@ -84,9 +81,9 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     // Helper methods
     // ****************************************************************************************************************
 
-    private Set<HTableInterface> getWrittenTables() {
+    private Set<TTable> getWrittenTables() {
         HashSet<HBaseCellId> writeSet = (HashSet<HBaseCellId>) getWriteSet();
-        Set<HTableInterface> tables = new HashSet<HTableInterface>();
+        Set<TTable> tables = new HashSet<TTable>();
         for (HBaseCellId cell : writeSet) {
             tables.add(cell.getTable());
         }

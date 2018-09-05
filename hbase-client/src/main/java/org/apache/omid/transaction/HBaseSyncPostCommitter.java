@@ -17,21 +17,22 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
-import org.apache.omid.committable.CommitTable;
-import org.apache.omid.metrics.MetricsRegistry;
-import org.apache.omid.metrics.Timer;
-import org.apache.omid.tso.client.CellId;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.omid.metrics.MetricsUtils.name;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.omid.metrics.MetricsUtils.name;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.metrics.MetricsRegistry;
+import org.apache.omid.metrics.Timer;
+import org.apache.omid.tso.client.CellId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 
 public class HBaseSyncPostCommitter implements PostCommitActions {
 
@@ -53,12 +54,12 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
     private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture) {
         Put put = new Put(cell.getRow());
-        put.add(cell.getFamily(),
+        put.addColumn(cell.getFamily(),
                 CellUtils.addShadowCellSuffixPrefix(cell.getQualifier(), 0, cell.getQualifier().length),
                 cell.getTimestamp(),
                 Bytes.toBytes(tx.getCommitTimestamp()));
         try {
-            cell.getTable().put(put);
+            cell.getTable().getHTable().put(put);
         } catch (IOException e) {
             LOG.warn("{}: Error inserting shadow cell {}", tx, cell, e);
             updateSCFuture.setException(

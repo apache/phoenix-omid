@@ -17,40 +17,6 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListenableFuture;
-
-
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.omid.committable.CommitTable;
-import org.apache.omid.metrics.NullMetricsProvider;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.ITestContext;
-import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import static org.apache.omid.transaction.CellUtils.hasCell;
 import static org.apache.omid.transaction.CellUtils.hasShadowCell;
 import static org.mockito.Matchers.any;
@@ -65,6 +31,39 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.metrics.NullMetricsProvider;
+import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.ITestContext;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ListenableFuture;
 
 @Test(groups = "sharedHBase")
 public class TestShadowCells extends OmidTestBase {
@@ -91,13 +90,13 @@ public class TestShadowCells extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
         // Test shadow cells are created properly
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t1, put);
 
         // Before commit test that only the cell is there
@@ -151,13 +150,13 @@ public class TestShadowCells extends OmidTestBase {
         // The following line emulates a crash after commit that is observed in (*) below
         doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
         // Test shadow cell are created properly
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t1, put);
         try {
             tm.commit(t1);
@@ -198,13 +197,13 @@ public class TestShadowCells extends OmidTestBase {
         // The following line emulates a crash after commit that is observed in (*) below
         doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
         // Test shadow cell are created properly
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t1, put);
         try {
             tm.commit(t1);
@@ -255,12 +254,12 @@ public class TestShadowCells extends OmidTestBase {
                 .commitTableClient(commitTableClient)
                 .build());
 
-        final TTable table = new TTable(hbaseConf, TEST_TABLE);
+        final TTable table = new TTable(connection, TEST_TABLE);
 
         HBaseTransaction tx = (HBaseTransaction) tm.begin();
 
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(tx, put);
 
         // This line emulates an error accessing the target table by disabling it
@@ -269,7 +268,7 @@ public class TestShadowCells extends OmidTestBase {
             public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
                 table.flushCommits();
                 HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-                admin.disableTable(table.getTableName());
+                admin.disableTable(TableName.valueOf(table.getTableName()));
                 return (ListenableFuture<Void>) invocation.callRealMethod();
             }
         }).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
@@ -284,7 +283,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // Re-enable table to allow the required checks below
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-        admin.enableTable(table.getTableName());
+        admin.enableTable(TableName.valueOf(table.getTableName()));
 
         // 1) check that shadow cell is not created...
         assertTrue(hasCell(row, family, qualifier, tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),
@@ -324,7 +323,7 @@ public class TestShadowCells extends OmidTestBase {
         }).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
 
         // Start transaction on write thread
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        final TTable table = new TTable(connection, TEST_TABLE);
 
         final HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
@@ -335,8 +334,8 @@ public class TestShadowCells extends OmidTestBase {
                 LOG.info("Waiting readAfterCommit barrier");
                 try {
                     readAfterCommit.await();
-                    HTable htable = new HTable(hbaseConf, TEST_TABLE);
-                    HTable healer = new HTable(hbaseConf, TEST_TABLE);
+                    Table htable = table.getHTable();
+                    Table healer = table.getHTable();
 
                     final SnapshotFilter snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, healer)));
                     final TTable table = new TTable(htable ,snapshotFilter);
@@ -388,7 +387,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // Write data
         Put put = new Put(row);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t1, put);
         tm.commit(t1);
 
@@ -409,25 +408,25 @@ public class TestShadowCells extends OmidTestBase {
 
         TransactionManager tm = newTransactionManager(context);
 
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
-        HTableInterface htable = table.getHTable();
+        TTable table = new TTable(connection, TEST_TABLE);
+        Table htable = table.getHTable();
 
         // Test shadow cell are created properly
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
         Put put = new Put(row1);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t1, put);
         tm.commit(t1);
 
         HBaseTransaction t2 = (HBaseTransaction) tm.begin();
         put = new Put(row2);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t2, put);
         tm.commit(t2);
 
         HBaseTransaction t3 = (HBaseTransaction) tm.begin();
         put = new Put(row3);
-        put.add(family, qualifier, data1);
+        put.addColumn(family, qualifier, data1);
         table.put(t3, put);
         tm.commit(t3);
 
@@ -443,9 +442,9 @@ public class TestShadowCells extends OmidTestBase {
 
         // delete new shadow cell
         Delete del = new Delete(row2);
-        del.deleteColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+        del.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
         htable.delete(del);
-        htable.flushCommits();
+        table.flushCommits();
 
         // verify that we can't read now (since shadow cell is missing)
         Transaction t4 = tm.begin();
@@ -471,7 +470,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // now add in the previous legacy shadow cell for that row
         put = new Put(row2);
-        put.add(family,
+        put.addColumn(family,
                 addLegacyShadowCellSuffix(qualifier),
                 t2.getStartTimestamp(),
                 Bytes.toBytes(t2.getCommitTimestamp()));

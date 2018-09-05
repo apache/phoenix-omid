@@ -17,14 +17,18 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Charsets;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import org.apache.omid.TestUtils;
-import org.apache.omid.tso.LeaseManagement;
-import org.apache.omid.tso.PausableLeaseManager;
-import org.apache.omid.tso.TSOServer;
-import org.apache.omid.tso.TSOServerConfig;
+import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
+import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_CF_NAME;
+import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME;
+import static org.apache.omid.tso.client.OmidClientConfiguration.ConnType.HA;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -37,23 +41,20 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.TestUtils;
+import org.apache.omid.tso.LeaseManagement;
+import org.apache.omid.tso.PausableLeaseManager;
+import org.apache.omid.tso.TSOServer;
+import org.apache.omid.tso.TSOServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME;
-import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_CF_NAME;
-import static org.apache.omid.tso.client.OmidClientConfiguration.ConnType.HA;
-import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import com.google.common.base.Charsets;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 @Test(groups = "sharedHBase")
 public class TestEndToEndScenariosWithHA extends OmidTestBase {
@@ -161,7 +162,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
         LOG.info("Cleanup");
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
         deleteTable(admin, TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
-        hBaseUtils.createTable(Bytes.toBytes(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME),
+        hBaseUtils.createTable(TableName.valueOf((DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)),
                                new byte[][]{DEFAULT_TIMESTAMP_STORAGE_CF_NAME.getBytes()},
                                Integer.MAX_VALUE);
         tso1.stopAndWait();
@@ -191,17 +192,17 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
     // End of Test state: R1C1 & R2C2 (v0)
     @Test(timeOut = 60_000)
     public void testScenario1() throws Exception {
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Write initial values for the test
             HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
             long initialEpoch = tx0.getEpoch();
             LOG.info("Starting Tx {} writing initial values for cells ({}) ", tx0, Bytes.toString(initialData));
             Put putInitialDataRow1 = new Put(row1);
-            putInitialDataRow1.add(TEST_FAMILY.getBytes(), qualifier1, initialData);
+            putInitialDataRow1.addColumn(TEST_FAMILY.getBytes(), qualifier1, initialData);
             txTable.put(tx0, putInitialDataRow1);
             Put putInitialDataRow2 = new Put(row2);
-            putInitialDataRow2.add(TEST_FAMILY.getBytes(), qualifier2, initialData);
+            putInitialDataRow2.addColumn(TEST_FAMILY.getBytes(), qualifier2, initialData);
             txTable.put(tx0, putInitialDataRow2);
             tm.commit(tx0);
 
@@ -212,10 +213,10 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             LOG.info("Starting Tx {} writing values for cells ({}, {}) ", tx1, Bytes.toString(data1_q1),
                      Bytes.toString(data1_q2));
             Put putData1R1Q1 = new Put(row1);
-            putData1R1Q1.add(TEST_FAMILY.getBytes(), qualifier1, data1_q1);
+            putData1R1Q1.addColumn(TEST_FAMILY.getBytes(), qualifier1, data1_q1);
             txTable.put(tx1, putData1R1Q1);
             Put putData1R2Q2 = new Put(row2);
-            putData1R2Q2.add(TEST_FAMILY.getBytes(), qualifier2, data1_q2);
+            putData1R2Q2.addColumn(TEST_FAMILY.getBytes(), qualifier2, data1_q2);
             txTable.put(tx1, putData1R2Q2);
 
             Transaction interleavedReadTx = tm.begin();
@@ -288,17 +289,17 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
     // End of Test state: R1C1 & R2C2 (v2)
     @Test(timeOut = 60_000)
     public void testScenario2() throws Exception {
-        try (TTable txTable = new TTable(hbaseConf, TEST_TABLE)) {
+        try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Write initial values for the test
             HBaseTransaction tx0 = (HBaseTransaction) tm.begin();
             long initialEpoch = tx0.getEpoch();
             LOG.info("Starting Tx {} writing initial values for cells ({}) ", tx0, Bytes.toString(initialData));
             Put putInitialDataRow1 = new Put(row1);
-            putInitialDataRow1.add(TEST_FAMILY.getBytes(), qualifier1, initialData);
+            putInitialDataRow1.addColumn(TEST_FAMILY.getBytes(), qualifier1, initialData);
             txTable.put(tx0, putInitialDataRow1);
             Put putInitialDataRow2 = new Put(row2);
-            putInitialDataRow2.add(TEST_FAMILY.getBytes(), qualifier2, initialData);
+            putInitialDataRow2.addColumn(TEST_FAMILY.getBytes(), qualifier2, initialData);
             txTable.put(tx0, putInitialDataRow2);
             tm.commit(tx0);
 
@@ -306,10 +307,10 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             LOG.info("Starting Tx {} writing values for cells ({}, {}) ", tx1, Bytes.toString(data1_q1),
                      Bytes.toString(data1_q2));
             Put putData1R1Q1 = new Put(row1);
-            putData1R1Q1.add(TEST_FAMILY.getBytes(), qualifier1, data1_q1);
+            putData1R1Q1.addColumn(TEST_FAMILY.getBytes(), qualifier1, data1_q1);
             txTable.put(tx1, putData1R1Q1);
             Put putData1R2Q2 = new Put(row2);
-            putData1R2Q2.add(TEST_FAMILY.getBytes(), qualifier2, data1_q2);
+            putData1R2Q2.addColumn(TEST_FAMILY.getBytes(), qualifier2, data1_q2);
             txTable.put(tx1, putData1R2Q2);
 
             // Provoke change in mastership (should throw a Connection exception)
@@ -352,10 +353,10 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
                                  + Bytes.toString(r.getValue(TEST_FAMILY.getBytes(), qualifier2)));
 
             Put putData2R1Q1 = new Put(row1);
-            putData2R1Q1.add(TEST_FAMILY.getBytes(), qualifier1, data2_q1);
+            putData2R1Q1.addColumn(TEST_FAMILY.getBytes(), qualifier1, data2_q1);
             txTable.put(tx2, putData2R1Q1);
             Put putData2R2Q2 = new Put(row2);
-            putData2R2Q2.add(TEST_FAMILY.getBytes(), qualifier2, data2_q2);
+            putData2R2Q2.addColumn(TEST_FAMILY.getBytes(), qualifier2, data2_q2);
             txTable.put(tx2, putData2R2Q2);
             // This one should commit in the new TSO
             tm.commit(tx2);

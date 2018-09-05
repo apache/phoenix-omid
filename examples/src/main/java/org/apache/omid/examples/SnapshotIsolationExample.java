@@ -17,9 +17,11 @@
  */
 package org.apache.omid.examples;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Arrays;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -32,8 +34,7 @@ import org.apache.omid.transaction.TransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Arrays;
+import com.google.common.base.Preconditions;
 
 /**
  * ****************************************************************************************************************
@@ -118,7 +119,7 @@ public class SnapshotIsolationExample {
 
         LOG.info("Creating access to Omid Transaction Manager & Transactional Table '{}'", userTableName);
         tm = HBaseTransactionManager.newInstance();
-        txTable = new TTable(userTableName);
+        txTable = new TTable(ConnectionFactory.createConnection(), userTableName);
     }
 
     void execute() throws IOException, RollbackException {
@@ -127,7 +128,7 @@ public class SnapshotIsolationExample {
         Transaction tx0 = tm.begin();
         byte[] rowId = rowIdGenerator.getRowId();
         Put initialPut = new Put(rowId);
-        initialPut.add(family, qualifier, initialData);
+        initialPut.addColumn(family, qualifier, initialData);
         txTable.put(tx0, initialPut);
         tm.commit(tx0);
         LOG.info("Initial Transaction {} COMMITTED. Base value written in {}:{}/{}/{} = {}",
@@ -138,7 +139,7 @@ public class SnapshotIsolationExample {
         Transaction tx1 = tm.begin();
         LOG.info("Transaction {} STARTED", tx1);
         Put tx1Put = new Put(rowId);
-        tx1Put.add(family, qualifier, dataValue1);
+        tx1Put.addColumn(family, qualifier, dataValue1);
         txTable.put(tx1, tx1Put);
         LOG.info("Transaction {} updates base value in {}:{}/{}/{} = {} in its own Snapshot",
                  tx1, userTableName, Bytes.toString(rowId), Bytes.toString(family),
@@ -177,7 +178,7 @@ public class SnapshotIsolationExample {
 
         // Tx2 tries to write the column written by the committed concurrent transaction Tx1...
         Put tx2Put = new Put(rowId);
-        tx2Put.add(family, qualifier, dataValue2);
+        tx2Put.addColumn(family, qualifier, dataValue2);
         txTable.put(tx2, tx2Put);
         LOG.info(
             "Concurrent Transaction {} updates {}:{}/{}/{} = {} in its own Snapshot (Will conflict with {} at commit time)",

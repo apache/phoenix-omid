@@ -17,25 +17,6 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Objects;
-import com.google.common.base.Objects.ToStringHelper;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellComparator;
-import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,6 +24,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.HBaseShims;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Objects;
+import com.google.common.base.Objects.ToStringHelper;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 @SuppressWarnings("all")
 public final class CellUtils {
@@ -301,8 +301,10 @@ public final class CellUtils {
      */
     public static SortedMap<Cell, Optional<Cell>> mapCellsToShadowCells(List<Cell> cells) {
 
+        // Move CellComparator to HBaseSims for 2.0 support
+        // Need to access through CellComparatorImpl.COMPARATOR
         SortedMap<Cell, Optional<Cell>> cellToShadowCellMap
-                = new TreeMap<Cell, Optional<Cell>>(new CellComparator());
+                = new TreeMap<Cell, Optional<Cell>>(HBaseShims.cellComparatorInstance());
 
         Map<CellId, Cell> cellIdToCellMap = new HashMap<CellId, Cell>();
         for (Cell cell : cells) {
@@ -315,7 +317,7 @@ public final class CellUtils {
                         // TODO: Should we check also here the MVCC and swap if its greater???
                         // Values are the same, ignore
                     } else {
-                        if (cell.getMvccVersion() > storedCell.getMvccVersion()) { // Swap values
+                        if (cell.getSequenceId() > storedCell.getSequenceId()) { // Swap values
                             Optional<Cell> previousValue = cellToShadowCellMap.remove(storedCell);
                             Preconditions.checkNotNull(previousValue, "Should contain an Optional<Cell> value");
                             cellIdToCellMap.put(key, cell);

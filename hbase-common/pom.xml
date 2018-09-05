@@ -101,6 +101,18 @@
             </dependencies>
         </profile>
 
+
+        <profile>
+            <id>hbase-2</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>omid-hbase2-shims</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
     </profiles>
 
 </project>

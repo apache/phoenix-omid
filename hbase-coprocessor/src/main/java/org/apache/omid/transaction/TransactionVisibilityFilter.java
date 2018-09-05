@@ -21,7 +21,6 @@ import com.google.common.base.Optional;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
@@ -211,15 +210,6 @@ public class TransactionVisibilityFilter extends FilterBase {
             return userFilter.hasFilterRow();
         }
         return super.hasFilterRow();
-    }
-
-
-    @Override
-    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
-        if (userFilter != null) {
-            return userFilter.getNextKeyHint(currentKV);
-        }
-        return super.getNextKeyHint(currentKV);
     }
 
     @Override

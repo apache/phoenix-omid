@@ -87,11 +87,11 @@ class TSOForSnapshotFilterTestModule extends AbstractModule {
     @Singleton
     Configuration provideHBaseConfig() throws IOException {
         Configuration hbaseConf = HBaseConfiguration.create();
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         hbaseConf.setInt("hbase.hregion.memstore.flush.size", 10_000 * 1024);
         hbaseConf.setInt("hbase.regionserver.nbreservationblocks", 1);
         hbaseConf.set("tso.host", "localhost");
         hbaseConf.setInt("tso.port", 1234);
-        hbaseConf.set("hbase.coprocessor.region.classes", "org.apache.omid.transaction.OmidSnapshotFilter");
         final String rootdir = "/tmp/hbase.test.dir/";
         File rootdirFile = new File(rootdir);
         FileUtils.deleteDirectory(rootdirFile);

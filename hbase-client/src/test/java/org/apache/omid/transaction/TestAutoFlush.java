@@ -17,14 +17,14 @@
  */
 package org.apache.omid.transaction;
 
+import static org.testng.Assert.assertEquals;
+
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "sharedHBase")
 public class TestAutoFlush extends OmidTestBase {
@@ -37,14 +37,14 @@ public class TestAutoFlush extends OmidTestBase {
         byte[] col = Bytes.toBytes("col1");
         byte[] data = Bytes.toBytes("data");
         TransactionManager tm = newTransactionManager(context);
-        TTable table = new TTable(hbaseConf, TEST_TABLE);
+        TTable table = new TTable(connection, TEST_TABLE);
 
         // Turn off autoflush
         table.setAutoFlush(false);
 
         Transaction t = tm.begin();
         Put put = new Put(row);
-        put.add(family, col, data);
+        put.addColumn(family, col, data);
         table.put(t, put);
 
         // Data shouldn't be in DB yet
