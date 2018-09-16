@@ -21,13 +21,12 @@ import com.google.common.base.Optional;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.filter.FilterBase;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.OmidFilterBase;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -35,7 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class TransactionVisibilityFilter extends FilterBase {
+public class TransactionVisibilityFilterBase extends OmidFilterBase {
 
     // optional sub-filter to apply to visible cells
     private final Filter userFilter;
@@ -47,9 +46,9 @@ public class TransactionVisibilityFilter extends FilterBase {
     // So no need to keep row name
     private final Map<ImmutableBytesWritable, Long> familyDeletionCache;
 
-    public TransactionVisibilityFilter(Filter cellFilter,
-                                       SnapshotFilterImpl snapshotFilter,
-                                       HBaseTransaction hbaseTransaction) {
+    public TransactionVisibilityFilterBase(Filter cellFilter,
+                                           SnapshotFilterImpl snapshotFilter,
+                                           HBaseTransaction hbaseTransaction) {
         this.userFilter = cellFilter;
         this.snapshotFilter = snapshotFilter;
         commitCache = new HashMap<>();
@@ -213,15 +212,6 @@ public class TransactionVisibilityFilter extends FilterBase {
         return super.hasFilterRow();
     }
 
-
-    @Override
-    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
-        if (userFilter != null) {
-            return userFilter.getNextKeyHint(currentKV);
-        }
-        return super.getNextKeyHint(currentKV);
-    }
-
     @Override
     public Cell getNextCellHint(Cell currentKV) throws IOException {
         if (userFilter != null) {
@@ -241,5 +231,9 @@ public class TransactionVisibilityFilter extends FilterBase {
     @Override
     public byte[] toByteArray() throws IOException {
         return super.toByteArray();
+    }
+
+    public Filter getInnerFilter() {
+        return userFilter;
     }
 }

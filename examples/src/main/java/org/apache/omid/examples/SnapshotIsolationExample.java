@@ -128,7 +128,7 @@ public class SnapshotIsolationExample {
         Transaction tx0 = tm.begin();
         byte[] rowId = rowIdGenerator.getRowId();
         Put initialPut = new Put(rowId);
-        initialPut.add(family, qualifier, initialData);
+        initialPut.addColumn(family, qualifier, initialData);
         txTable.put(tx0, initialPut);
         tm.commit(tx0);
         LOG.info("Initial Transaction {} COMMITTED. Base value written in {}:{}/{}/{} = {}",
@@ -139,7 +139,7 @@ public class SnapshotIsolationExample {
         Transaction tx1 = tm.begin();
         LOG.info("Transaction {} STARTED", tx1);
         Put tx1Put = new Put(rowId);
-        tx1Put.add(family, qualifier, dataValue1);
+        tx1Put.addColumn(family, qualifier, dataValue1);
         txTable.put(tx1, tx1Put);
         LOG.info("Transaction {} updates base value in {}:{}/{}/{} = {} in its own Snapshot",
                  tx1, userTableName, Bytes.toString(rowId), Bytes.toString(family),
@@ -178,7 +178,7 @@ public class SnapshotIsolationExample {
 
         // Tx2 tries to write the column written by the committed concurrent transaction Tx1...
         Put tx2Put = new Put(rowId);
-        tx2Put.add(family, qualifier, dataValue2);
+        tx2Put.addColumn(family, qualifier, dataValue2);
         txTable.put(tx2, tx2Put);
         LOG.info(
             "Concurrent Transaction {} updates {}:{}/{}/{} = {} in its own Snapshot (Will conflict with {} at commit time)",

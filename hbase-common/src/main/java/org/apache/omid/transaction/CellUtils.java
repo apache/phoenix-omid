@@ -26,13 +26,13 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.HBaseShims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -304,7 +304,7 @@ public final class CellUtils {
         // Move CellComparator to HBaseSims for 2.0 support
         // Need to access through CellComparatorImpl.COMPARATOR
         SortedMap<Cell, Optional<Cell>> cellToShadowCellMap
-                = new TreeMap<Cell, Optional<Cell>>(new CellComparator());
+                = new TreeMap<Cell, Optional<Cell>>(HBaseShims.cellComparatorInstance());
 
         Map<CellId, Cell> cellIdToCellMap = new HashMap<CellId, Cell>();
         for (Cell cell : cells) {

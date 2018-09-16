@@ -18,10 +18,11 @@
 package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.filter.FilterBase;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.OmidFilterBase;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,12 +35,12 @@ import java.util.List;
  * Please see TEPHRA-169 for more details.
  */
 
-public class CellSkipFilter extends FilterBase {
+public class CellSkipFilterBase extends OmidFilterBase {
     private final Filter filter;
     // remember the previous keyvalue processed by filter when the return code was NEXT_COL or INCLUDE_AND_NEXT_COL
     private KeyValue skipColumn = null;
 
-    public CellSkipFilter(Filter filter) {
+    public CellSkipFilterBase(Filter filter) {
         this.filter = filter;
     }
 
@@ -52,12 +53,12 @@ public class CellSkipFilter extends FilterBase {
      */
     private boolean skipCellVersion(Cell cell) {
         return skipColumn != null
-                && Bytes.equals(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
-                skipColumn.getRowArray(), skipColumn.getRowOffset(), skipColumn.getRowLength())
-                && Bytes.equals(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength(),
-                skipColumn.getFamilyArray(), skipColumn.getFamilyOffset(), skipColumn.getFamilyLength())
-                && Bytes.equals(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength(),
-                skipColumn.getQualifierArray(), skipColumn.getQualifierOffset(), skipColumn.getQualifierLength());
+        && CellUtil.matchingRow(cell, skipColumn.getRowArray(), skipColumn.getRowOffset(),
+                skipColumn.getRowLength())
+                && CellUtil.matchingFamily(cell, skipColumn.getFamilyArray(), skipColumn.getFamilyOffset(),
+                skipColumn.getFamilyLength())
+                && CellUtil.matchingQualifier(cell, skipColumn.getQualifierArray(), skipColumn.getQualifierOffset(),
+                skipColumn.getQualifierLength());
     }
 
     @Override
@@ -69,10 +70,10 @@ public class CellSkipFilter extends FilterBase {
         ReturnCode code = filter.filterKeyValue(cell);
         if (code == ReturnCode.NEXT_COL || code == ReturnCode.INCLUDE_AND_NEXT_COL) {
             // only store the reference to the keyvalue if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
-            skipColumn = new KeyValue(cell.getRowArray(),cell.getRowOffset(),cell.getRowLength(),cell.getFamilyArray(),
-                    cell.getFamilyOffset(),cell.getFamilyLength(),cell.getQualifierArray(),
-                    cell.getQualifierOffset(), cell.getQualifierLength(),9223372036854775807L,
-                    KeyValue.Type.Maximum, (byte[])null, 0, 0);
+            skipColumn = KeyValueUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
+                    cell.getFamilyArray(), cell.getFamilyOffset(),
+                    cell.getFamilyLength(), cell.getQualifierArray(),
+                    cell.getQualifierOffset(), cell.getQualifierLength());
         } else {
             skipColumn = null;
         }
@@ -114,12 +115,6 @@ public class CellSkipFilter extends FilterBase {
         return filter.hasFilterRow();
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
-        return filter.getNextKeyHint(currentKV);
-    }
-
     @Override
     public Cell getNextCellHint(Cell currentKV) throws IOException {
         return filter.getNextCellHint(currentKV);
@@ -133,5 +128,9 @@ public class CellSkipFilter extends FilterBase {
     @Override
     public byte[] toByteArray() throws IOException {
         return filter.toByteArray();
+    }
+
+    public Filter getInnerFilter() {
+        return filter;
     }
 }

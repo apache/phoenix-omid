@@ -15,17 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.transaction;
+package org.apache.omid;
+import org.apache.hadoop.hbase.filter.FilterBase;
 
 
-import org.apache.hadoop.hbase.filter.Filter;
+public abstract class OmidBaseFilter extends FilterBase {}
 
-public class TransactionFilters {
-
-
-    public static Filter getVisibilityFilter(Filter cellFilter,
-                                             SnapshotFilterImpl regionAccessWrapper,
-                                             HBaseTransaction hbaseTransaction) {
-        return new CellSkipFilterBase(new TransactionVisibilityFilterBase(cellFilter, regionAccessWrapper, hbaseTransaction));
-    }
-}

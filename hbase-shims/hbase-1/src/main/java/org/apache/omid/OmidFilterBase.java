@@ -15,16 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
-// IMPORTANT NOTE: This class is here only for compatibility reasons with HBase 1.x. The methods in this class
-// shouldn't be invoked or an error will be thrown because of this:
-public class ScannerContext {
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterBase;
 
-    int getBatchLimit() {
+import java.io.IOException;
 
-        return -1;
+public abstract class OmidFilterBase extends FilterBase {
 
+    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
+        Filter userFilter = getInnerFilter();
+        if (userFilter != null) {
+            return userFilter.getNextKeyHint(currentKV);
+        }
+        return super.getNextKeyHint(currentKV);
     }
 
+    protected abstract Filter getInnerFilter();
 }
