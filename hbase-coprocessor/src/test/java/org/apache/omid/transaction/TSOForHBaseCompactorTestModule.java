@@ -87,6 +87,7 @@ class TSOForHBaseCompactorTestModule extends AbstractModule {
     @Singleton
     Configuration provideHBaseConfig() throws IOException {
         Configuration hbaseConf = HBaseConfiguration.create();
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         hbaseConf.setInt("hbase.hregion.memstore.flush.size", 10_000 * 1024);
         hbaseConf.setInt("hbase.regionserver.nbreservationblocks", 1);
         hbaseConf.set("tso.host", "localhost");

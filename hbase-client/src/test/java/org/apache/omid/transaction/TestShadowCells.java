@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
@@ -267,7 +268,7 @@ public class TestShadowCells extends OmidTestBase {
             public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
                 table.flushCommits();
                 HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-                admin.disableTable(table.getTableName());
+                admin.disableTable(TableName.valueOf(table.getTableName()));
                 return (ListenableFuture<Void>) invocation.callRealMethod();
             }
         }).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
@@ -282,7 +283,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // Re-enable table to allow the required checks below
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-        admin.enableTable(table.getTableName());
+        admin.enableTable(TableName.valueOf(table.getTableName()));
 
         // 1) check that shadow cell is not created...
         assertTrue(hasCell(row, family, qualifier, tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),

@@ -20,46 +20,37 @@ package org.apache.omid.transaction;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+
+import org.apache.omid.HBaseShims;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
+
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 
 public class CompactorUtil {
 
-    public static void enableOmidCompaction(Configuration conf,
-                                            TableName table, byte[] columnFamily) throws IOException {
-        HBaseAdmin admin = new HBaseAdmin(conf);
-        try {
-            HTableDescriptor desc = admin.getTableDescriptor(table);
-            HColumnDescriptor cfDesc = desc.getFamily(columnFamily);
-            cfDesc.setValue(OmidCompactor.OMID_COMPACTABLE_CF_FLAG,
-                    Boolean.TRUE.toString());
-            admin.modifyColumn(table, cfDesc);
-        } finally {
-            admin.close();
-        }
+    public static void setOmidCompaction(Connection conn, TableName table, byte[] columnFamily, String value)
+            throws IOException {
+        HBaseShims.setCompaction(conn, table, columnFamily, OmidCompactor.OMID_COMPACTABLE_CF_FLAG, value);
     }
 
-    public static void disableOmidCompaction(Configuration conf,
+    public static void enableOmidCompaction(Connection conn,
+                                            TableName table, byte[] columnFamily) throws IOException {
+
+        setOmidCompaction(conn, table, columnFamily, Boolean.TRUE.toString());
+    }
+
+    public static void disableOmidCompaction(Connection conn,
                                              TableName table, byte[] columnFamily) throws IOException {
-        HBaseAdmin admin = new HBaseAdmin(conf);
-        try {
-            HTableDescriptor desc = admin.getTableDescriptor(table);
-            HColumnDescriptor cfDesc = desc.getFamily(columnFamily);
-            cfDesc.setValue(OmidCompactor.OMID_COMPACTABLE_CF_FLAG,
-                    Boolean.FALSE.toString());
-            admin.modifyColumn(table, cfDesc);
-        } finally {
-            admin.close();
-        }
+        setOmidCompaction(conn, table, columnFamily, Boolean.FALSE.toString());
     }
 
     static class Config {
@@ -94,11 +85,13 @@ public class CompactorUtil {
         HBaseLogin.loginIfNeeded(cmdline.loginFlags);
 
         Configuration conf = HBaseConfiguration.create();
+        Connection conn = ConnectionFactory.createConnection(conf);
+
         if (cmdline.enable) {
-            enableOmidCompaction(conf, TableName.valueOf(cmdline.table),
+            enableOmidCompaction(conn, TableName.valueOf(cmdline.table),
                     Bytes.toBytes(cmdline.columnFamily));
         } else if (cmdline.disable) {
-            disableOmidCompaction(conf, TableName.valueOf(cmdline.table),
+            disableOmidCompaction(conn, TableName.valueOf(cmdline.table),
                     Bytes.toBytes(cmdline.columnFamily));
         } else {
             System.err.println("Must specify enable or disable");

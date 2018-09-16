@@ -52,7 +52,6 @@
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-server</artifactId>
         </dependency>
-
         <!-- end storage related -->
 
         <!-- utils -->
@@ -97,7 +96,6 @@
             <artifactId>hbase-testing-util</artifactId>
             <scope>test</scope>
         </dependency>
-
         <!-- end testing -->
 
     </dependencies>
@@ -144,22 +142,25 @@
     <profiles>
 
         <profile>
-            <id>hbase-0</id>
+            <id>hbase-1</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <dependencies>
                 <dependency>
                     <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase0-shims</artifactId>
+                    <artifactId>omid-hbase1-shims</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
         </profile>
 
         <profile>
-            <id>hbase-1</id>
+            <id>hbase-2</id>
             <dependencies>
                 <dependency>
                     <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase1-shims</artifactId>
+                    <artifactId>omid-hbase2-shims</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>

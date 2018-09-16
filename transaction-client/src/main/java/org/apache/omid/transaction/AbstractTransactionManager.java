@@ -39,10 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.CACHE;
-import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.COMMIT_TABLE;
-import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.NOT_PRESENT;
-import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
+
 import static org.apache.omid.metrics.MetricsUtils.name;
 
 /**

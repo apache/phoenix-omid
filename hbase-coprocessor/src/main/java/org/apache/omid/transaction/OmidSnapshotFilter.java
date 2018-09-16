@@ -20,10 +20,14 @@ package org.apache.omid.transaction;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.apache.hadoop.hbase.client.Scan;
+
+import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.filter.Filter;
 
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -34,7 +38,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
@@ -46,6 +49,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -74,8 +78,13 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         LOG.info("Compactor coprocessor initialized via empty constructor");
     }
 
+
+    public Optional getRegionObserver() {
+        return Optional.of(this);
+    }
+
     @Override
-    public void start(CoprocessorEnvironment env) throws IOException {
+    public void start(CoprocessorEnvironment env) {
         LOG.info("Starting snapshot filter coprocessor");
         conf = env.getConfiguration();
         commitTableConf = new HBaseCommitTableConfig();
@@ -99,8 +108,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
 
     @Override
-    public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
-            throws IOException {
+    public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
         if (snapshotFilter != null) {
             snapshotFilterQueue.add(snapshotFilter);
@@ -135,14 +143,21 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return snapshotFilter;
     }
 
-    @Override
+
     public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
-                                         Scan scan,
-                                         RegionScanner s) throws IOException {
+                                        Scan scan,
+                                        RegionScanner s) throws IOException {
+        preScannerOpen(e,scan);
+        return s;
+    }
+
+
+    public void preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
+                               Scan scan) throws IOException {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
 
         if (byteTransaction == null) {
-            return s;
+            return;
         }
 
         HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction);
@@ -153,13 +168,14 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
                 snapshotFilter, hbaseTransaction);
         scan.setFilter(newFilter);
         snapshotFilterMap.put(scan, snapshotFilter);
-        return s;
+        return;
     }
 
-    @Override
+
+
     public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
                                          Scan scan,
-                                         RegionScanner s) throws IOException {
+                                         RegionScanner s) {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
 
         if (byteTransaction == null) {
@@ -173,9 +189,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return s;
     }
 
+
     @Override
-    public void preScannerClose(ObserverContext<RegionCoprocessorEnvironment> e, InternalScanner s)
-            throws IOException {
+    public void preScannerClose(ObserverContext<RegionCoprocessorEnvironment> e, InternalScanner s) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(s);
         if (snapshotFilter != null) {
             snapshotFilterQueue.add(snapshotFilter);
@@ -192,7 +208,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         long epoch = transaction.getEpoch();
         VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
-        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
+        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<>(), new HashSet<>(), null);
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {

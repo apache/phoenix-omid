@@ -40,6 +40,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.HBaseShims;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.InMemoryCommitTable;
@@ -121,14 +122,13 @@ public abstract class OmidTestBase {
         File tempFile = File.createTempFile("OmidTest", "");
         tempFile.deleteOnExit();
         hbaseConf.set("hbase.rootdir", tempFile.getAbsolutePath());
-
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         hBaseUtils = new HBaseTestingUtility(hbaseConf);
         hbaseCluster = hBaseUtils.startMiniCluster(1);
         connection = ConnectionFactory.createConnection(hbaseConf);
-        hBaseUtils.createTable(Bytes.toBytes(hBaseTimestampStorageConfig.getTableName()),
-                               new byte[][]{hBaseTimestampStorageConfig.getFamilyName().getBytes()},
-                               Integer.MAX_VALUE);
-
+        hBaseUtils.createTable(TableName.valueOf(hBaseTimestampStorageConfig.getTableName()),
+                new byte[][]{hBaseTimestampStorageConfig.getFamilyName().getBytes()},
+                Integer.MAX_VALUE);
         createTestTable();
         createCommitTable();
 

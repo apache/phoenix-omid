@@ -15,40 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
 
-import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterBase;
 
 import java.io.IOException;
 
-public class Region {
+public abstract class OmidFilterBase extends FilterBase {
 
-    HRegion hRegion;
-
-    public Region(HRegion hRegion) {
-
-        this.hRegion = hRegion;
-
+    public KeyValue getNextKeyHint(KeyValue currentKV) throws IOException {
+        Filter userFilter = getInnerFilter();
+        if (userFilter != null) {
+            return userFilter.getNextKeyHint(currentKV);
+        }
+        return super.getNextKeyHint(currentKV);
     }
 
-    Result get(Get getOperation) throws IOException {
-
-        return hRegion.get(getOperation);
-
-    }
-
-    void put(Put putOperation) throws IOException {
-
-        hRegion.put(putOperation);
-
-    }
-
-    HRegionInfo getRegionInfo() {
-
-        return hRegion.getRegionInfo();
-
-    }
+    protected abstract Filter getInnerFilter();
 }

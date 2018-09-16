@@ -18,11 +18,11 @@ Then start HBase in [standalone mode](https://hbase.apache.org/book.html#quickst
 ### 2. Clone the [Omid repository](https://github.com/apache/incubator-omid) and Build the TSO Package:
 
 ```sh
-$ git clone git@github.com:yahoo/omid.git
+$ git clone git@github.com:apache/incubator-omid.git
 $ cd omid
-$ mvn clean install -Phbase-0 (for HBase 0.x versions)
-or
 $ mvn clean install -Phbase-1 (for HBase 1.x versions)
+or
+$ mvn clean install -Phbase-2 (for HBase 2.x versions)
 ```
 This will generate a binary package containing all dependencies for the TSO in tso-server/target/tso-server-\<VERSION\>-bin.tar.gz. 
 

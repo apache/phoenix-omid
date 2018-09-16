@@ -13,8 +13,8 @@
     <name>Shims Aggregator for HBase</name>
 
     <modules>
-        <module>hbase-0</module>
         <module>hbase-1</module>
+        <module>hbase-2</module>
     </modules>
 
     <dependencies>
@@ -41,6 +41,16 @@
         </dependency>
 
         <!-- end storage related -->
+
+        <!-- testing -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-testing-util</artifactId>
+        </dependency>
+
+
+
+        <!-- end testing related -->
 
         <!-- distributed comm -->
 

@@ -15,14 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.regionserver;
+package org.apache.omid;
+import org.apache.hadoop.hbase.filter.FilterBase;
 
-public class ScannerContext {
-
-    int getBatchLimit() {
-
-        return -1;
-
-    }
-
-}
+public abstract class OmidBaseFilter extends FilterBase {}

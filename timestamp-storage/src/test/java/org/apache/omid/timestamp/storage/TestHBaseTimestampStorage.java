@@ -55,7 +55,7 @@ public class TestHBaseTimestampStorage {
     public static void setUpClass() throws Exception {
         // HBase setup
         hbaseConf = HBaseConfiguration.create();
-
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
         LOG.info("Create hbase");
         testutil = new HBaseTestingUtility(hbaseConf);
         hbasecluster = testutil.startMiniCluster(1);
@@ -73,7 +73,7 @@ public class TestHBaseTimestampStorage {
     public void setUp() throws Exception {
         HBaseAdmin admin = testutil.getHBaseAdmin();
 
-        if (!admin.tableExists(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)) {
+        if (!admin.tableExists(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME))) {
             HTableDescriptor desc = new HTableDescriptor(TABLE_NAME);
             HColumnDescriptor datafam = new HColumnDescriptor(DEFAULT_TIMESTAMP_STORAGE_CF_NAME);
             datafam.setMaxVersions(Integer.MAX_VALUE);
@@ -82,8 +82,8 @@ public class TestHBaseTimestampStorage {
             admin.createTable(desc);
         }
 
-        if (admin.isTableDisabled(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)) {
-            admin.enableTable(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME);
+        if (admin.isTableDisabled(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME))) {
+            admin.enableTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
         }
         HTableDescriptor[] tables = admin.listTables();
         for (HTableDescriptor t : tables) {
@@ -96,10 +96,10 @@ public class TestHBaseTimestampStorage {
         try {
             LOG.info("tearing Down");
             HBaseAdmin admin = testutil.getHBaseAdmin();
-            admin.disableTable(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME);
-            admin.deleteTable(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME);
+            admin.disableTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
+            admin.deleteTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             LOG.error("Error tearing down", e);
         }
     }
