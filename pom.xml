@@ -93,38 +93,13 @@
         <module>packaging</module>
     </modules>
 
-    <pluginRepositories>
-
-        <pluginRepository>
-            <id>synergian-repo</id>
-            <url>https://raw.githubusercontent.com/synergian/wagon-git/releases</url>
-        </pluginRepository>
-
-    </pluginRepositories>
-
-    <scm>
-        <connection>scm:git:git://github.com/yahoo/omid.git</connection>
-        <developerConnection>scm:git:https://${GH_TOKEN}@github.com/yahoo/omid.git</developerConnection>
-        <url>https://github.com/yahoo/omid</url>
-        <tag>master</tag>
-    </scm>
-
-    <distributionManagement>
-        <repository>
-            <id>bintray</id>
-            <url>https://api.bintray.com/maven/yahoo/maven/omid</url>
-        </repository>
-
-        <site>
-            <id>apache-omid-site</id>
-            <!-- Wagon-git URL format:
-                     protocol:branch://url
-                 Do not forget the 2 backslashes before the url
-            -->
-            <url>git:asf-site://https://git-wip-us.apache.org/repos/asf/incubator-omid-site.git</url>
-        </site>
-    </distributionManagement>
-
+    <repositories>
+      <repository>
+	<id>apache release</id>
+	<url>https://repository.apache.org/content/repositories/releases/</url>
+      </repository>
+    </repositories>
+    
     <properties>
 
         <!-- Basic properties -->
@@ -134,7 +109,6 @@
         <java.version>1.8</java.version>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase0.version>0.98.10.1-hadoop1</hbase0.version>
         <hbase1.version>1.2.5</hbase1.version>
         <hbase2.version>2.0.1</hbase2.version>
         <hadoop1.version>2.7.5</hadoop1.version>
@@ -448,17 +422,13 @@
                 </dependencies>
             </plugin>
 
-        </plugins>
-
-        <extensions>
-
-            <extension>
-                <groupId>ar.com.synergian</groupId>
-                <artifactId>wagon-git</artifactId>
-                <version>0.2.5</version>
-            </extension>
-
-        </extensions>
+	    <plugin>
+	      <groupId>org.apache.maven.plugins</groupId>
+	      <artifactId>maven-project-info-reports-plugin</artifactId>
+	      <version>2.7</version>
+	    </plugin>
+	    
+          </plugins>
 
     </build>
 
