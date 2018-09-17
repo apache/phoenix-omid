@@ -19,5 +19,5 @@ package org.apache.omid;
 import org.apache.hadoop.hbase.filter.FilterBase;
 
 
-public abstract class OmidBaseFilter extends FilterBase {}
+public abstract class OmidFilterBase extends FilterBase {}
 
