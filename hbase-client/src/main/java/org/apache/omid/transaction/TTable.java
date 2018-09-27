@@ -43,6 +43,7 @@ import org.apache.hadoop.hbase.client.OperationWithAttributes;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.TimeRange;
@@ -553,14 +554,14 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link Table#put(List puts)}
+     * Transactional version of {@link Table#batch(List<? extends Row> mutations)}
      *
      * @param transaction an instance of transaction to be used
-     * @param puts        List of puts
+     * @param mutations        List of rows that must be instances of Put or Delete
      * @throws IOException if a remote or network exception occurs
      */
-    public void batch(Transaction transaction, List<Mutation> mutations) throws IOException {
-        for (Mutation mutation : mutations) {
+    public void batch(Transaction transaction, List<? extends Row> mutations) throws IOException {
+        for (Row mutation : mutations) {
             if (mutation instanceof Put) {
                 put(transaction, (Put)mutation);
             } else if (mutation instanceof Delete) {
