@@ -157,7 +157,7 @@
         <maven-antrun-plugin.version>1.7</maven-antrun-plugin.version>
         <maven-source-plugin.version>2.4</maven-source-plugin.version>
         <maven-clean-plugin.version>2.5</maven-clean-plugin.version>
-        <maven-compiler-plugin.version>3.5</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.0</maven-compiler-plugin.version>
         <maven-assembly-plugin.version>2.4</maven-assembly-plugin.version>
         <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
         <maven-release-plugin.version>2.3.2</maven-release-plugin.version>
@@ -207,15 +207,6 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
-                        <compilerArgs>
-                            <!-- We had to comment this due to the use of some deprecated APIs in HBase 1.x -->
-                            <!-- As example, we extensively use HTable along the code and is not used anymore in 1.x-->
-                            <!-- TODO Try to restore the parameter when possible -->
-                            <!--arg>-Werror</arg-->
-                            <arg>-Xlint:deprecation</arg>
-                            <arg>-Xlint:unchecked</arg>
-                        </compilerArgs>
-
                     </configuration>
                 </plugin>
 
