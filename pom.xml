@@ -149,6 +149,7 @@
         <maven-compiler-plugin.version>3.0</maven-compiler-plugin.version>
         <maven-assembly-plugin.version>2.4</maven-assembly-plugin.version>
         <maven-release-plugin.version>2.3.2</maven-release-plugin.version>
+        <maven-shade-plugin.version>2.4.3</maven-shade-plugin.version>
         <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
         <maven-jar-plugin.version>2.5</maven-jar-plugin.version>
         <maven-surefire-plugin.version>2.19</maven-surefire-plugin.version>
@@ -245,45 +246,6 @@
                     <version>${maven-javadoc-plugin.version}</version>
                 </plugin>
 
-                <!-- ============================================================================================== -->
-                <!-- Code coverage plugins                                                                          -->
-                <!-- ============================================================================================== -->
-
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>cobertura-maven-plugin</artifactId>
-                    <version>${maven-cobertura-plugin.version}</version>
-                    <configuration>
-                        <check>
-                            <haltOnFailure>true</haltOnFailure>
-                            <branchRate>0</branchRate>
-                            <lineRate>0</lineRate>
-                            <totalBranchRate>0</totalBranchRate>
-                            <totalLineRate>0</totalLineRate>
-                            <packageLineRate>0</packageLineRate>
-                            <packageBranchRate>0</packageBranchRate>
-                        </check>
-                        <aggregate>true</aggregate>
-                        <formats>
-                            <format>xml</format>
-                            <format>html</format>
-                        </formats>
-                        <instrumentation>
-                            <excludes>
-                                <exclude>org/apache/omid/proto/*.class</exclude>
-                            </excludes>
-                        </instrumentation>
-                    </configuration>
-                </plugin>
-
-                <!-- Show Coverage reports in https://coveralls.io/ -->
-                <plugin>
-                    <groupId>org.eluder.coveralls</groupId>
-                    <artifactId>coveralls-maven-plugin</artifactId>
-                    <version>${maven-coveralls-plugin.version}</version>
-                </plugin>
-
-
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>findbugs-maven-plugin</artifactId>
@@ -327,28 +289,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
             </plugin>
 
-            <plugin>
-                <groupId>org.eluder.coveralls</groupId>
-                <artifactId>coveralls-maven-plugin</artifactId>
-                <configuration>
-                    <repoToken>${COVERALLS_TOKEN}</repoToken>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>cobertura-maven-plugin</artifactId>
-            </plugin>
-
         </plugins>
-
-        <extensions>
-            <extension>
-                <groupId>${harmless.groupId}</groupId>
-                <artifactId>${harmless.artifactId}</artifactId>
-                <version>${harmless.version}</version>
-            </extension>
-        </extensions>
 
     </build>
 
@@ -384,22 +325,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
-                    </plugin>
-
-                    <plugin>
-                        <groupId>org.eluder.coveralls</groupId>
-                        <artifactId>coveralls-maven-plugin</artifactId>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </plugin>
-
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>cobertura-maven-plugin</artifactId>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
                     </plugin>
 
                     <plugin>
@@ -489,13 +414,6 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>findbugs-maven-plugin</artifactId>
-            </plugin>
-
-            <!-- Required for generating cross references with sources on reports: e.g. line numbers... -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jxr-plugin</artifactId>
-                <version>${maven-jxr-plugin.version}</version>
             </plugin>
 
             <plugin>
