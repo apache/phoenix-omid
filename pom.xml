@@ -93,13 +93,19 @@
         <module>packaging</module>
     </modules>
 
+    <scm>
+        <connection>scm:git:git://github.com/yahoo/omid.git</connection>
+        <developerConnection>scm:git:https://${GH_TOKEN}@github.com/yahoo/omid.git</developerConnection>
+        <url>https://github.com/yahoo/omid</url>
+        <tag>master</tag>
+    </scm>
 
-  <repositories>
-    <repository>
-      <id>apache release</id>
-      <url>https://repository.apache.org/content/repositories/releases/</url>
-    </repository>
-  </repositories>
+    <distributionManagement>
+        <repository>
+            <id>bintray</id>
+            <url>https://api.bintray.com/maven/yahoo/maven/omid</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
 
