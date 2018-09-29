@@ -108,29 +108,12 @@
     </modules>
 
 
-
-    <scm>
-        <connection>scm:git:git://github.com/yahoo/omid.git</connection>
-        <developerConnection>scm:git:https://${GH_TOKEN}@github.com/yahoo/omid.git</developerConnection>
-        <url>https://github.com/yahoo/omid</url>
-        <tag>master</tag>
-    </scm>
-
-    <distributionManagement>
-        <repository>
-            <id>bintray</id>
-            <url>https://api.bintray.com/maven/yahoo/maven/omid</url>
-        </repository>
-
-        <site>
-            <id>apache-omid-site</id>
-            <!-- Wagon-git URL format:
-                     protocol:branch://url
-                 Do not forget the 2 backslashes before the url
-            -->
-            <url>git:asf-site://https://git-wip-us.apache.org/repos/asf/incubator-omid-site.git</url>
-        </site>
-    </distributionManagement>
+  <repositories>
+    <repository>
+      <id>apache release</id>
+      <url>https://repository.apache.org/content/repositories/releases/</url>
+    </repository>
+  </repositories>
 
     <properties>
 
@@ -483,24 +466,6 @@
 
 
     <profiles>
-
-        <profile>
-            <id>site-deploy</id>
-            <pluginRepositories>
-
-                <pluginRepository>
-                    <id>synergian-repo</id>
-                    <url>https://raw.githubusercontent.com/synergian/wagon-git/releases</url>
-                </pluginRepository>
-
-            </pluginRepositories>
-            <properties>
-                <harmless.groupId>ar.com.synergian</harmless.groupId>
-                <harmless.artifactId>wagon-git</harmless.artifactId>
-                <harmless.version>0.2.5</harmless.version>
-            </properties>
-        </profile>
-
 
         <profile>
 
