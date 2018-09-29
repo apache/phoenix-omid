@@ -118,6 +118,29 @@
 
         <plugins>
 
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+                    <artifactSet>
+                        <includes>
+                            <include>org.apache.omid:*</include>
+                        </includes>
+                    </artifactSet>
+                    <finalName>omid-hbase-coprocessor-${project.version}</finalName>
+                </configuration>
+            </plugin>
+
             <!-- Disable maven site plugin -->
             <plugin>
                 <artifactId>maven-site-plugin</artifactId>
