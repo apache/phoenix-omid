@@ -416,41 +416,6 @@
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-site-plugin</artifactId>
-                <version>${maven-site-plugin.version}</version>
-                <configuration>
-                    <siteDirectory>${basedir}/doc/site</siteDirectory>
-                    <outputDirectory>${basedir}/generated-website</outputDirectory>
-                    <stagingDirectory>${basedir}/generated-website-staging</stagingDirectory>
-                </configuration>
-                <dependencies>
-                    <dependency><!-- add support for ssh/scp -->
-                        <groupId>org.apache.maven.wagon</groupId>
-                        <artifactId>wagon-ssh</artifactId>
-                        <version>1.0</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.rat</groupId>
-                <artifactId>apache-rat-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>**/*.yml</exclude>
-                        <exclude>**/*.properties</exclude>
-                        <exclude>**/hbase-site.xml</exclude>
-                        <exclude>**/test-output/**</exclude>
-                        <exclude>bintray-settings.xml</exclude>
-                        <exclude>doc/site/site.xml</exclude>
-                        <exclude>doc/images/ModuleDependencies.graffle</exclude>
-                        <exclude>misc/findbugs-exclude.xml</exclude>
-                        <exclude>misc/omid_checks.xml</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
 
         </plugins>
 
