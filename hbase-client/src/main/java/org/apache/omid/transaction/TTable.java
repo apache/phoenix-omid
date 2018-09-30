@@ -227,6 +227,13 @@ public class TTable implements Closeable {
      * @throws IOException if a remote or network exception occurs.
      */
     public void delete(Transaction tx, Delete delete) throws IOException {
+        Put deleteP = deleteInternal(tx, delete);
+        if (!deleteP.isEmpty()) {
+            addMutation(deleteP);
+        }
+    }
+    
+    private Put deleteInternal(Transaction tx, Delete delete) throws IOException {
 
         throwExceptionIfOpSetsTimerange(delete);
 
@@ -294,10 +301,7 @@ public class TTable implements Closeable {
             }
         }
 
-        if (!deleteP.isEmpty()) {
-            addMutation(deleteP);
-        }
-
+        return deleteP;
     }
 
     public void markPutAsConflictFreeMutation(Put put) {
@@ -350,6 +354,11 @@ public class TTable implements Closeable {
      * @throws IOException if a remote or network exception occurs.
      */
     public void put(Transaction tx, Put put, boolean addShadowCell) throws IOException {
+        Put tsput = putInternal(tx, put, addShadowCell);
+        addMutation(tsput);
+    }
+    
+    private Put putInternal(Transaction tx, Put put, boolean addShadowCell) throws IOException {
 
         throwExceptionIfOpSetsTimerange(put);
 
@@ -392,11 +401,18 @@ public class TTable implements Closeable {
                 }
             }
         }
-        addMutation(tsput);
+        return tsput;
     }
 
     private void addMutation(Mutation m) throws IOException {
-        mutations.add(m);
+        this.mutations.add(m);
+        if (autoFlush) {
+            flushCommits();
+        }
+    }
+    
+    private void addMutations(List<Mutation> mutations) throws IOException {
+        this.mutations.addAll(mutations);
         if (autoFlush) {
             flushCommits();
         }
@@ -548,28 +564,35 @@ public class TTable implements Closeable {
      * @throws IOException if a remote or network exception occurs
      */
     public void put(Transaction transaction, List<Put> puts) throws IOException {
+        List<Mutation> mutations = new ArrayList<>(puts.size());
         for (Put put : puts) {
-            put(transaction, put, false);
+            mutations.add(putInternal(transaction, put, false));
         }
+        addMutations(mutations);
     }
 
     /**
-     * Transactional version of {@link Table#batch(List<? extends Row> mutations)}
+     * Transactional version of {@link Table#batch(List<? extends Row> rows)}
      *
      * @param transaction an instance of transaction to be used
-     * @param mutations        List of rows that must be instances of Put or Delete
+     * @param rows        List of rows that must be instances of Put or Delete
      * @throws IOException if a remote or network exception occurs
      */
-    public void batch(Transaction transaction, List<? extends Row> mutations) throws IOException {
-        for (Row mutation : mutations) {
-            if (mutation instanceof Put) {
-                put(transaction, (Put)mutation);
-            } else if (mutation instanceof Delete) {
-                delete(transaction, (Delete)mutation);
+    public void batch(Transaction transaction, List<? extends Row> rows) throws IOException {
+        List<Mutation> mutations = new ArrayList<>(rows.size());
+        for (Row row : rows) {
+            if (row instanceof Put) {
+                mutations.add(putInternal(transaction, (Put)row, false));
+            } else if (row instanceof Delete) {
+                Put deleteP = deleteInternal(transaction, (Delete)row);
+                if (!deleteP.isEmpty()) {
+                    mutations.add(deleteP);
+                }
             } else {
-                throw new UnsupportedOperationException("Unsupported mutation: " + mutation);
+                throw new UnsupportedOperationException("Unsupported mutation: " + row);
             }
         }
+        addMutations(mutations);
     }
 
     /**
@@ -580,9 +603,14 @@ public class TTable implements Closeable {
      * @throws IOException if a remote or network exception occurs
      */
     public void delete(Transaction transaction, List<Delete> deletes) throws IOException {
+        List<Mutation> mutations = new ArrayList<>(deletes.size());
         for (Delete delete : deletes) {
-            delete(transaction, delete);
+            Put deleteP = deleteInternal(transaction, delete);
+            if (!deleteP.isEmpty()) {
+                mutations.add(deleteP);
+            }
         }
+        addMutations(mutations);
     }
 
     /**
