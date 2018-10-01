@@ -307,7 +307,8 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictWithAdditionalConflictFreeWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(connection, TEST_TABLE);
+        TTable tt1 = new TTable(connection, TEST_TABLE);
+        TTable tt2 = new TTable(connection, TEST_TABLE, true);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -323,22 +324,20 @@ public class TestTransactionConflict extends OmidTestBase {
 
         Put p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.put(t1, p);
+        tt1.put(t1, p);
 
         Put p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.put(t2, p2);
+        tt1.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.markPutAsConflictFreeMutation(p);
-        tt.put(t1, p);
+        tt2.put(t1, p);
 
         p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.markPutAsConflictFreeMutation(p2);
-        tt.put(t2, p2);
+        tt2.put(t2, p2);
 
         tm.commit(t2);
 
@@ -352,7 +351,8 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictFreeWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(connection, TEST_TABLE);
+        TTable tt1 = new TTable(connection, TEST_TABLE);
+        TTable tt2 = new TTable(connection, TEST_TABLE, true);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -368,24 +368,20 @@ public class TestTransactionConflict extends OmidTestBase {
 
         Put p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.markPutAsConflictFreeMutation(p);
-        tt.put(t1, p);
+        tt1.put(t1, p);
 
         Put p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.markPutAsConflictFreeMutation(p2);
-        tt.put(t2, p2);
+        tt2.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.markPutAsConflictFreeMutation(p);
-        tt.put(t1, p);
+        tt1.put(t1, p);
 
         p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.markPutAsConflictFreeMutation(p2);
-        tt.put(t2, p2);
+        tt2.put(t2, p2);
 
         tm.commit(t2);
 
@@ -399,7 +395,8 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestWriteWriteConflictFreeWritesWithOtherWrites(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(connection, TEST_TABLE);
+        TTable tt1 = new TTable(connection, TEST_TABLE);
+        TTable tt2 = new TTable(connection, TEST_TABLE, true);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -416,22 +413,20 @@ public class TestTransactionConflict extends OmidTestBase {
 
         Put p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.put(t1, p);
+        tt1.put(t1, p);
 
         Put p2 = new Put(row1);
         p2.addColumn(fam, col, data2);
-        tt.put(t2, p2);
+        tt1.put(t2, p2);
 
         row = Bytes.toBytes("test-simple-cf");
         p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.markPutAsConflictFreeMutation(p);
-        tt.put(t1, p);
+        tt2.put(t1, p);
 
         p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.markPutAsConflictFreeMutation(p2);
-        tt.put(t2, p2);
+        tt2.put(t2, p2);
 
         tm.commit(t2);
 
@@ -445,7 +440,8 @@ public class TestTransactionConflict extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestCleanupConflictFreeWritesAfterConflict(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable tt = new TTable(connection, TEST_TABLE);
+        TTable tt1 = new TTable(connection, TEST_TABLE);
+        TTable tt2 = new TTable(connection, TEST_TABLE, true);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -462,34 +458,33 @@ public class TestTransactionConflict extends OmidTestBase {
 
         Put p = new Put(row);
         p.addColumn(fam, col, data1);
-        tt.put(t1, p);
+        tt1.put(t1, p);
 
         Get g = new Get(row).setMaxVersions();
         g.addColumn(fam, col);
-        Result r = tt.getHTable().get(g);
+        Result r = tt1.getHTable().get(g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
         assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
 
         Put p2 = new Put(row);
         p2.addColumn(fam, col, data2);
-        tt.put(t2, p2);
+        tt1.put(t2, p2);
 
         Put p3 = new Put(row1);
         p3.addColumn(fam, col, data2);
-        tt.markPutAsConflictFreeMutation(p3);
-        tt.put(t2, p3);
+        tt2.put(t2, p3);
 
-        r = tt.getHTable().get(g);
+        r = tt1.getHTable().get(g);
         assertEquals(r.size(), 2, "Unexpected size for read.");
-        r = tt.get(t2, g);
+        r = tt2.get(t2, g);
         assertEquals(r.size(),1, "Unexpected size for read.");
         assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
 
         Get g1 = new Get(row1).setMaxVersions();
         g1.addColumn(fam, col);
-        r = tt.getHTable().get(g1);
+        r = tt1.getHTable().get(g1);
         assertEquals(r.size(), 1, "Unexpected size for read.");
 
         tm.commit(t1);
@@ -503,11 +498,11 @@ public class TestTransactionConflict extends OmidTestBase {
         }
         assertTrue(aborted, "Transaction didn't raise exception");
 
-        r = tt.getHTable().get(g);
+        r = tt1.getHTable().get(g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
         assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
-        r = tt.getHTable().get(g1);
+        r = tt1.getHTable().get(g1);
         assertEquals(r.size(), 0, "Unexpected size for read.");
     }
 }
