@@ -42,7 +42,7 @@ public class TestTTableBehaviour {
     public void testUserOperationsDontAllowTimestampSpecification() throws Exception {
 
         // Component under test
-        TTable tt = new TTable(Mockito.mock(Table.class), false);
+        TTable tt = new TTable(Mockito.mock(Table.class), false, false);
 
         long randomTimestampValue = Bytes.toLong("deadbeef".getBytes());
 
@@ -117,7 +117,7 @@ public class TestTTableBehaviour {
         byte[] nonValidQualifier1 = "blahblah\u0080".getBytes(Charsets.UTF_8);
         byte[] validQualifierIncludingOldShadowCellSuffix = "blahblah:OMID_CTS".getBytes(Charsets.UTF_8);
 
-        TTable table = new TTable(Mockito.mock(Table.class), false);
+        TTable table = new TTable(Mockito.mock(Table.class), false, false);
 
         HBaseTransaction t1 = Mockito.mock(HBaseTransaction.class);
         Put put = new Put(row);

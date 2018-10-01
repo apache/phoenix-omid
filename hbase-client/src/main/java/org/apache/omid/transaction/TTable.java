@@ -75,49 +75,82 @@ public class TTable implements Closeable {
     
     private boolean autoFlush = true;
     
+    private final boolean conflictFree;
+    
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
 
     public TTable(Connection connection, byte[] tableName) throws IOException {
-        this(connection.getTable(TableName.valueOf(tableName)));
+        this(connection.getTable(TableName.valueOf(tableName)), false);
     }
 
     public TTable(Connection connection, byte[] tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient);
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient, false);
     }
 
     public TTable(Connection connection, String tableName) throws IOException {
-        this(connection.getTable(TableName.valueOf(tableName)));
+        this(connection.getTable(TableName.valueOf(tableName)), false);
     }
 
     public TTable(Connection connection, String tableName, CommitTable.Client commitTableClient) throws IOException {
-        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient);
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient, false);
     }
 
     public TTable(Table hTable) throws IOException {
-        this(hTable, hTable.getConfiguration().getBoolean("omid.server.side.filter", false));
+        this(hTable, hTable.getConfiguration().getBoolean("omid.server.side.filter", false), false);
     }
 
-    public TTable(Table hTable, boolean serverSideFilter) throws IOException {
-        table = hTable;
-        mutations = new ArrayList<Mutation>();
-        this.serverSideFilter = serverSideFilter;
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
-                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, hTable));
+    public TTable(Connection connection, byte[] tableName, boolean conflictFree) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), conflictFree);
     }
 
-    public TTable(Table hTable, SnapshotFilter snapshotFilter ) throws IOException {
-        table = hTable;
-        mutations = new ArrayList<Mutation>();
-        this.snapshotFilter = snapshotFilter;
+    public TTable(Connection connection, byte[] tableName, CommitTable.Client commitTableClient, boolean conflictFree) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient, conflictFree);
+    }
+
+    public TTable(Connection connection, String tableName, boolean conflictFree) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), conflictFree);
+    }
+
+    public TTable(Connection connection, String tableName, CommitTable.Client commitTableClient, boolean conflictFree) throws IOException {
+        this(connection.getTable(TableName.valueOf(tableName)), commitTableClient, conflictFree);
+    }
+
+    public TTable(Table hTable, boolean conflictFree) throws IOException {
+        this(hTable, hTable.getConfiguration().getBoolean("omid.server.side.filter", false), conflictFree);
+    }
+
+    public TTable(Table hTable, SnapshotFilter snapshotFilter) throws IOException {
+        this(hTable, snapshotFilter, false);
     }
 
     public TTable(Table hTable, CommitTable.Client commitTableClient) throws IOException {
-        table = hTable;
-        mutations = new ArrayList<Mutation>();
-        serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
-        snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+        this(hTable, commitTableClient, false);
+    }
+
+    public TTable(Table hTable, boolean serverSideFilter, boolean conflictFree) throws IOException {
+        this.table = hTable;
+        this.conflictFree = conflictFree;
+        this.mutations = new ArrayList<Mutation>();
+        this.serverSideFilter = serverSideFilter;
+        this.snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
+                new SnapshotFilterImpl(new HTableAccessWrapper(hTable, hTable));
+    }
+
+    public TTable(Table hTable, SnapshotFilter snapshotFilter, boolean conflictFree) throws IOException {
+        this.table = hTable;
+        this.conflictFree = conflictFree;
+        this.mutations = new ArrayList<Mutation>();
+        this.snapshotFilter = snapshotFilter;
+    }
+
+    public TTable(Table hTable, CommitTable.Client commitTableClient, boolean conflictFree) throws IOException {
+        this.table = hTable;
+        this.conflictFree = conflictFree;
+        this.mutations = new ArrayList<Mutation>();
+        this.serverSideFilter = table.getConfiguration().getBoolean("omid.server.side.filter", false);
+        this.snapshotFilter = (serverSideFilter) ?  new AttributeSetSnapshotFilter(hTable) :
                 new SnapshotFilterImpl(new HTableAccessWrapper(hTable, hTable), commitTableClient);
     }
 
@@ -196,12 +229,12 @@ public class TTable implements Closeable {
                 byte[] family = entryF.getKey();
                 for (Entry<byte[], NavigableMap<Long, byte[]>> entryQ : entryF.getValue().entrySet()) {
                     byte[] qualifier = entryQ.getKey();
-                    tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, qualifier,
+                    addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, qualifier,
                             tx.getWriteTimestamp()));
                 }
                 deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                         HConstants.EMPTY_BYTE_ARRAY);
-                tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+                addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                                                 tx.getWriteTimestamp()));
             }
         }
@@ -213,7 +246,7 @@ public class TTable implements Closeable {
         for (byte[] family : fset) {
             deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                     HConstants.EMPTY_BYTE_ARRAY);
-            tx.addWriteSetElement(new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+            addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                     tx.getWriteTimestamp()));
 
         }
@@ -260,7 +293,7 @@ public class TTable implements Closeable {
                                     CellUtil.cloneQualifier(cell),
                                     writeTimestamp,
                                     CellUtils.DELETE_TOMBSTONE);
-                        transaction.addWriteSetElement(
+                        addWriteSetElement(transaction,
                             new HBaseCellId(this,
                                             delete.getRow(),
                                             CellUtil.cloneFamily(cell),
@@ -277,7 +310,7 @@ public class TTable implements Closeable {
                                         CellUtil.cloneQualifier(cell),
                                         writeTimestamp,
                                         CellUtils.DELETE_TOMBSTONE);
-                            transaction.addWriteSetElement(
+                            addWriteSetElement(transaction,
                                 new HBaseCellId(this,
                                                 delete.getRow(),
                                                 CellUtil.cloneFamily(cell),
@@ -302,10 +335,6 @@ public class TTable implements Closeable {
         }
 
         return deleteP;
-    }
-
-    public void markPutAsConflictFreeMutation(Put put) {
-        put.setAttribute(CellUtils.CONFLICT_FREE_MUTATION, Bytes.toBytes(true));
     }
 
     /**
@@ -386,22 +415,26 @@ public class TTable implements Closeable {
                             kv.getTimestamp(),
                             Bytes.toBytes(kv.getTimestamp()));
                 } else {
-                    byte[] conflictFree = put.getAttribute(CellUtils.CONFLICT_FREE_MUTATION);
                     HBaseCellId cellId = new HBaseCellId(this,
                             CellUtil.cloneRow(kv),
                             CellUtil.cloneFamily(kv),
                             CellUtil.cloneQualifier(kv),
                             kv.getTimestamp());
 
-                    if (conflictFree != null && conflictFree[0]!=0) {
-                        transaction.addConflictFreeWriteSetElement(cellId);
-                    } else {
-                        transaction.addWriteSetElement(cellId);
-                    }
+                    addWriteSetElement(transaction, cellId);
                 }
             }
         }
         return tsput;
+    }
+    
+    private void addWriteSetElement(HBaseTransaction transaction, HBaseCellId cellId) {
+        if (conflictFree) {
+            transaction.addConflictFreeWriteSetElement(cellId);
+        } else {
+            transaction.addWriteSetElement(cellId);
+        }
+        
     }
 
     private void addMutation(Mutation m) throws IOException {
