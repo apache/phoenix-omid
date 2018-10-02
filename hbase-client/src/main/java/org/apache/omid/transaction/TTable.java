@@ -600,14 +600,19 @@ public class TTable implements Closeable {
      *
      * @param transaction an instance of transaction to be used
      * @param puts        List of puts
+     * @param addShadowCell  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
-    public void put(Transaction transaction, List<Put> puts) throws IOException {
+    public void put(Transaction transaction, List<Put> puts, boolean addShadowCells) throws IOException {
         List<Mutation> mutations = new ArrayList<>(puts.size());
         for (Put put : puts) {
-            mutations.add(putInternal(transaction, put, false));
+            mutations.add(putInternal(transaction, put, addShadowCells));
         }
         addMutations(mutations);
+    }
+
+    public void put(Transaction transaction, List<Put> puts) throws IOException {
+        put(transaction, puts, false);
     }
 
     /**
@@ -615,13 +620,14 @@ public class TTable implements Closeable {
      *
      * @param transaction an instance of transaction to be used
      * @param rows        List of rows that must be instances of Put or Delete
+     * @param addShadowCell  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
-    public void batch(Transaction transaction, List<? extends Row> rows) throws IOException {
+    public void batch(Transaction transaction, List<? extends Row> rows, boolean addShadowCells) throws IOException {
         List<Mutation> mutations = new ArrayList<>(rows.size());
         for (Row row : rows) {
             if (row instanceof Put) {
-                mutations.add(putInternal(transaction, (Put)row, false));
+                mutations.add(putInternal(transaction, (Put)row, addShadowCells));
             } else if (row instanceof Delete) {
                 Put deleteP = deleteInternal(transaction, (Delete)row);
                 if (!deleteP.isEmpty()) {
@@ -632,6 +638,10 @@ public class TTable implements Closeable {
             }
         }
         addMutations(mutations);
+    }
+
+    public void batch(Transaction transaction, List<? extends Row> rows) throws IOException {
+        batch(transaction, rows, false);
     }
 
     /**
