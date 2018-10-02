@@ -355,7 +355,7 @@ public class TTable implements Closeable {
      * @param commitTimestamp  timestamp to be used as commit timestamp
      * @throws IOException if a remote or network exception occurs.
      */
-    static public Put markPutAsCommitted(Put put, long timestamp, long commitTimestamp) throws IOException {
+    static public Put markPutAsCommitted(Put put, long timestamp, long commitTimestamp) {
         final Put tsput = new Put(put.getRow(), timestamp);
         propagateAttributes(put, tsput);
 
@@ -364,7 +364,13 @@ public class TTable implements Closeable {
             for (Cell c : kvl) {
                 KeyValue kv = KeyValueUtil.ensureKeyValue(c);
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), timestamp);
-                tsput.add(kv);
+                try {
+                    tsput.add(kv);
+                } catch (IOException e) {
+                    // The existing Put has this Cell, so the cloned one
+                    // will never throw an IOException when it's added.
+                    throw new RuntimeException(e);
+                }
                 tsput.addColumn(CellUtil.cloneFamily(kv),
                         CellUtils.addShadowCellSuffixPrefix(CellUtil.cloneQualifier(kv), 0, CellUtil.cloneQualifier(kv).length),
                         kv.getTimestamp(),
