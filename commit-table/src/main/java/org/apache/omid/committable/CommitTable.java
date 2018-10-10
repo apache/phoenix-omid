@@ -46,6 +46,11 @@ public interface CommitTable {
          * Allows to clean the write's current buffer. It is required for HA
          */
         void clearWriteBuffer();
+
+        /**
+         * Add commited transaction while checking if invalidated by other client
+         */
+        boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException;
     }
 
     interface Client extends Closeable {

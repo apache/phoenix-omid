@@ -81,6 +81,7 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     private final Set<T> conflictFreeWriteSet;
     private Status status = Status.RUNNING;
     private VisibilityLevel visibilityLevel;
+    private final boolean isLowLatency;
 
     /**
      * Base constructor
@@ -105,8 +106,10 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
                                long epoch,
                                Set<T> writeSet,
                                Set<T> conflictFreeWriteSet,
-                               AbstractTransactionManager transactionManager) {
-        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, conflictFreeWriteSet, transactionManager);
+                               AbstractTransactionManager transactionManager,
+                               boolean isLowLatency) {
+        this(transactionId, transactionId, VisibilityLevel.SNAPSHOT, epoch, writeSet, conflictFreeWriteSet,
+                transactionManager, isLowLatency);
     }
 
     public AbstractTransaction(long transactionId,
@@ -115,7 +118,9 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
             long epoch,
             Set<T> writeSet,
             Set<T> conflictFreeWriteSet,
-            AbstractTransactionManager transactionManager) {
+            AbstractTransactionManager transactionManager,
+            boolean isLowLatency) {
+
         this.startTimestamp = this.writeTimestamp = transactionId;
         this.readTimestamp = readTimestamp;
         this.epoch = epoch;
@@ -123,6 +128,7 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         this.conflictFreeWriteSet = conflictFreeWriteSet;
         this.transactionManager = transactionManager;
         this.visibilityLevel = visibilityLevel;
+        this.isLowLatency = isLowLatency;
     }
 
     /**
@@ -152,7 +158,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
                                Set<T> conflictFreeWriteSet,
                                AbstractTransactionManager transactionManager,
                                long readTimestamp,
-                               long writeTimestamp) {
+                               long writeTimestamp,
+                               boolean isLowLatency) {
         this.startTimestamp = transactionId;
         this.readTimestamp = readTimestamp;
         this.writeTimestamp = writeTimestamp;
@@ -161,6 +168,7 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         this.conflictFreeWriteSet = conflictFreeWriteSet;
         this.transactionManager = transactionManager;
         this.visibilityLevel = VisibilityLevel.SNAPSHOT;
+        this.isLowLatency = isLowLatency;
     }
 
     /**
@@ -383,4 +391,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         metadata.put(key, value);
     }
 
+    @Override
+    public boolean isLowLatency() {
+        return isLowLatency;
+    }
 }

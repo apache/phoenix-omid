@@ -81,6 +81,7 @@ public class TestFilters extends OmidTestBase {
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .commitTableClient(commitTableClient)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .postCommitter(syncPostCommitter)
                 .build();
 
@@ -129,6 +130,7 @@ public class TestFilters extends OmidTestBase {
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .commitTableClient(commitTableClient)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .postCommitter(syncPostCommitter)
                 .build();
 

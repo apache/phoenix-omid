@@ -88,5 +88,7 @@ public interface Transaction {
     void setMetadata(String key, Object value);
 
     Optional<Object> getMetadata(String key);
+
+    boolean isLowLatency();
 }
 

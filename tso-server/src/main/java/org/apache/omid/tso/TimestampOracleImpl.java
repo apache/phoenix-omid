@@ -83,8 +83,8 @@ public class TimestampOracleImpl implements TimestampOracle {
 
     }
 
-    static final long TIMESTAMP_BATCH = 10_000_000; // 10 million
-    private static final long TIMESTAMP_REMAINING_THRESHOLD = 1_000_000; // 1 million
+    static final long TIMESTAMP_BATCH = 10_000_000*AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN; // 10 million
+    private static final long TIMESTAMP_REMAINING_THRESHOLD = 1_000_000*AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN; // 1 million
 
     private long lastTimestamp;
 

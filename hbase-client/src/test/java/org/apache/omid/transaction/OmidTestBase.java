@@ -88,6 +88,8 @@ public abstract class OmidTestBase {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setPort(1234);
         tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setLowLatency(isLowLatency());
+        tsoConfig.setWaitStrategy("LOW_CPU");
         Injector injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
         TSOServer tso = injector.getInstance(TSOServer.class);
@@ -177,6 +179,7 @@ public abstract class OmidTestBase {
         return HBaseTransactionManager.builder(clientConf)
                 .postCommitter(postCommitActions)
                 .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .tsoClient(getClient(context)).build();
     }
 
@@ -186,8 +189,18 @@ public abstract class OmidTestBase {
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .tsoClient(tsoClient).build();
     }
+
+    protected TransactionManager newTransactionManagerHBaseCommitTable(TSOClient tsoClient) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .tsoClient(tsoClient).build();
+    }
+
 
     protected TransactionManager newTransactionManager(ITestContext context, CommitTable.Client commitTableClient)
             throws Exception {
@@ -196,6 +209,7 @@ public abstract class OmidTestBase {
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(commitTableClient)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .tsoClient(getClient(context)).build();
     }
 
@@ -260,5 +274,9 @@ public abstract class OmidTestBase {
                               + Bytes.toString(col), e);
             return false;
         }
+    }
+
+    protected boolean isLowLatency() {
+        return false;
     }
 }

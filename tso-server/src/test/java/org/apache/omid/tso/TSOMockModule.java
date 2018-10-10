@@ -58,6 +58,7 @@ public class TSOMockModule extends AbstractModule {
             bind(TimestampOracle.class).to(PausableTimestampOracle.class).in(Singleton.class);
         }
         bind(Panicker.class).to(MockPanicker.class).in(Singleton.class);
+        bind(LowWatermarkWriter.class).to(LowWatermarkWriterImpl.class).in(Singleton.class);
 
         install(new BatchPoolModule(config));
         install(config.getLeaseModule());

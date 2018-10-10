@@ -66,6 +66,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     private final PostCommitActions postCommitter;
     protected final TSOClient tsoClient;
     protected final CommitTable.Client commitTableClient;
+    private final CommitTable.Writer commitTableWriter;
     private final TransactionFactory<? extends CellId> transactionFactory;
 
     // Metrics
@@ -96,11 +97,13 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                                       PostCommitActions postCommitter,
                                       TSOClient tsoClient,
                                       CommitTable.Client commitTableClient,
+                                      CommitTable.Writer commitTableWriter,
                                       TransactionFactory<? extends CellId> transactionFactory) {
 
         this.tsoClient = tsoClient;
         this.postCommitter = postCommitter;
         this.commitTableClient = commitTableClient;
+        this.commitTableWriter = commitTableWriter;
         this.transactionFactory = transactionFactory;
 
         // Metrics configuration
@@ -178,7 +181,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     }
 
     /**
-     * @see org.apache.omid.transaction.TransactionManager#fence()
+     * @see org.apache.omid.transaction.TransactionManager#fence(byte[])
      */
     @Override
     public final Transaction fence(byte[] tableName) throws TransactionException {
@@ -243,7 +246,10 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                 if (tx.getWriteSet().isEmpty() && tx.getConflictFreeWriteSet().isEmpty()) {
                     markReadOnlyTransaction(tx); // No need for read-only transactions to contact the TSO Server
                 } else {
-                    commitRegularTransaction(tx);
+                    if (tsoClient.isLowLatency())
+                        commitLowLatencyTransaction(tx);
+                    else
+                        commitRegularTransaction(tx);
                 }
                 committedTxsCounter.inc();
             } finally {
@@ -350,6 +356,43 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
     }
 
+    private void commitLowLatencyTransaction(AbstractTransaction<? extends CellId> tx)
+            throws RollbackException, TransactionException {
+        try {
+
+            long commitTs = tsoClient.commit(tx.getStartTimestamp(), tx.getWriteSet(), tx.getConflictFreeWriteSet()).get();
+            boolean committed = commitTableWriter.atomicAddCommittedTransaction(tx.getStartTimestamp(),commitTs);
+            if (!committed) {
+                // Transaction has been invalidated by other client
+                rollback(tx);
+                commitTableClient.completeTransaction(tx.getStartTimestamp());
+                rolledbackTxsCounter.inc();
+                throw new RollbackException("Transaction " + tx.getTransactionId() + " got invalidated");
+            }
+            certifyCommitForTx(tx, commitTs);
+            updateShadowCellsAndRemoveCommitTableEntry(tx, postCommitter);
+
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof AbortException) { // TSO reports Tx conflicts as AbortExceptions in the future
+                rollback(tx);
+                rolledbackTxsCounter.inc();
+                throw new RollbackException("Conflicts detected in tx writeset", e.getCause());
+            }
+
+            if (e.getCause() instanceof ServiceUnavailableException || e.getCause() instanceof ConnectionException) {
+                errorTxsCounter.inc();
+                rollback(tx); // Rollback proactively cause it's likely that a new TSOServer is now master
+                throw new RollbackException(tx + " rolled-back precautionary", e.getCause());
+            } else {
+                throw new TransactionException(tx + ": cannot determine Tx outcome", e.getCause());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void commitRegularTransaction(AbstractTransaction<? extends CellId> tx)
             throws RollbackException, TransactionException
     {
@@ -446,4 +489,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
     }
 
+    public boolean isLowLatency() {
+        return tsoClient.isLowLatency();
+    }
 }

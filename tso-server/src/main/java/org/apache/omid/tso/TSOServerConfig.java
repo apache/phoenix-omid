@@ -89,6 +89,26 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     private String timestampType;
 
+    private Boolean lowLatency;
+
+    public boolean monitorContext;
+
+    public boolean getMonitorContext() {
+        return monitorContext;
+    }
+
+    public void setMonitorContext(boolean monitorContext) {
+        this.monitorContext = monitorContext;
+    }
+
+    public Boolean getLowLatency() {
+        return lowLatency;
+    }
+
+    public void setLowLatency(Boolean lowLatency) {
+        this.lowLatency = lowLatency;
+    }
+
     public int getPort() {
         return port;
     }
