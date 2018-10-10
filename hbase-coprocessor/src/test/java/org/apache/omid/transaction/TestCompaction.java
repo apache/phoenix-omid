@@ -114,6 +114,7 @@ public class TestCompaction {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setPort(1234);
         tsoConfig.setConflictMapSize(1);
+        tsoConfig.setWaitStrategy("LOW_CPU");
         injector = Guice.createInjector(new TSOForHBaseCompactorTestModule(tsoConfig));
         hbaseConf = injector.getInstance(Configuration.class);
         HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);

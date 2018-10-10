@@ -12,10 +12,7 @@
     <packaging>pom</packaging>
     <name>Shims Aggregator for HBase</name>
 
-    <modules>
-        <module>hbase-1</module>
-        <module>hbase-2</module>
-    </modules>
+
 
     <dependencies>
 
@@ -89,5 +86,27 @@
         </plugins>
 
     </build>
+
+    <profiles>
+
+        <profile>
+            <id>hbase-1</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>hbase-1</module>
+            </modules>
+        </profile>
+
+        <profile>
+            <id>hbase-2</id>
+            <modules>
+                <module>hbase-2</module>
+            </modules>
+        </profile>
+
+    </profiles>
+
 
 </project>

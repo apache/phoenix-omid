@@ -40,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -77,10 +76,6 @@ public class OmidCompactor extends BaseRegionObserver {
 
     public OmidCompactor() {
         this(false);
-    }
-
-    public Optional getRegionObserver() {
-        return Optional.of(this);
     }
 
     public OmidCompactor(boolean enableCompactorForAllFamilies) {
