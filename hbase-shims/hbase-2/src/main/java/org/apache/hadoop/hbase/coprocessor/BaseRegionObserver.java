@@ -23,7 +23,7 @@ import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionLifeCycleTracker;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import java.io.IOException;
-
+import java.util.Optional;
 
 
 public abstract class BaseRegionObserver implements RegionObserver, RegionCoprocessor {
@@ -42,6 +42,11 @@ public abstract class BaseRegionObserver implements RegionObserver, RegionCoproc
                                       ScanType scanType,
                                       CompactionRequest request) throws IOException {
         return scanner;
+    }
+
+    @Override
+    public Optional getRegionObserver() {
+        return Optional.of(this);
     }
 
 }

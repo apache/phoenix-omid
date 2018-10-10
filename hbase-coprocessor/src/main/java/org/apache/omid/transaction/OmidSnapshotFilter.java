@@ -49,7 +49,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -76,11 +75,6 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
     public OmidSnapshotFilter() {
         LOG.info("Compactor coprocessor initialized via empty constructor");
-    }
-
-
-    public Optional getRegionObserver() {
-        return Optional.of(this);
     }
 
     @Override
@@ -208,7 +202,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         long epoch = transaction.getEpoch();
         VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
-        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<>(), new HashSet<>(), null);
+        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {

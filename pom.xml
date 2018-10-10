@@ -137,8 +137,7 @@
         <!-- Basic properties -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- Java Version -->
-        <java.version>1.8</java.version>
+
 
         <!-- 3rd-Party Library Versioning -->
         <hbase0.version>0.98.10.1-hadoop1</hbase0.version>
@@ -592,6 +591,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
+                <java.version>1.7</java.version>
                 <hadoop.version>${hadoop1.version}</hadoop.version>
                 <hbase.version>${hbase1.version}</hbase.version>
             </properties>
@@ -600,6 +600,7 @@
         <profile>
             <id>hbase-2</id>
             <properties>
+                <java.version>1.8</java.version>
                 <hadoop.version>${hadoop2.version}</hadoop.version>
                 <hbase.version>${hbase2.version}</hbase.version>
             </properties>
