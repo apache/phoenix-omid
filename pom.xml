@@ -153,7 +153,7 @@
         <commons-pool2.version>2.4.2</commons-pool2.version>
 
         <!-- Maven Plugin Versioning -->
-        <maven-antrun-plugin.version>1.7</maven-antrun-plugin.version>
+        <maven-antrun-plugin.version>1.6</maven-antrun-plugin.version>
         <maven-source-plugin.version>2.4</maven-source-plugin.version>
         <maven-clean-plugin.version>2.5</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.0</maven-compiler-plugin.version>
