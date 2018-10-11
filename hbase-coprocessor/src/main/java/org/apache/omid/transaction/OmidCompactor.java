@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.omid.HBaseShims;
@@ -31,6 +30,7 @@ import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
+import org.apache.hadoop.hbase.regionserver.RegionConnectionFactory;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
@@ -62,7 +62,7 @@ public class OmidCompactor extends BaseRegionObserver {
     private boolean enableCompactorForAllFamilies = false;
 
     private HBaseCommitTableConfig commitTableConf = null;
-    private Configuration conf = null;
+    private RegionCoprocessorEnvironment env = null;
     @VisibleForTesting
     Queue<CommitTable.Client> commitTableClientQueue = new ConcurrentLinkedQueue<>();
 
@@ -85,15 +85,16 @@ public class OmidCompactor extends BaseRegionObserver {
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
         LOG.info("Starting compactor coprocessor");
-        conf = env.getConfiguration();
+        this.env = (RegionCoprocessorEnvironment) env;
         commitTableConf = new HBaseCommitTableConfig();
-        String commitTableName = conf.get(COMMIT_TABLE_NAME_KEY);
+        String commitTableName = env.getConfiguration().get(COMMIT_TABLE_NAME_KEY);
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
         retainNonTransactionallyDeletedCells =
-                conf.getBoolean(HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY,
-                                HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT);
+
+                env.getConfiguration().getBoolean(HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY,
+                        HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT);
         LOG.info("Compactor coprocessor started");
     }
 
@@ -110,6 +111,7 @@ public class OmidCompactor extends BaseRegionObserver {
 
 
 
+    @Override
     public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
                                       Store store,
                                       InternalScanner scanner,
@@ -154,7 +156,7 @@ public class OmidCompactor extends BaseRegionObserver {
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
         LOG.info("Trying to get the commit table client");
-        CommitTable commitTable = new HBaseCommitTable(conf, commitTableConf);
+        CommitTable commitTable = new HBaseCommitTable(RegionConnectionFactory.getConnection(RegionConnectionFactory.ConnectionType.COMPACTION_CONNECTION, env), commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
         return commitTableClient;

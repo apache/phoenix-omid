@@ -34,13 +34,13 @@ import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.apache.omid.HBaseShims;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.RegionAccessWrapper;
+import org.apache.hadoop.hbase.regionserver.RegionConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,9 +63,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     private static final Logger LOG = LoggerFactory.getLogger(OmidSnapshotFilter.class);
 
     private HBaseCommitTableConfig commitTableConf = null;
-    private Configuration conf = null;
+    private RegionCoprocessorEnvironment env = null;
     private Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
-    private Map<Object, SnapshotFilterImpl> snapshotFilterMap = new ConcurrentHashMap();
+    private Map<Object, SnapshotFilterImpl> snapshotFilterMap = new ConcurrentHashMap<>();
     private CommitTable.Client inMemoryCommitTable = null;
 
     public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
@@ -80,9 +80,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     @Override
     public void start(CoprocessorEnvironment env) {
         LOG.info("Starting snapshot filter coprocessor");
-        conf = env.getConfiguration();
+        this.env = (RegionCoprocessorEnvironment)env;
         commitTableConf = new HBaseCommitTableConfig();
-        String commitTableName = conf.get(COMMIT_TABLE_NAME_KEY);
+        String commitTableName = env.getConfiguration().get(COMMIT_TABLE_NAME_KEY);
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
@@ -101,7 +101,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    @Override
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
         if (snapshotFilter != null) {
@@ -110,7 +110,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    @Override
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
             throws IOException {
 
@@ -138,6 +138,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
                                         Scan scan,
                                         RegionScanner s) throws IOException {
@@ -146,6 +147,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public void preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
                                Scan scan) throws IOException {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
@@ -165,8 +167,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return;
     }
 
-
-
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
                                          Scan scan,
                                          RegionScanner s) {
@@ -183,8 +184,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return s;
     }
 
-
-    @Override
+    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
     public void preScannerClose(ObserverContext<RegionCoprocessorEnvironment> e, InternalScanner s) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(s);
         if (snapshotFilter != null) {
@@ -210,7 +210,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (inMemoryCommitTable != null) {
             return inMemoryCommitTable;
         }
-        CommitTable commitTable = new HBaseCommitTable(conf, commitTableConf);
+        CommitTable commitTable = new HBaseCommitTable(RegionConnectionFactory.getConnection(RegionConnectionFactory.ConnectionType.READ_CONNECTION, env), commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
         return commitTableClient;

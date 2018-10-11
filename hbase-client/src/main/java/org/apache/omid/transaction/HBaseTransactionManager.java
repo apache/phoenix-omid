@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -125,7 +126,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         private Optional<CommitTable.Client> buildCommitTableClient() throws IOException {
             HBaseCommitTableConfig commitTableConf = new HBaseCommitTableConfig();
             commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
-            CommitTable commitTable = new HBaseCommitTable(hbaseOmidClientConf.getHBaseConfiguration(), commitTableConf);
+            CommitTable commitTable = new HBaseCommitTable(ConnectionFactory.createConnection(hbaseOmidClientConf.getHBaseConfiguration()), commitTableConf);
             return Optional.of(commitTable.getClient());
         }
 
