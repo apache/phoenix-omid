@@ -123,8 +123,6 @@
         <!-- Basic properties -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-
-
         <!-- 3rd-Party Library Versioning -->
         <hbase0.version>0.98.10.1-hadoop1</hbase0.version>
         <hbase1.version>1.2.5</hbase1.version>

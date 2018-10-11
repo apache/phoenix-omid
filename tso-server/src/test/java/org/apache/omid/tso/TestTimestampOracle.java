@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 import static org.mockito.Matchers.any;

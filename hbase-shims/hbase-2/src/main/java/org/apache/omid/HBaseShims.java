@@ -17,7 +17,9 @@
  */
 package org.apache.omid;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CellComparator;
+import org.apache.hadoop.hbase.CellComparatorImpl;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
@@ -68,7 +70,7 @@ public class HBaseShims {
     }
 
     public static CellComparator cellComparatorInstance() {
-        return CellComparator.getInstance();
+        return CellComparatorImpl.COMPARATOR;
     }
 
     public static boolean OmidCompactionEnabled(ObserverContext<RegionCoprocessorEnvironment> env,
@@ -88,5 +90,21 @@ public class HBaseShims {
             cfBuilder.setValue(Bytes.toBytes(key),Bytes.toBytes(value));
             admin.modifyColumnFamily(table, cfBuilder.build());
         }
+    }
+    
+    /**
+     * For HBase 1.x, an HConstants.HBASE_CLIENT_RETRIES_NUMBER value of 0
+     * means no retries, while for 2.x a value of 1 means no retries. 
+     * @return
+     */
+    public static int getNoRetriesNumber() {
+        return 1;
+    }
+    
+    /**
+     * Create an HBase Connection from the region server
+     */
+    public static Connection newServerConnection(Configuration config, RegionCoprocessorEnvironment env) throws IOException {
+        return env.createConnection(config);
     }
 }

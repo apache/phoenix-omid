@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.omid.proto.TSOProto;
-import org.apache.omid.transaction.TransactionException;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.zk.ZKUtils;
 import org.apache.statemachine.StateMachine;
@@ -59,7 +58,6 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;

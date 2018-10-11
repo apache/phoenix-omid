@@ -74,12 +74,20 @@ public class HBaseCommitTable implements CommitTable {
      */
     @Inject
     public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config) throws IOException {
-        this(hbaseConfig, config, KeyGeneratorImplementations.defaultKeyGenerator());
+        this(ConnectionFactory.createConnection(hbaseConfig), config, KeyGeneratorImplementations.defaultKeyGenerator());
+    }
+
+    public HBaseCommitTable(Connection hbaseConnection, HBaseCommitTableConfig config) throws IOException {
+        this(hbaseConnection, config, KeyGeneratorImplementations.defaultKeyGenerator());
     }
 
     public HBaseCommitTable(Configuration hbaseConfig, HBaseCommitTableConfig config, KeyGenerator keygen) throws IOException {
+        this(ConnectionFactory.createConnection(hbaseConfig), config, keygen);
+    }
 
-        this.hbaseConnection = ConnectionFactory.createConnection(hbaseConfig);
+    public HBaseCommitTable(Connection hbaseConnection, HBaseCommitTableConfig config, KeyGenerator keygen) throws IOException {
+
+        this.hbaseConnection = hbaseConnection;
         this.tableName = config.getTableName();
         this.commitTableFamily = config.getCommitTableFamily();
         this.lowWatermarkFamily = config.getLowWatermarkFamily();

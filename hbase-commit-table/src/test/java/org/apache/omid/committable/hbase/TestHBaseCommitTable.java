@@ -137,7 +137,7 @@ public class TestHBaseCommitTable {
     public void testBasicBehaviour() throws Throwable {
         HBaseCommitTableConfig config = new HBaseCommitTableConfig();
         config.setTableName(TEST_TABLE);
-        HBaseCommitTable commitTable = new HBaseCommitTable(hbaseConf, config);
+        HBaseCommitTable commitTable = new HBaseCommitTable(connection, config);
 
         Writer writer = commitTable.getWriter();
         Client client = commitTable.getClient();
@@ -207,7 +207,7 @@ public class TestHBaseCommitTable {
 
         HBaseCommitTableConfig config = new HBaseCommitTableConfig();
         config.setTableName(TEST_TABLE);
-        HBaseCommitTable commitTable = new HBaseCommitTable(hbaseConf, config);
+        HBaseCommitTable commitTable = new HBaseCommitTable(connection, config);
 
         // Components under test
         Writer writer = commitTable.getWriter();
@@ -266,7 +266,7 @@ public class TestHBaseCommitTable {
     public void testClosingClientEmptyQueuesProperly() throws Throwable {
         HBaseCommitTableConfig config = new HBaseCommitTableConfig();
         config.setTableName(TEST_TABLE);
-        HBaseCommitTable commitTable = new HBaseCommitTable(hbaseConf, config);
+        HBaseCommitTable commitTable = new HBaseCommitTable(connection, config);
 
         Writer writer = commitTable.getWriter();
         HBaseCommitTable.HBaseClient client = (HBaseClient) commitTable.getClient();
