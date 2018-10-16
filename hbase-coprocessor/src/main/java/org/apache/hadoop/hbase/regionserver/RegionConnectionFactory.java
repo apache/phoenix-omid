@@ -52,7 +52,7 @@ public class RegionConnectionFactory {
     // client side. In testing, we've seen NoServerForRegionException occur which
     // is a DoNotRetryIOException which are not retried on the client. It's not
     // clear if this is a real issue or a test-only issue.
-    private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRIES_NUMBER = 11;
+    private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRIES_NUMBER = HBaseShims.getNoRetriesNumber() + 1;
     private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRY_PAUSE = 100;
 
     private RegionConnectionFactory() {
