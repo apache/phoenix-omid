@@ -24,6 +24,12 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-commit-table</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>${shims.exclude.artifactId}</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
@@ -35,7 +41,6 @@
             <artifactId>omid-codahale-metrics</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <!-- End of Dependencies on Omid modules -->
 
         <!-- utils -->

@@ -120,6 +120,9 @@
 
     <properties>
 
+        <shims1.artifactId>omid-hbase1-shims</shims1.artifactId>
+        <shims2.artifactId>omid-hbase2-shims</shims2.artifactId>
+
         <!-- Basic properties -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -549,15 +552,22 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
+                <shims.artifactId>${shims1.artifactId}</shims.artifactId>
+                <shims.exclude.artifactId>${shims2.artifactId}</shims.exclude.artifactId>
                 <java.version>1.7</java.version>
                 <hadoop.version>${hadoop1.version}</hadoop.version>
                 <hbase.version>${hbase1.version}</hbase.version>
+                <shims.module>hbase-1</shims.module>
             </properties>
         </profile>
 
         <profile>
             <id>hbase-2</id>
             <properties>
+                <shims.artifactId>${shims2.artifactId}</shims.artifactId>
+                <shims.exclude.artifactId>${shims1.artifactId}</shims.exclude.artifactId>
+                <shims.module>hbase-2</shims.module>
+                <shims.artifactId>omid-hbase2-shims</shims.artifactId>
                 <java.version>1.8</java.version>
                 <hadoop.version>${hadoop2.version}</hadoop.version>
                 <hbase.version>${hbase2.version}</hbase.version>

@@ -11,7 +11,9 @@
     <artifactId>omid-shims-aggregator</artifactId>
     <packaging>pom</packaging>
     <name>Shims Aggregator for HBase</name>
-
+    <modules>
+        <module>${shims.module}</module>
+    </modules>
 
 
     <dependencies>
@@ -87,26 +89,26 @@
 
     </build>
 
-    <profiles>
+    <!--<profiles>-->
 
-        <profile>
-            <id>hbase-1</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <modules>
-                <module>hbase-1</module>
-            </modules>
-        </profile>
+        <!--<profile>-->
+            <!--<id>hbase-1</id>-->
+            <!--<activation>-->
+                <!--<activeByDefault>true</activeByDefault>-->
+            <!--</activation>-->
+            <!--<modules>-->
+                <!--<module>hbase-1</module>-->
+            <!--</modules>-->
+        <!--</profile>-->
 
-        <profile>
-            <id>hbase-2</id>
-            <modules>
-                <module>hbase-2</module>
-            </modules>
-        </profile>
+        <!--<profile>-->
+            <!--<id>hbase-2</id>-->
+            <!--<modules>-->
+                <!--<module>hbase-2</module>-->
+            <!--</modules>-->
+        <!--</profile>-->
 
-    </profiles>
+    <!--</profiles>-->
 
 
 </project>
