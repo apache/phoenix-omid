@@ -88,8 +88,6 @@ public abstract class OmidTestBase {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setPort(1234);
         tsoConfig.setConflictMapSize(1000);
-        tsoConfig.setLowLatency(isLowLatency());
-        tsoConfig.setWaitStrategy("LOW_CPU");
         Injector injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
         TSOServer tso = injector.getInstance(TSOServer.class);
@@ -193,15 +191,6 @@ public abstract class OmidTestBase {
                 .tsoClient(tsoClient).build();
     }
 
-    protected TransactionManager newTransactionManagerHBaseCommitTable(TSOClient tsoClient) throws Exception {
-        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
-        clientConf.setHBaseConfiguration(hbaseConf);
-        return HBaseTransactionManager.builder(clientConf)
-                .tsoClient(tsoClient).build();
-    }
-
-
     protected TransactionManager newTransactionManager(ITestContext context, CommitTable.Client commitTableClient)
             throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
@@ -274,9 +263,5 @@ public abstract class OmidTestBase {
                               + Bytes.toString(col), e);
             return false;
         }
-    }
-
-    protected boolean isLowLatency() {
-        return false;
     }
 }

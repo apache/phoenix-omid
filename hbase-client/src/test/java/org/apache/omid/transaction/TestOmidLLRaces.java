@@ -19,57 +19,156 @@ package org.apache.omid.transaction;
 
 
 import static com.google.common.base.Charsets.UTF_8;
+import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.DEFAULT_COMMIT_TABLE_CF_NAME;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-
-import com.google.common.base.Optional;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.committable.CommitTable;
+
 import org.apache.omid.committable.hbase.KeyGenerator;
 import org.apache.omid.committable.hbase.KeyGeneratorImplementations;
-import org.apache.omid.metrics.NullMetricsProvider;
+
 import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.apache.omid.tso.client.TSOClient;
-import org.apache.omid.tso.client.TSOFuture;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+
 import org.testng.ITestContext;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 
 
-@Test(groups = "sharedHBase")
-public class TestOmidLLRaces extends OmidTestBase {
+import org.apache.hadoop.conf.Configuration;
 
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
+
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+
+import org.apache.omid.TestUtils;
+
+
+import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
+import org.apache.omid.tools.hbase.OmidTableManager;
+import org.apache.omid.tso.TSOMockModule;
+import org.apache.omid.tso.TSOServer;
+import org.apache.omid.tso.TSOServerConfig;
+
+
+public class TestOmidLLRaces {
+
+    static HBaseTestingUtility hBaseUtils;
+    private static MiniHBaseCluster hbaseCluster;
+    static Configuration hbaseConf;
+    static Connection connection;
+
+    private static final String TEST_FAMILY = "data";
+    static final String TEST_FAMILY2 = "data2";
+    private static final String TEST_TABLE = "test";
     private static final byte[] row1 = Bytes.toBytes("test-is-committed1");
     private static final byte[] row2 = Bytes.toBytes("test-is-committed2");
-    private static final byte[] family = Bytes.toBytes(TEST_FAMILY);
+    private static final byte[] family = Bytes.toBytes("data");
     private static final byte[] qualifier = Bytes.toBytes("testdata");
     private static final byte[] data1 = Bytes.toBytes("testWrite-1");
 
     private static final Logger LOG = LoggerFactory.getLogger(TestOmidLLRaces.class);
-    @Override
-    protected boolean isLowLatency() {
-        return true;
+    private TSOClient client;
+
+    @BeforeClass
+    public void setup() throws Exception {
+        // TSO Setup
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setPort(1234);
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setLowLatency(true);
+        tsoConfig.setWaitStrategy("LOW_CPU");
+        Injector injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        TSOServer tso = injector.getInstance(TSOServer.class);
+        HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
+        tso.startAndWait();
+        TestUtils.waitForSocketListening("localhost", 1234, 100);
+        LOG.info("Finished loading TSO");
+
+        OmidClientConfiguration clientConf = new OmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+
+        // Create the associated Handler
+        client = TSOClient.newInstance(clientConf);
+
+        // ------------------------------------------------------------------------------------------------------------
+        // HBase setup
+        // ------------------------------------------------------------------------------------------------------------
+        LOG.info("Creating HBase minicluster");
+        hbaseConf = HBaseConfiguration.create();
+        hbaseConf.setInt("hbase.hregion.memstore.flush.size", 10_000 * 1024);
+        hbaseConf.setInt("hbase.regionserver.nbreservationblocks", 1);
+        hbaseConf.setInt(HBASE_CLIENT_RETRIES_NUMBER, 3);
+
+        File tempFile = File.createTempFile("OmidTest", "");
+        tempFile.deleteOnExit();
+        hbaseConf.set("hbase.rootdir", tempFile.getAbsolutePath());
+        hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
+        hBaseUtils = new HBaseTestingUtility(hbaseConf);
+        hbaseCluster = hBaseUtils.startMiniCluster(1);
+        connection = ConnectionFactory.createConnection(hbaseConf);
+        hBaseUtils.createTable(TableName.valueOf(hBaseTimestampStorageConfig.getTableName()),
+                new byte[][]{hBaseTimestampStorageConfig.getFamilyName().getBytes()},
+                Integer.MAX_VALUE);
+        createTestTable();
+        createCommitTable();
+
+        LOG.info("HBase minicluster is up");
     }
 
+
+    private void createCommitTable() throws IOException {
+        String[] args = new String[]{OmidTableManager.COMMIT_TABLE_COMMAND_NAME, "-numRegions", "1"};
+        OmidTableManager omidTableManager = new OmidTableManager(args);
+        omidTableManager.executeActionsOnHBase(hbaseConf);
+    }
+
+    private void createTestTable() throws IOException {
+        HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
+        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(TEST_TABLE));
+        HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
+        HColumnDescriptor datafam2 = new HColumnDescriptor(TEST_FAMILY2);
+        datafam.setMaxVersions(Integer.MAX_VALUE);
+        datafam2.setMaxVersions(Integer.MAX_VALUE);
+        test_table_desc.addFamily(datafam);
+        test_table_desc.addFamily(datafam2);
+        admin.createTable(test_table_desc);
+    }
+
+    protected TransactionManager newTransactionManagerHBaseCommitTable(TSOClient tsoClient) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .tsoClient(tsoClient).build();
+    }
+
+
     @Test(timeOut = 30_000)
-    public void testIsCommitted(ITestContext context) throws Exception {
-        AbstractTransactionManager tm = (AbstractTransactionManager)newTransactionManagerHBaseCommitTable(getClient(context));
+    public void testIsCommitted() throws Exception {
+        AbstractTransactionManager tm = (AbstractTransactionManager)newTransactionManagerHBaseCommitTable(client);
 
         Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
         SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
@@ -108,7 +207,7 @@ public class TestOmidLLRaces extends OmidTestBase {
 
     @Test(timeOut = 30_000)
     public void testInvalidation(ITestContext context) throws Exception {
-        AbstractTransactionManager tm = (AbstractTransactionManager)newTransactionManagerHBaseCommitTable(getClient(context));
+        AbstractTransactionManager tm = (AbstractTransactionManager)newTransactionManagerHBaseCommitTable(client);
 
         Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
         SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
@@ -148,96 +247,4 @@ public class TestOmidLLRaces extends OmidTestBase {
         assertTrue(res.isEmpty());
         assertTrue(tm.isLowLatency());
     }
-
-//    @Test(timeOut = 30_000000)
-//    public void testReadRace(ITestContext context) throws Exception {
-//
-//        final CountDownLatch waitForCommit = new CountDownLatch(1);
-//        final CountDownLatch latch1 = new CountDownLatch(1);
-//        final CountDownLatch latch2 = new CountDownLatch(1);
-//        final Integer[] shadowCellReads = {0};
-//
-//        AbstractTransactionManager tm = (AbstractTransactionManager)newTransactionManager(context);
-//        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
-//        SnapshotFilterImpl snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
-//                tm.getCommitTableClient()));
-//        TTable table = spy(new TTable(htable, snapshotFilter, false));
-//
-//        doAnswer(new Answer<Optional<CommitTable.CommitTimestamp>>() {
-//            @Override
-//            public Optional<CommitTable.CommitTimestamp> answer(InvocationOnMock invocation) throws Throwable {
-//                shadowCellReads[0]++;
-//                if (shadowCellReads[0] == 1) {
-//                    Optional<CommitTable.CommitTimestamp> result = (Optional<CommitTable.CommitTimestamp>) invocation.callRealMethod();
-//                    latch1.countDown();
-//                    latch2.await();
-//                    return result;
-//                } else {
-//                    Optional<CommitTable.CommitTimestamp> result = (Optional<CommitTable.CommitTimestamp>) invocation.callRealMethod();
-//                    latch1.countDown();
-//                    latch2.await();
-//                    return result;
-//                }
-//            }
-//        }).when(snapshotFilter).readCommitTimestampFromShadowCell(any(long.class), any(CommitTimestampLocator.class));
-//
-//        doAnswer(new Answer<TSOFuture<Long>>() {
-//            @Override
-//            public TSOFuture<Long> answer(InvocationOnMock invocationOnMock) throws Throwable {
-//
-//                TSOFuture<Long> res = (TSOFuture<Long>)invocationOnMock.callRealMethod();
-//
-//                LOG.info("writer thread commit ts {}",1);
-//                waitForCommit.countDown();
-//                return res;
-//            }
-//        }).when(client).commit(any(long.class), any(Set.class));
-//
-//        Thread readThread = new Thread("Read Thread") {
-//            @Override
-//            public void run() {
-//                try {
-//                    waitForCommit.await();
-//                    HBaseTransaction t2 = (HBaseTransaction) tm.begin();
-//                    LOG.info("reader thread ts {}", t2.getStartTimestamp());
-//                    Get get = new Get(row1);
-//                    get.addColumn(family, qualifier);
-//                    table.get(t2,get);
-//                    tm.commit(t2);
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                } catch (RollbackException e) {
-//                    e.printStackTrace();
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        };
-//
-//        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
-//        Put put = new Put(row1);
-//        put.addColumn(family, qualifier, data1);
-//        table.put(t1, put);
-//
-//        readThread.start();
-//
-//        //latch1.await();
-//
-//
-//
-//        boolean gotInvalidated = false;
-//        try {
-//            tm.commit(t1);
-//        } catch (RollbackException e) {
-//            gotInvalidated = true;
-//        }
-//
-//        latch2.countDown();
-//        assertFalse(gotInvalidated);
-//
-//
-//        assertTrue(tm.isLowLatency());
-//    }
-
-    //TODO testfence
 }

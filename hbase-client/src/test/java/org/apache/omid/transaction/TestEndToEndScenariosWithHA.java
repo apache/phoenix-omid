@@ -287,7 +287,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
     // TX 2 modifies cells R1C1 & R2C2 (v2)
     // TX 2 commits
     // End of Test state: R1C1 & R2C2 (v2)
-    @Test(timeOut = 60_000000)
+    @Test(timeOut = 60_000)
     public void testScenario2() throws Exception {
         try (TTable txTable = new TTable(connection, TEST_TABLE)) {
 

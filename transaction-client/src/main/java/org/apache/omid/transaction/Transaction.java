@@ -89,6 +89,10 @@ public interface Transaction {
 
     Optional<Object> getMetadata(String key);
 
+    /**
+     * Returns whether the transaction was created by a lowLatency TransactionalManager
+     * @return whether the transaction was created by a lowLatency TransactionalManager
+     */
     boolean isLowLatency();
 }
 
