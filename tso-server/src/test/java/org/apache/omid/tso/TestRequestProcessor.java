@@ -61,6 +61,7 @@ public class TestRequestProcessor {
 
     private LowWatermarkWriter lowWatermarkWriter;
     private TimestampOracleImpl timestampOracle;
+    private ReplyProcessor replyProcessor;
 
     @BeforeMethod
     public void beforeMethod() throws Exception {
@@ -74,6 +75,7 @@ public class TestRequestProcessor {
         stateManager = new TSOStateManagerImpl(timestampOracle);
         lowWatermarkWriter = mock(LowWatermarkWriter.class);
         persist = mock(PersistenceProcessor.class);
+        replyProcessor = mock(ReplyProcessor.class);
         SettableFuture<Void> f = SettableFuture.create();
         f.set(null);
         doReturn(f).when(lowWatermarkWriter).persistLowWatermark(any(Long.class));
@@ -81,7 +83,8 @@ public class TestRequestProcessor {
         TSOServerConfig config = new TSOServerConfig();
         config.setConflictMapSize(CONFLICT_MAP_SIZE);
 
-        requestProc = new RequestProcessorPersistCT(metrics, timestampOracle, persist, new MockPanicker(), config, lowWatermarkWriter);
+        requestProc = new RequestProcessorPersistCT(metrics, timestampOracle, persist, new MockPanicker(),
+                config, lowWatermarkWriter,replyProcessor);
 
         // Initialize the state for the experiment
         stateManager.register(requestProc);
@@ -151,7 +154,7 @@ public class TestRequestProcessor {
 
         requestProc.fenceRequest(666L, null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> firstTScapture = ArgumentCaptor.forClass(Long.class);
-        verify(persist, timeout(100).times(1)).addFenceToBatch(eq(666L),
+        verify(replyProcessor, timeout(100).times(1)).sendFenceResponse(eq(666L),
                 firstTScapture.capture(), any(Channel.class), any(MonitoringContext.class));
 
     }

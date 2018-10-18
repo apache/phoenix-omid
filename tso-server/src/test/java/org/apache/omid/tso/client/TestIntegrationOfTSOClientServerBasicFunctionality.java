@@ -181,21 +181,29 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
 
     @Test(timeOut = 30_000)
     public void testCommitWritesToCommitTable() throws Exception {
+
         long startTsForTx1 = tsoClient.getNewStartTimestamp().get();
         long startTsForTx2 = tsoClient.getNewStartTimestamp().get();
         assertTrue(startTsForTx2 > startTsForTx1, "Start TS should grow");
 
-        assertFalse(commitTableClient.getCommitTimestamp(startTsForTx1).get().isPresent(),
-                "Commit TS for Tx1 shouldn't appear in Commit Table");
+        if (!tsoClient.isLowLatency())
+            assertFalse(commitTableClient.getCommitTimestamp(startTsForTx1).get().isPresent(),
+                    "Commit TS for Tx1 shouldn't appear in Commit Table");
 
         long commitTsForTx1 = tsoClient.commit(startTsForTx1, Sets.newHashSet(c1)).get();
         assertTrue(commitTsForTx1 > startTsForTx1, "Commit TS should be higher than Start TS for the same tx");
 
-        Long commitTs1InCommitTable = commitTableClient.getCommitTimestamp(startTsForTx1).get().get().getValue();
-        assertNotNull(commitTs1InCommitTable, "Tx is committed, should return as such from Commit Table");
-        assertEquals(commitTsForTx1, (long) commitTs1InCommitTable,
-                "getCommitTimestamp() & commit() should report same Commit TS value for same tx");
-        assertTrue(commitTs1InCommitTable > startTsForTx2, "Commit TS should be higher than tx's Start TS");
+        if (!tsoClient.isLowLatency()) {
+            Long commitTs1InCommitTable = commitTableClient.getCommitTimestamp(startTsForTx1).get().get().getValue();
+            assertNotNull(commitTs1InCommitTable, "Tx is committed, should return as such from Commit Table");
+            assertEquals(commitTsForTx1, (long) commitTs1InCommitTable,
+                    "getCommitTimestamp() & commit() should report same Commit TS value for same tx");
+            assertTrue(commitTs1InCommitTable > startTsForTx2, "Commit TS should be higher than tx's Start TS");
+        } else {
+            assertTrue(commitTsForTx1 > startTsForTx2, "Commit TS should be higher than tx's Start TS");
+        }
+
+
     }
 
     @Test(timeOut = 30_000)
@@ -265,7 +273,7 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         long startTsTx2Client1 = tsoClient.getNewStartTimestamp().get();
         long startTsTx3Client1 = tsoClient.getNewStartTimestamp().get();
 
-        tsoClient.commit(startTsTx1Client1, Sets.newHashSet(c1)).get();
+        Long commitTSTx1 = tsoClient.commit(startTsTx1Client1, Sets.newHashSet(c1)).get();
         try {
             tsoClient.commit(startTsTx3Client1, Sets.newHashSet(c1, c2)).get();
             Assert.fail("Second commit should fail as conflicts with the previous concurrent one");
@@ -275,7 +283,8 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         long startTsTx4Client2 = justAnotherTSOClient.getNewStartTimestamp().get();
 
         assertFalse(commitTableClient.getCommitTimestamp(startTsTx3Client1).get().isPresent(), "Tx3 didn't commit");
-        long commitTSTx1 = commitTableClient.getCommitTimestamp(startTsTx1Client1).get().get().getValue();
+        if (!tsoClient.isLowLatency())
+            commitTSTx1 = commitTableClient.getCommitTimestamp(startTsTx1Client1).get().get().getValue();
         assertTrue(commitTSTx1 > startTsTx2Client1, "Tx1 committed after Tx2 started");
         assertTrue(commitTSTx1 < startTsTx4Client2, "Tx1 committed before Tx4 started on the other TSO Client");
     }

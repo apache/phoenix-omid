@@ -41,7 +41,7 @@ public class RequestProcessorSkipCT extends AbstractRequestProcessor {
                            TSOServerConfig config,
                            LowWatermarkWriter lowWatermarkWriter,
                            String tsoHostAndPort) throws IOException {
-        super(metrics, timestampOracle, panicker, config, lowWatermarkWriter);
+        super(metrics, timestampOracle, panicker, config, lowWatermarkWriter, replyProcessor);
         this.replyProcessor = replyProcessor;
         this.tsoHostAndPort = tsoHostAndPort;
         requestRing = disruptor.start();
@@ -83,10 +83,5 @@ public class RequestProcessorSkipCT extends AbstractRequestProcessor {
     @Override
     public void onTimeout() {
         
-    }
-
-    @Override
-    protected void forwardFence(long tableID, long fenceTimestamp, Channel c, MonitoringContext monCtx) {
-        replyProcessor.sendFenceResponse(tableID, fenceTimestamp, c, monCtx);
     }
 }

@@ -141,7 +141,8 @@ public class TestPanicker {
 
         LowWatermarkWriter lowWatermarkWriter = new LowWatermarkWriterImpl(config, commitTable, metrics);
 
-        new RequestProcessorPersistCT(metrics, mock(TimestampOracle.class), proc, panicker, mock(TSOServerConfig.class), lowWatermarkWriter);
+        new RequestProcessorPersistCT(metrics, mock(TimestampOracle.class), proc, panicker,
+                mock(TSOServerConfig.class), lowWatermarkWriter, mock(ReplyProcessor.class));
 
         verify(panicker, timeout(1000).atLeastOnce()).panic(anyString(), any(Throwable.class));
 
@@ -195,7 +196,8 @@ public class TestPanicker {
 
         LowWatermarkWriter lowWatermarkWriter = new LowWatermarkWriterImpl(config, commitTable, metrics);
 
-        new RequestProcessorPersistCT(metrics, mock(TimestampOracle.class), proc, panicker, mock(TSOServerConfig.class), lowWatermarkWriter);
+        new RequestProcessorPersistCT(metrics, mock(TimestampOracle.class), proc, panicker, mock(TSOServerConfig.class),
+                lowWatermarkWriter, mock(ReplyProcessor.class));
 
         verify(panicker, timeout(1000).atLeastOnce()).panic(anyString(), any(Throwable.class));
 

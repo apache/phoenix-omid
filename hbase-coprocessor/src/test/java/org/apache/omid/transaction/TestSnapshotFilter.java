@@ -67,6 +67,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.testng.Assert.fail;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
@@ -399,11 +400,16 @@ public class TestSnapshotFilter {
         Result result = tt.get(tx4, get);
         assertTrue(result.size() == 2, "Result should be 2");
 
-        tm.commit(tx3);
-
+        try {
+            tm.commit(tx3);
+        } catch (RollbackException e) {
+            if (!tm.isLowLatency())
+                fail();
+        }
         Transaction tx5 = tm.begin();
         result = tt.get(tx5, get);
-        assertTrue(result.size() == 1, "Result should be 1");
+        if (!tm.isLowLatency())
+            assertTrue(result.size() == 1, "Result should be 1");
 
         tt.close();
     }

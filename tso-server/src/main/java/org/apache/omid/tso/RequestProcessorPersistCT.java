@@ -33,9 +33,10 @@ public class RequestProcessorPersistCT extends AbstractRequestProcessor {
                               PersistenceProcessor persistenceProcessor,
                               Panicker panicker,
                               TSOServerConfig config,
-                              LowWatermarkWriter lowWatermarkWriter) throws IOException {
+                              LowWatermarkWriter lowWatermarkWriter,
+                              ReplyProcessor replyProcessor) throws IOException {
 
-        super(metrics, timestampOracle, panicker, config, lowWatermarkWriter);
+        super(metrics, timestampOracle, panicker, config, lowWatermarkWriter, replyProcessor);
         this.persistenceProcessor = persistenceProcessor;
         requestRing = disruptor.start();
     }
@@ -63,10 +64,5 @@ public class RequestProcessorPersistCT extends AbstractRequestProcessor {
     @Override
     public void onTimeout() throws Exception {
         persistenceProcessor.triggerCurrentBatchFlush();
-    }
-
-    @Override
-    protected void forwardFence(long tableID, long fenceTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
-        persistenceProcessor.addFenceToBatch(tableID, fenceTimestamp, c, monCtx);
     }
 }

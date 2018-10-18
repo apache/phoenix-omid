@@ -62,13 +62,16 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
     private final LowWatermarkWriter lowWatermarkWriter;
     private long lowWatermark = -1L;
 
+    //Used to forward fence
+    private final ReplyProcessor replyProcessor;
 
     AbstractRequestProcessor(MetricsRegistry metrics,
                              TimestampOracle timestampOracle,
                              Panicker panicker,
                              TSOServerConfig config,
-                             LowWatermarkWriter lowWatermarkWriter)
+                             LowWatermarkWriter lowWatermarkWriter, ReplyProcessor replyProcessor)
             throws IOException {
+
 
         // ------------------------------------------------------------------------------------------------------------
         // Disruptor initialization
@@ -93,6 +96,8 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
         this.hashmap = new CommitHashMap(config.getConflictMapSize());
         this.tableFences = new HashMap<Long, Long>();
         this.lowWatermarkWriter = lowWatermarkWriter;
+
+        this.replyProcessor = replyProcessor;
 
         LOG.info("RequestProcessor initialized");
 
@@ -267,7 +272,9 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
         long fenceTimestamp = timestampOracle.next();
 
         tableFences.put(tableID, fenceTimestamp);
-        forwardFence(tableID, fenceTimestamp, c, event.getMonCtx());
+
+        event.monCtx.timerStart("reply.processor.fence.latency");
+        replyProcessor.sendFenceResponse(tableID, fenceTimestamp, c, event.monCtx);
     }
 
     @Override
@@ -294,7 +301,8 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
     protected abstract void forwardAbort(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
     protected abstract void forwardTimestamp(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
     protected abstract void onTimeout() throws Exception;
-    protected abstract void forwardFence(long tableID, long fenceTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+
+
 
     final static class RequestEvent implements Iterable<Long> {
 

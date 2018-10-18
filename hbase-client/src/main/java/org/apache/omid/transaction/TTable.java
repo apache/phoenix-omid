@@ -324,7 +324,8 @@ public class TTable implements Closeable {
             }
         }
         if (deleteFamily) {
-            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
+            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).
+                    getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
                 familyQualifierBasedDeletionWithOutRead(transaction, deleteP, deleteG);
             } else {
                 familyQualifierBasedDeletion(transaction, deleteP, deleteG);

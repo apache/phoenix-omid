@@ -74,6 +74,7 @@ public abstract class OmidTestBase {
     protected static final String TEST_TABLE = "test";
     protected static final String TEST_FAMILY = "data";
     static final String TEST_FAMILY2 = "data2";
+
     private HBaseCommitTableConfig hBaseCommitTableConfig;
 
     @BeforeMethod(alwaysRun = true)
@@ -134,7 +135,7 @@ public abstract class OmidTestBase {
         LOG.info("HBase minicluster is up");
     }
 
-    private void createTestTable() throws IOException {
+    protected void createTestTable() throws IOException {
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
         HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(TEST_TABLE));
         HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
