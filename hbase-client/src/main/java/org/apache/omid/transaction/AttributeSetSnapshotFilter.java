@@ -18,20 +18,14 @@
 package org.apache.omid.transaction;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.proto.TSOProto;
 
-import com.google.common.base.Optional;
 
 public class AttributeSetSnapshotFilter implements SnapshotFilter {
 
@@ -52,6 +46,7 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
     public Result get(Get get, HBaseTransaction transaction) throws IOException {
         get.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, getBuilder(transaction).build().toByteArray());
         get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
+        get.setAttribute(CellUtils.LL_ATTRIBUTE, Bytes.toBytes(transaction.isLowLatency()));
 
         return table.get(get);
     }
@@ -59,27 +54,7 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
     @Override
     public ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException {
         scan.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, getBuilder(transaction).build().toByteArray());
-
+        scan.setAttribute(CellUtils.LL_ATTRIBUTE, Bytes.toBytes(transaction.isLowLatency()));
         return table.getScanner(scan);
-    }
-
-    @Override
-    public List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
-                                      int versionsToRequest, Map<String, Long> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    public boolean isCommitted(HBaseCellId hBaseCellId, long epoch) throws TransactionException {
-        throw new UnsupportedOperationException();
-    }
-
-    public CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp, long epoch,
-            CommitTimestampLocator locator) throws IOException {
-        throw new UnsupportedOperationException();        
-    }
-
-    public Optional<CommitTimestamp> readCommitTimestampFromShadowCell(long cellStartTimestamp, CommitTimestampLocator locator)
-            throws IOException {
-        throw new UnsupportedOperationException();                
     }
 }

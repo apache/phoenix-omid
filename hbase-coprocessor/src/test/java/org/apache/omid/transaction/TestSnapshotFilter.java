@@ -67,6 +67,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.testng.Assert.fail;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
@@ -98,7 +99,7 @@ public class TestSnapshotFilter {
     @BeforeClass
     public void setupTestSnapshotFilter() throws Exception {
         TSOServerConfig tsoConfig = new TSOServerConfig();
-        tsoConfig.setPort(5678);
+        tsoConfig.setPort(5679);
         tsoConfig.setConflictMapSize(1);
         tsoConfig.setWaitStrategy("LOW_CPU");
         injector = Guice.createInjector(new TSOForSnapshotFilterTestModule(tsoConfig));
@@ -175,7 +176,7 @@ public class TestSnapshotFilter {
     private void setupTSO() throws IOException, InterruptedException {
         tso = injector.getInstance(TSOServer.class);
         tso.startAndWait();
-        TestUtils.waitForSocketListening("localhost", 5678, 100);
+        TestUtils.waitForSocketListening("localhost", 5679, 100);
         Thread.currentThread().setName("UnitTest(s) thread");
     }
 
@@ -187,7 +188,7 @@ public class TestSnapshotFilter {
 
     private void teardownTSO() throws IOException, InterruptedException {
         tso.stopAndWait();
-        TestUtils.waitForSocketNotListening("localhost", 5678, 1000);
+        TestUtils.waitForSocketNotListening("localhost", 5679, 1000);
     }
 
     @BeforeMethod
@@ -197,7 +198,7 @@ public class TestSnapshotFilter {
 
     private TransactionManager newTransactionManager() throws Exception {
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
-        hbaseOmidClientConf.setConnectionString("localhost:5678");
+        hbaseOmidClientConf.setConnectionString("localhost:5679");
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         syncPostCommitter =
@@ -399,11 +400,16 @@ public class TestSnapshotFilter {
         Result result = tt.get(tx4, get);
         assertTrue(result.size() == 2, "Result should be 2");
 
-        tm.commit(tx3);
-
+        try {
+            tm.commit(tx3);
+        } catch (RollbackException e) {
+            if (!tm.isLowLatency())
+                fail();
+        }
         Transaction tx5 = tm.begin();
         result = tt.get(tx5, get);
-        assertTrue(result.size() == 1, "Result should be 1");
+        if (!tm.isLowLatency())
+            assertTrue(result.size() == 1, "Result should be 1");
 
         tt.close();
     }

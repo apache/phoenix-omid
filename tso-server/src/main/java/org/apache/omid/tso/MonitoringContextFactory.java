@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.transaction;
+package org.apache.omid.tso;
 
-import java.io.IOException;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
+import org.apache.omid.metrics.MetricsRegistry;
 
+public class MonitoringContextFactory {
+    private MonitoringContextFactory(){};
 
-public interface SnapshotFilter {
-    
-    Result get(Get get, HBaseTransaction transaction) throws IOException;
-
-    ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException;
+    static public MonitoringContext getInstance(TSOServerConfig config, MetricsRegistry metrics) {
+        if (config.getMonitorContext())
+            return new MonitoringContextImpl(metrics);
+        else
+            return new MonitoringContextNullImpl();
+    }
 }

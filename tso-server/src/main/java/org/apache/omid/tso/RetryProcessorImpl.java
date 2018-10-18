@@ -133,16 +133,16 @@ class RetryProcessorImpl implements EventHandler<RetryProcessorImpl.RetryEvent>,
             if (commitTimestamp.isPresent()) {
                 if (commitTimestamp.get().isValid()) {
                     LOG.trace("Tx {}: Valid commit TS found in Commit Table. Sending Commit to client.", startTimestamp);
-                    replyProc.sendCommitResponse(startTimestamp, commitTimestamp.get().getValue(), event.getChannel());
+                    replyProc.sendCommitResponse(startTimestamp, commitTimestamp.get().getValue(), event.getChannel(), event.getMonCtx());
                     txAlreadyCommittedMeter.mark();
                 } else {
                     LOG.trace("Tx {}: Invalid tx marker found. Sending Abort to client.", startTimestamp);
-                    replyProc.sendAbortResponse(startTimestamp, event.getChannel());
+                    replyProc.sendAbortResponse(startTimestamp, event.getChannel(), event.getMonCtx());
                     invalidTxMeter.mark();
                 }
             } else {
                 LOG.trace("Tx {}: No Commit TS found in Commit Table. Sending Abort to client.", startTimestamp);
-                replyProc.sendAbortResponse(startTimestamp, event.getChannel());
+                replyProc.sendAbortResponse(startTimestamp, event.getChannel(), event.getMonCtx());
                 noCTFoundMeter.mark();
             }
         } catch (InterruptedException e) {

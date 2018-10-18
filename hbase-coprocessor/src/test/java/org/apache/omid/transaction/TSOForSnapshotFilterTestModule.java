@@ -29,6 +29,8 @@ import org.apache.omid.timestamp.storage.TimestampStorage;
 import org.apache.omid.tso.BatchPoolModule;
 import org.apache.omid.tso.DisruptorModule;
 import org.apache.omid.tso.LeaseManagement;
+import org.apache.omid.tso.LowWatermarkWriter;
+import org.apache.omid.tso.LowWatermarkWriterImpl;
 import org.apache.omid.tso.MockPanicker;
 import org.apache.omid.tso.NetworkInterfaceUtils;
 import org.apache.omid.tso.Panicker;
@@ -76,6 +78,7 @@ class TSOForSnapshotFilterTestModule extends AbstractModule {
         // Timestamp storage creation
         bind(TimestampStorage.class).to(HBaseTimestampStorage.class).in(Singleton.class);
         bind(TimestampOracle.class).to(TimestampOracleImpl.class).in(Singleton.class);
+        bind(LowWatermarkWriter.class).to(LowWatermarkWriterImpl.class).in(Singleton.class);
 
         install(new BatchPoolModule(config));
         // DisruptorConfig

@@ -257,9 +257,13 @@ public class TestTSOClientRequestAndResponseBehaviours {
 
         TSOProto.Response response1 = clientOneShot.makeRequest(createCommitRequest(ts1, false, testWriteSet));
         TSOProto.Response response2 = clientOneShot.makeRequest(createCommitRequest(ts1, true, testWriteSet));
-        assertEquals(response2.getCommitResponse().getCommitTimestamp(),
-                     response1.getCommitResponse().getCommitTimestamp(),
-                     "Commit timestamp should be the same");
+        if (client.isLowLatency()) {
+            assertTrue(response1.hasCommitResponse());
+            assertTrue(response2.getCommitResponse().getAborted());
+        } else
+            assertEquals(response2.getCommitResponse().getCommitTimestamp(),
+                    response1.getCommitResponse().getCommitTimestamp(),
+                    "Commit timestamp should be the same");
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -270,8 +274,9 @@ public class TestTSOClientRequestAndResponseBehaviours {
     public void testCommitCanSucceedWhenChannelDisconnected() throws Exception {
 
         TSOClient client = TSOClient.newInstance(tsoClientConf);
-
         long ts1 = client.getNewStartTimestamp().get();
+        if(client.isLowLatency())
+            return;
         pausableTSOracle.pause();
         TSOFuture<Long> future = client.commit(ts1, testWriteSet);
         TSOClientAccessor.closeChannel(client);
@@ -349,8 +354,13 @@ public class TestTSOClientRequestAndResponseBehaviours {
 
         clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         TSOProto.Response response = clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
-        assertFalse(response.getCommitResponse().getAborted(), "Transaction should be committed");
-        assertEquals(response.getCommitResponse().getCommitTimestamp(), tx1ST + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        if (client.isLowLatency())
+            assertTrue(response.getCommitResponse().getAborted(), "Transaction should be aborted");
+        else {
+            assertFalse(response.getCommitResponse().getAborted(), "Transaction should be committed");
+            assertEquals(response.getCommitResponse().getCommitTimestamp(),
+                    tx1ST + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        }
     }
 
     @Test(timeOut = 30_000)

@@ -159,8 +159,8 @@ public class MockTSOClient implements TSOProtocol {
     }
 
     @Override
-    public long getEpoch() {
-        return 0;
+    public boolean isLowLatency() {
+        return false;
     }
 
 }

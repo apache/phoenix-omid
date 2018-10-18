@@ -138,7 +138,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
      *            the timestamp locator
      * @throws IOException
      */
-    @Override
     public Optional<CommitTimestamp> readCommitTimestampFromShadowCell(long cellStartTimestamp, CommitTimestampLocator locator)
             throws IOException
     {
@@ -168,9 +167,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
      *         or an object indicating that it was not found in the system
      * @throws IOException  in case of any I/O issues
      */
-    @Override
     public CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp, long epoch,
-                                                     CommitTimestampLocator locator) throws IOException {
+                                                     CommitTimestampLocator locator, boolean isLowLatency) throws IOException {
 
         try {
             // 1) First check the cache
@@ -181,22 +179,44 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
             // 2) Then check the commit table
             // If the data was written at a previous epoch, check whether the transaction was invalidated
-            Optional<CommitTimestamp> commitTimeStamp = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
+            boolean invalidatedByOther = false;
+            Optional<CommitTimestamp> commitTimestampFromCT = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
+            if (commitTimestampFromCT.isPresent()) {
+                if (isLowLatency && !commitTimestampFromCT.get().isValid())
+                    invalidatedByOther = true;
+                else
+                    return commitTimestampFromCT.get();
+            }
+
+            // 3) Read from shadow cell
+            Optional<CommitTimestamp> commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
             if (commitTimeStamp.isPresent()) {
                 return commitTimeStamp.get();
             }
 
-            // 3) Read from shadow cell
-            commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
+            // In case of LL, if found invalid ct cell, still must check sc in stage 3 then return
+            if (invalidatedByOther) {
+                assert(!commitTimestampFromCT.get().isValid());
+                return commitTimestampFromCT.get();
             }
 
             // 4) Check the epoch and invalidate the entry
             // if the data was written by a transaction from a previous epoch (previous TSO)
-            if (cellStartTimestamp < epoch) {
+            if (cellStartTimestamp < epoch || isLowLatency) {
                 boolean invalidated = commitTableClient.tryInvalidateTransaction(cellStartTimestamp).get();
                 if (invalidated) { // Invalid commit timestamp
+
+                    // If we are running lowLatency Omid, we could have manged to invalidate a ct entry,
+                    // but the committing client already wrote to shadow cells:
+                    if (isLowLatency) {
+                        commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
+                        if (commitTimeStamp.isPresent()) {
+                            // Remove false invalidation from commit table
+                            commitTableClient.completeTransaction(cellStartTimestamp);
+                            return commitTimeStamp.get();
+                        }
+                    }
+
                     return new CommitTimestamp(COMMIT_TABLE, CommitTable.INVALID_TRANSACTION_MARKER, false);
                 }
             }
@@ -225,8 +245,9 @@ public class SnapshotFilterImpl implements SnapshotFilter {
     }
 
     public Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
-            Cell cell,
-            Map<Long, Long> commitCache)
+                                                         Cell cell,
+                                                         Map<Long, Long> commitCache,
+                                                         boolean isLowLatency)
                     throws IOException {
 
         CommitTimestamp tentativeCommitTimestamp =
@@ -240,7 +261,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                                         CellUtil.cloneQualifier(cell),
                                         cell.getTimestamp()),
                                         commitCache,
-                                        tableAccessWrapper));
+                                        tableAccessWrapper),
+                        isLowLatency);
 
         // If transaction that added the cell was invalidated
         if (!tentativeCommitTimestamp.isValid()) {
@@ -266,8 +288,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             return Optional.absent();
         }
     }
-    
-    
+
+
     private Optional<Long> getCommitTimestamp(Cell kv, HBaseTransaction transaction, Map<Long, Long> commitCache)
             throws IOException {
 
@@ -283,7 +305,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         return tryToLocateCellCommitTimestamp(transaction.getEpoch(), kv,
-                commitCache);
+                commitCache, transaction.isLowLatency());
     }
     
     private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
@@ -399,7 +421,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
      * @param familyDeletionCache Accumulates the family deletion markers to identify cells that deleted with a higher version
      * @return Filtered KVs belonging to the transaction snapshot
      */
-    @Override
     public List<Cell> filterCellsForSnapshot(List<Cell> rawCells, HBaseTransaction transaction,
                                       int versionsToRequest, Map<String, Long> familyDeletionCache, Map<String,byte[]> attributeMap) throws IOException {
 
@@ -495,13 +516,16 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    @Override
-    public boolean isCommitted(HBaseCellId hBaseCellId, long epoch) throws TransactionException {
+    public boolean isCommitted(HBaseCellId hBaseCellId, long epoch, boolean isLowLatency) throws TransactionException {
         try {
             long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
             CommitTimestamp tentativeCommitTimestamp =
-                    locateCellCommitTimestamp(timestamp, epoch,
-                                              new CommitTimestampLocatorImpl(hBaseCellId, Maps.<Long, Long>newHashMap(), tableAccessWrapper));
+                    locateCellCommitTimestamp(timestamp,
+                            epoch,
+                            new CommitTimestampLocatorImpl(hBaseCellId,
+                                    Maps.<Long, Long>newHashMap(),
+                                    tableAccessWrapper),
+                            isLowLatency);
 
             // If transaction that added the cell was invalidated
             if (!tentativeCommitTimestamp.isValid()) {
