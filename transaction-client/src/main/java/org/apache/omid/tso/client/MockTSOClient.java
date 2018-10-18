@@ -154,4 +154,9 @@ class MockTSOClient implements TSOProtocol {
         f.set(null);
         return new ForwardingTSOFuture<>(f);
     }
+
+    @Override
+    public boolean isLowLatency() {
+        return false;
+    }
 }

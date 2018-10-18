@@ -51,7 +51,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         @Override
         public HBaseTransaction createTransaction(long transactionId, long epoch, AbstractTransactionManager tm) {
 
-            return new HBaseTransaction(transactionId, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), tm);
+            return new HBaseTransaction(transactionId, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(),
+                    tm, tm.isLowLatency());
 
         }
 
@@ -80,6 +81,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         // Optional parameters - initialized to default values
         private Optional<TSOClient> tsoClient = Optional.absent();
         private Optional<CommitTable.Client> commitTableClient = Optional.absent();
+        private Optional<CommitTable.Writer> commitTableWriter = Optional.absent();
         private Optional<PostCommitActions> postCommitter = Optional.absent();
 
         private Builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
@@ -96,6 +98,11 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             return this;
         }
 
+        public Builder commitTableWriter(CommitTable.Writer writer) {
+            this.commitTableWriter = Optional.of(writer);
+            return this;
+        }
+
         Builder postCommitter(PostCommitActions postCommitter) {
             this.postCommitter = Optional.of(postCommitter);
             return this;
@@ -104,6 +111,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         public HBaseTransactionManager build() throws IOException, InterruptedException {
 
             CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient()).get();
+            CommitTable.Writer commitTableWriter = this.commitTableWriter.or(buildCommitTableWriter()).get();
             PostCommitActions postCommitter = this.postCommitter.or(buildPostCommitter(commitTableClient)).get();
             TSOClient tsoClient = this.tsoClient.or(buildTSOClient()).get();
 
@@ -111,6 +119,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                                postCommitter,
                                                tsoClient,
                                                commitTableClient,
+                                               commitTableWriter,
                                                new HBaseTransactionFactory());
         }
 
@@ -124,6 +133,13 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
             CommitTable commitTable = new HBaseCommitTable(ConnectionFactory.createConnection(hbaseOmidClientConf.getHBaseConfiguration()), commitTableConf);
             return Optional.of(commitTable.getClient());
+        }
+
+        private Optional<CommitTable.Writer> buildCommitTableWriter() throws IOException {
+            HBaseCommitTableConfig commitTableConf = new HBaseCommitTableConfig();
+            commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
+            CommitTable commitTable = new HBaseCommitTable(hbaseOmidClientConf.getHBaseConfiguration(), commitTableConf);
+            return Optional.of(commitTable.getWriter());
         }
 
         private Optional<PostCommitActions> buildPostCommitter(CommitTable.Client commitTableClient ) {
@@ -157,14 +173,15 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                     PostCommitActions postCommitter,
                                     TSOClient tsoClient,
                                     CommitTable.Client commitTableClient,
+                                    CommitTable.Writer commitTableWriter,
                                     HBaseTransactionFactory hBaseTransactionFactory) {
 
         super(hBaseOmidClientConfiguration.getMetrics(),
-              postCommitter,
-              tsoClient,
-              commitTableClient,
-              hBaseTransactionFactory);
-
+                postCommitter,
+                tsoClient,
+                commitTableClient,
+                commitTableWriter,
+                hBaseTransactionFactory);
     }
 
     // ----------------------------------------------------------------------------------------------------------------

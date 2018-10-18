@@ -58,7 +58,10 @@ public class TestHBaseTransactionClient extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testIsCommitted(ITestContext context) throws Exception {
         TransactionManager tm = newTransactionManager(context);
-        TTable table = spy(new TTable(connection, TEST_TABLE, ((AbstractTransactionManager)tm).getCommitTableClient()));
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                ((AbstractTransactionManager)tm).getCommitTableClient());
+        TTable table = spy(new TTable(htable, snapshotFilter, false));
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
@@ -83,10 +86,9 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         HBaseCellId hBaseCellId2 = new HBaseCellId(table, row2, family, qualifier, t2.getStartTimestamp());
         HBaseCellId hBaseCellId3 = new HBaseCellId(table, row2, family, qualifier, t3.getStartTimestamp());
 
-        HBaseTransactionClient hbaseTm = (HBaseTransactionClient) newTransactionManager(context);
-        assertTrue(table.isCommitted(hBaseCellId1, 0), "row1 should be committed");
-        assertFalse(table.isCommitted(hBaseCellId2, 0), "row2 should not be committed for kv2");
-        assertTrue(table.isCommitted(hBaseCellId3, 0), "row2 should be committed for kv3");
+        assertTrue(snapshotFilter.isCommitted(hBaseCellId1, 0, false), "row1 should be committed");
+        assertFalse(snapshotFilter.isCommitted(hBaseCellId2, 0, false), "row2 should not be committed for kv2");
+        assertTrue(snapshotFilter.isCommitted(hBaseCellId3, 0, false), "row2 should be committed for kv3");
     }
 
     @Test(timeOut = 30_000)
@@ -97,7 +99,10 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         // The following line emulates a crash after commit that is observed in (*) below
         doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
 
-        TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()));
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+        TTable table = spy(new TTable(htable, snapshotFilter, false));
 
         HBaseTransaction t1 = (HBaseTransaction) tm.begin();
 
@@ -119,7 +124,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, t1.getStartTimestamp());
 
         HBaseTransactionClient hbaseTm = (HBaseTransactionClient) newTransactionManager(context);
-        assertTrue(table.isCommitted(hBaseCellId, 0), "row1 should be committed");
+        assertTrue(snapshotFilter.isCommitted(hBaseCellId, 0, false), "row1 should be committed");
     }
 
     @Test(timeOut = 30_000)
@@ -183,14 +188,18 @@ public class TestHBaseTransactionClient extends OmidTestBase {
 
         HBaseTransactionManager tm = (HBaseTransactionManager) newTransactionManager(context);
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
 
             // Test first we can not found a non-existent cell ts
             HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, NON_EXISTING_CELL_TS);
             // Set an empty cache to allow to bypass the checking
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            Optional<CommitTimestamp> optionalCT = table
+            Optional<CommitTimestamp> optionalCT = snapshotFilter
                     .readCommitTimestampFromShadowCell(NON_EXISTING_CELL_TS, ctLocator);
             assertFalse(optionalCT.isPresent());
 
@@ -201,7 +210,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             table.put(tx1, put);
             tm.commit(tx1);
             // Upon commit, the commit data should be in the shadow cells, so test it
-            optionalCT = table.readCommitTimestampFromShadowCell(tx1.getStartTimestamp(), ctLocator);
+            optionalCT = snapshotFilter.readCommitTimestampFromShadowCell(tx1.getStartTimestamp(), ctLocator);
             assertTrue(optionalCT.isPresent());
             CommitTimestamp ct = optionalCT.get();
             assertTrue(ct.isValid());
@@ -223,14 +232,18 @@ public class TestHBaseTransactionClient extends OmidTestBase {
 
         // Pre-load the element to look for in the cache
         Table htable = hBaseUtils.getConnection().getTable(TableName.valueOf(TEST_TABLE));
-        TTable table = new TTable(htable);
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+        TTable table = new TTable(htable, snapshotFilter, false);
+
         HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, CELL_ST);
         Map<Long, Long> fakeCache = Maps.newHashMap();
         fakeCache.put(CELL_ST, CELL_CT);
 
         // Then test that locator finds it in the cache
         CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId, fakeCache);
-        CommitTimestamp ct = table.locateCellCommitTimestamp(CELL_ST, tm.tsoClient.getEpoch(), ctLocator);
+        CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(CELL_ST, tm.tsoClient.getEpoch(), ctLocator,
+                false);
         assertTrue(ct.isValid());
         assertEquals(ct.getValue(), CELL_CT);
         assertTrue(ct.getLocation().compareTo(CACHE) == 0);
@@ -249,7 +262,11 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         // The following line emulates a crash after commit that is observed in (*) below
         doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
             // Commit a transaction that is broken on commit to avoid
             // write to the shadow cells and avoid cleaning the commit table
             HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
@@ -267,8 +284,8 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            CommitTimestamp ct = table.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
-                    ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
+                    ctLocator, false);
             assertTrue(ct.isValid());
             long expectedCommitTS = tx1.getStartTimestamp() + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
             assertEquals(ct.getValue(), expectedCommitTS);
@@ -283,7 +300,11 @@ public class TestHBaseTransactionClient extends OmidTestBase {
 
         HBaseTransactionManager tm = (HBaseTransactionManager) newTransactionManager(context);
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
             // Commit a transaction to addColumn ST/CT in commit table
             HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
             Put put = new Put(row1);
@@ -297,8 +318,8 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            CommitTimestamp ct = table.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
-                    ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
+                    ctLocator, false);
             assertTrue(ct.isValid());
             assertEquals(ct.getValue(), tx1.getCommitTimestamp());
             assertTrue(ct.getLocation().compareTo(SHADOW_CELL) == 0);
@@ -320,8 +341,11 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         f.set(Optional.<CommitTimestamp>absent());
         doReturn(f).when(commitTableClient).getCommitTimestamp(any(Long.class));
 
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
 
             // Commit a transaction to addColumn ST/CT in commit table
             HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
@@ -336,7 +360,8 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
             // Fake the current epoch to simulate a newer TSO
-            CommitTimestamp ct = table.locateCellCommitTimestamp(tx1.getStartTimestamp(), CURRENT_EPOCH_FAKE, ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), CURRENT_EPOCH_FAKE,
+                    ctLocator, false);
             assertFalse(ct.isValid());
             assertEquals(ct.getValue(), CommitTable.INVALID_TRANSACTION_MARKER);
             assertTrue(ct.getLocation().compareTo(COMMIT_TABLE) == 0);
@@ -360,7 +385,11 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         f.set(Optional.<CommitTimestamp>absent());
         doReturn(f).doCallRealMethod().when(commitTableClient).getCommitTimestamp(any(Long.class));
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
 
             // Commit a transaction that is broken on commit to avoid
             // write to the shadow cells and avoid cleaning the commit table
@@ -379,8 +408,8 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            CommitTimestamp ct = table.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
-                    ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
+                    ctLocator, false);
             assertTrue(ct.isValid());
             assertEquals(ct.getValue(), tx1.getCommitTimestamp());
             assertTrue(ct.getLocation().compareTo(COMMIT_TABLE) == 0);
@@ -400,7 +429,11 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         f.set(Optional.<CommitTimestamp>absent());
         doReturn(f).when(commitTableClient).getCommitTimestamp(any(Long.class));
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
 
             // Commit a transaction to addColumn ST/CT in commit table
             HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
@@ -415,8 +448,8 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            CommitTimestamp ct = table.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
-                    ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
+                    ctLocator,false);
             assertTrue(ct.isValid());
             assertEquals(ct.getValue(), tx1.getCommitTimestamp());
             assertTrue(ct.getLocation().compareTo(SHADOW_CELL) == 0);
@@ -437,16 +470,20 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         f.set(Optional.<CommitTimestamp>absent());
         doReturn(f).when(commitTableClient).getCommitTimestamp(any(Long.class));
 
-        try (TTable table = spy(new TTable(connection, TEST_TABLE, tm.getCommitTableClient()))) {
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+
+        try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
             HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, CELL_TS);
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
-            CommitTimestamp ct = table.locateCellCommitTimestamp(CELL_TS, tm.tsoClient.getEpoch(), ctLocator);
+            CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(CELL_TS, tm.tsoClient.getEpoch(),
+                    ctLocator, false);
             assertTrue(ct.isValid());
             assertEquals(ct.getValue(), -1L);
             assertTrue(ct.getLocation().compareTo(NOT_PRESENT) == 0);
         }
 
     }
-
 }

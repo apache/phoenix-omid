@@ -15,18 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.transaction;
 
-import java.io.IOException;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
+package org.apache.omid.tso;
 
+public class MonitoringContextNullImpl implements MonitoringContext {
+    @Override
+    public void timerStart(String name) {
 
-public interface SnapshotFilter {
-    
-    Result get(Get get, HBaseTransaction transaction) throws IOException;
+    }
 
-    ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException;
+    @Override
+    public void timerStop(String name) {
+
+    }
+
+    @Override
+    public void publish() {
+
+    }
 }

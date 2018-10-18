@@ -145,6 +145,7 @@ public class TestShadowCells extends OmidTestBase {
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .build());
 
         // The following line emulates a crash after commit that is observed in (*) below
@@ -191,6 +192,7 @@ public class TestShadowCells extends OmidTestBase {
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .commitTableClient(commitTableClient)
                 .build());
 
@@ -252,6 +254,7 @@ public class TestShadowCells extends OmidTestBase {
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
+                .commitTableWriter(getCommitTable(context).getWriter())
                 .build());
 
         final TTable table = new TTable(connection, TEST_TABLE);
@@ -337,7 +340,7 @@ public class TestShadowCells extends OmidTestBase {
                     Table htable = table.getHTable();
                     Table healer = table.getHTable();
 
-                    final SnapshotFilter snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, healer)));
+                    final SnapshotFilterImpl snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, healer)));
                     final TTable table = new TTable(htable ,snapshotFilter);
                     doAnswer(new Answer<List<KeyValue>>() {
                         @SuppressWarnings("unchecked")

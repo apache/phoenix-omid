@@ -37,5 +37,5 @@ interface PersistenceProcessor extends Closeable {
 
     void triggerCurrentBatchFlush() throws Exception;
 
-    Future<Void> persistLowWatermark(long lowWatermark);
+
 }

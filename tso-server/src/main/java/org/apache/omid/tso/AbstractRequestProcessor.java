@@ -31,8 +31,6 @@ import org.jboss.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,32 +44,34 @@ import java.util.concurrent.ThreadFactory;
 import static com.lmax.disruptor.dsl.ProducerType.MULTI;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.omid.tso.RequestProcessorImpl.RequestEvent.EVENT_FACTORY;
+import static org.apache.omid.tso.AbstractRequestProcessor.RequestEvent.EVENT_FACTORY;
 
-class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestEvent>, RequestProcessor, TimeoutHandler {
+abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestProcessor.RequestEvent>, RequestProcessor, TimeoutHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(RequestProcessorImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractRequestProcessor.class);
 
     // Disruptor-related attributes
     private final ExecutorService disruptorExec;
-    private final Disruptor<RequestEvent> disruptor;
-    private final RingBuffer<RequestEvent> requestRing;
+    protected final Disruptor<RequestEvent> disruptor;
+    protected RingBuffer<RequestEvent> requestRing;
 
     private final TimestampOracle timestampOracle;
     private final CommitHashMap hashmap;
     private final Map<Long, Long> tableFences;
     private final MetricsRegistry metrics;
-    private final PersistenceProcessor persistProc;
-
+    private final LowWatermarkWriter lowWatermarkWriter;
     private long lowWatermark = -1L;
 
-    @Inject
-    RequestProcessorImpl(MetricsRegistry metrics,
-                         TimestampOracle timestampOracle,
-                         PersistenceProcessor persistProc,
-                         Panicker panicker,
-                         TSOServerConfig config)
+    //Used to forward fence
+    private final ReplyProcessor replyProcessor;
+
+    AbstractRequestProcessor(MetricsRegistry metrics,
+                             TimestampOracle timestampOracle,
+                             Panicker panicker,
+                             TSOServerConfig config,
+                             LowWatermarkWriter lowWatermarkWriter, ReplyProcessor replyProcessor)
             throws IOException {
+
 
         // ------------------------------------------------------------------------------------------------------------
         // Disruptor initialization
@@ -85,17 +85,19 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
         this.disruptor = new Disruptor<>(EVENT_FACTORY, 1 << 12, disruptorExec, MULTI, timeoutStrategy);
         disruptor.handleExceptionsWith(new FatalExceptionHandler(panicker)); // This must be before handleEventsWith()
         disruptor.handleEventsWith(this);
-        this.requestRing = disruptor.start();
+
 
         // ------------------------------------------------------------------------------------------------------------
         // Attribute initialization
         // ------------------------------------------------------------------------------------------------------------
 
         this.metrics = metrics;
-        this.persistProc = persistProc;
         this.timestampOracle = timestampOracle;
         this.hashmap = new CommitHashMap(config.getConflictMapSize());
         this.tableFences = new HashMap<Long, Long>();
+        this.lowWatermarkWriter = lowWatermarkWriter;
+
+        this.replyProcessor = replyProcessor;
 
         LOG.info("RequestProcessor initialized");
 
@@ -108,7 +110,7 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
     public void update(TSOState state) throws Exception {
         LOG.info("Initializing RequestProcessor state...");
         this.lowWatermark = state.getLowWatermark();
-        persistProc.persistLowWatermark(lowWatermark).get(); // Sync persist
+        lowWatermarkWriter.persistLowWatermark(lowWatermark).get(); // Sync persist
         LOG.info("RequestProcessor state initialized with LWMs {} and Epoch {}", lowWatermark, state.getEpoch());
     }
 
@@ -140,8 +142,7 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
         // TODO (cont) thread the one that calls persistProc.triggerCurrentBatchFlush(); we'll incur in concurrency issues
         // TODO (cont) This is because, in the current implementation, only the request-0 thread calls the public methods
         // TODO (cont) in persistProc and it is guaranteed that access them serially.
-        persistProc.triggerCurrentBatchFlush();
-
+        onTimeout();
     }
 
     @Override
@@ -182,8 +183,7 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
 
         long timestamp = timestampOracle.next();
         requestEvent.getMonCtx().timerStop("request.processor.timestamp.latency");
-        persistProc.addTimestampToBatch(timestamp, requestEvent.getChannel(), requestEvent.getMonCtx());
-
+        forwardTimestamp(timestamp, requestEvent.getChannel(), requestEvent.getMonCtx());
     }
 
     // Checks whether transaction transactionId started before a fence creation of a table transactionId modified.
@@ -246,19 +246,19 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
                 if (newLowWatermark != lowWatermark) {
                     LOG.trace("Setting new low Watermark to {}", newLowWatermark);
                     lowWatermark = newLowWatermark;
-                    persistProc.persistLowWatermark(newLowWatermark); // Async persist
+                    lowWatermarkWriter.persistLowWatermark(newLowWatermark); // Async persist
                 }
             }
             event.getMonCtx().timerStop("request.processor.commit.latency");
-            persistProc.addCommitToBatch(startTimestamp, commitTimestamp, c, event.getMonCtx());
+            forwardCommit(startTimestamp, commitTimestamp, c, event.getMonCtx());
 
         } else {
 
             event.getMonCtx().timerStop("request.processor.commit.latency");
             if (isCommitRetry) { // Re-check if it was already committed but the client retried due to a lag replying
-                persistProc.addCommitRetryToBatch(startTimestamp, c, event.getMonCtx());
+                forwardCommitRetry(startTimestamp, c, event.getMonCtx());
             } else {
-                persistProc.addAbortToBatch(startTimestamp, c, event.getMonCtx());
+                forwardAbort(startTimestamp, c, event.getMonCtx());
             }
 
         }
@@ -272,7 +272,9 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
         long fenceTimestamp = timestampOracle.next();
 
         tableFences.put(tableID, fenceTimestamp);
-        persistProc.addFenceToBatch(tableID, fenceTimestamp, c, event.getMonCtx());
+
+        event.monCtx.timerStart("reply.processor.fence.latency");
+        replyProcessor.sendFenceResponse(tableID, fenceTimestamp, c, event.monCtx);
     }
 
     @Override
@@ -293,6 +295,14 @@ class RequestProcessorImpl implements EventHandler<RequestProcessorImpl.RequestE
         LOG.info("Request Processor terminated");
 
     }
+
+    protected abstract void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    protected abstract void forwardCommitRetry(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    protected abstract void forwardAbort(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    protected abstract void forwardTimestamp(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    protected abstract void onTimeout() throws Exception;
+
+
 
     final static class RequestEvent implements Iterable<Long> {
 

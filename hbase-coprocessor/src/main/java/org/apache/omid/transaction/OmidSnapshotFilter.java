@@ -28,6 +28,7 @@ import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 
 
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -115,8 +116,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
             throws IOException {
 
         if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
-
-        HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE));
+        boolean isLowLatency = Bytes.toBoolean(get.getAttribute(CellUtils.LL_ATTRIBUTE));
+        HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE),
+                isLowLatency);
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
         snapshotFilterMap.put(get, snapshotFilter);
 
@@ -155,8 +157,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (byteTransaction == null) {
             return;
         }
-
-        HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction);
+        boolean isLowLatency = Bytes.toBoolean(scan.getAttribute(CellUtils.LL_ATTRIBUTE));
+        HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction, isLowLatency);
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
 
         scan.setMaxVersions();
@@ -194,7 +196,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
 
 
-    private HBaseTransaction getHBaseTransaction(byte[] byteTransaction)
+    private HBaseTransaction getHBaseTransaction(byte[] byteTransaction, boolean isLowLatency)
             throws InvalidProtocolBufferException {
         TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(byteTransaction);
         long id = transaction.getTimestamp();
@@ -202,7 +204,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         long epoch = transaction.getEpoch();
         VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
-        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null);
+        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null,
+                isLowLatency);
+
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {

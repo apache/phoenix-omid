@@ -169,10 +169,17 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         }
         assertEquals(count20, 1);
         // 3) commit TX 1
-        tm.commit(tx1);
+        try {
+            tm.commit(tx1);
+        } catch (RollbackException e) {
+            if (!getClient(context).isLowLatency())
+                fail();
+        }
 
         tx2Scanner = txTable.getScanner(tx2, scan);
-        assertNull(tx2Scanner.next());
+        //If we are in low latency mode, tx1 aborted and deleted the val=30, so scan will return row2
+        if (!getClient(context).isLowLatency())
+            assertNull(tx2Scanner.next());
 
         // 4) commit TX 2 -> Should be rolled-back
         try {

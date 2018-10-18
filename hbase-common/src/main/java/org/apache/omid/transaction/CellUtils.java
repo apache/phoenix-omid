@@ -57,6 +57,7 @@ public final class CellUtils {
     public static final String TRANSACTION_ATTRIBUTE = "__OMID_TRANSACTION__";
     /**/
     public static final String CLIENT_GET_ATTRIBUTE = "__OMID_CLIENT_GET__";
+    public static final String LL_ATTRIBUTE = "__OMID_LL__";
 
     /**
      * Utility interface to get rid of the dependency on HBase server package

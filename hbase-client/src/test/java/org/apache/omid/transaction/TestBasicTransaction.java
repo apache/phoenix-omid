@@ -257,8 +257,13 @@ public class TestBasicTransaction extends OmidTestBase {
         Result r = tt.get(tread, g);
         assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
                 "Unexpected value for SI read " + tread + ": " + Bytes.toString(r.getValue(fam, col)));
-        tm.commit(t2);
-
+        try {
+            tm.commit(t2);
+        } catch (RollbackException e) {
+            if (!getClient(context).isLowLatency())
+                fail();
+            return;
+        }
         r = tt.getHTable().get(g);
         assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
                 "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
@@ -321,6 +326,11 @@ public class TestBasicTransaction extends OmidTestBase {
 
         // Commit the Tx2 and then check that under a new transactional context, the scanner gets the right snapshot,
         // which must include the row modified by Tx2
+        if (getClient(context).isLowLatency()) {
+            //No point going on from here, tx2 is going to be invalidated and modified wil be 0
+            return;
+        }
+
         tm.commit(tx2);
 
         int modifiedRows = 0;

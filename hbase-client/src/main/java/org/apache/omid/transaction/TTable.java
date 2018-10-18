@@ -49,13 +49,10 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
-import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 
 /**
  * Provides transactional methods for accessing and modifying a given snapshot of data identified by an opaque {@link
@@ -327,7 +324,8 @@ public class TTable implements Closeable {
             }
         }
         if (deleteFamily) {
-            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
+            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).
+                    getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
                 familyQualifierBasedDeletionWithOutRead(transaction, deleteP, deleteG);
             } else {
                 familyQualifierBasedDeletion(transaction, deleteP, deleteG);
@@ -738,29 +736,4 @@ public class TTable implements Closeable {
                               tm.getClass().getName()));
         }
     }
-
-    // For testing
-
-    @VisibleForTesting
-    boolean isCommitted(HBaseCellId hBaseCellId, long epoch) throws TransactionException {
-        return snapshotFilter.isCommitted(hBaseCellId, epoch);
-    }
-
-    @VisibleForTesting
-    CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp, long epoch,
-            CommitTimestampLocator locator) throws IOException {
-        return snapshotFilter.locateCellCommitTimestamp(cellStartTimestamp, epoch, locator);
-    }
-
-    @VisibleForTesting
-    Optional<CommitTimestamp> readCommitTimestampFromShadowCell(long cellStartTimestamp, CommitTimestampLocator locator)
-            throws IOException
-    {
-        return snapshotFilter.readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-    }
-
-    SnapshotFilter getSnapshotFilter() {
-        return snapshotFilter;
-    }
-
 }
