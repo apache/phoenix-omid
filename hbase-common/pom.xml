@@ -8,7 +8,7 @@
         <version>0.9.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-hbase-common</artifactId>
+    <artifactId>omid-hbase-common-${hbase.shims.concatination}</artifactId>
     <name>HBase Common</name>
     <packaging>jar</packaging>
 
