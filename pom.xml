@@ -135,8 +135,23 @@
 
     <properties>
 
-        <shims1.artifactId>omid-hbase1-shims</shims1.artifactId>
-        <shims2.artifactId>omid-hbase2-shims</shims2.artifactId>
+
+        <hbase1.artifactId.suffix>hbase1.x</hbase1.artifactId.suffix>
+        <hbase2.artifactId.suffix>hbase2.x</hbase2.artifactId.suffix>
+
+        <shims1.artifactId>omid-hbase-shims-${hbase1.artifactId.suffix}</shims1.artifactId>
+        <shims2.artifactId>omid-hbase-shims-${hbase2.artifactId.suffix}</shims2.artifactId>
+
+        <!-- hbase-1 profile props are here and not in profile section to work better with intelij-->
+        <shims.artifactId>${shims1.artifactId}</shims.artifactId>
+        <shims.exclude.artifactId>${shims2.artifactId}</shims.exclude.artifactId>
+        <java.version>1.7</java.version>
+        <hadoop.version>${hadoop1.version}</hadoop.version>
+        <hbase.version>${hbase1.version}</hbase.version>
+        <shims.module>hbase-1</shims.module>
+        <hbase.artifactId.suffix>${hbase1.artifactId.suffix}</hbase.artifactId.suffix>
+        <hbase.exclude.artifactId.suffix>${hbase2.artifactId.suffix}</hbase.exclude.artifactId.suffix>
+
 
         <!-- Basic properties -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -567,14 +582,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <shims.artifactId>${shims1.artifactId}</shims.artifactId>
-                <shims.exclude.artifactId>${shims2.artifactId}</shims.exclude.artifactId>
-                <java.version>1.7</java.version>
-                <hadoop.version>${hadoop1.version}</hadoop.version>
-                <hbase.version>${hbase1.version}</hbase.version>
-                <shims.module>hbase-1</shims.module>
-                <hbase.shims.concatination>hbase1.3</hbase.shims.concatination>
-                <hbase.exlude.shims.concatination>hbase2.0</hbase.exlude.shims.concatination>
+
             </properties>
         </profile>
 
@@ -584,12 +592,12 @@
                 <shims.artifactId>${shims2.artifactId}</shims.artifactId>
                 <shims.exclude.artifactId>${shims1.artifactId}</shims.exclude.artifactId>
                 <shims.module>hbase-2</shims.module>
-                <shims.artifactId>omid-hbase2-shims</shims.artifactId>
+                <shims.artifactId>${shims2.artifactId}</shims.artifactId>
                 <java.version>1.8</java.version>
                 <hadoop.version>${hadoop2.version}</hadoop.version>
                 <hbase.version>${hbase2.version}</hbase.version>
-                <hbase.shims.concatination>hbase2.0</hbase.shims.concatination>
-                <hbase.exlude.shims.concatination>hbase1.3</hbase.exlude.shims.concatination>
+                <hbase.artifactId.suffix>${hbase2.artifactId.suffix}</hbase.artifactId.suffix>
+                <hbase.exclude.artifactId.suffix>${hbase1.artifactId.suffix}</hbase.exclude.artifactId.suffix>
 
             </properties>
         </profile>

@@ -8,7 +8,7 @@
         <version>0.9.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-hbase-coprocessor-${hbase.shims.concatination}</artifactId>
+    <artifactId>omid-hbase-coprocessor-${hbase.artifactId.suffix}</artifactId>
     <packaging>jar</packaging>
     <name>HBase Coprocessors</name>
 
@@ -18,23 +18,44 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-commit-table-${hbase.shims.concatination}</artifactId>
+            <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>${shims.exclude.artifactId}</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server</artifactId>
+            <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-client-${hbase.shims.concatination}</artifactId>
+            <artifactId>omid-hbase-client-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>omid-hbase-commit-table-${hbase.exclude.artifactId.suffix}</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.omid</groupId>
+                    <artifactId>${shims.exclude.artifactId}</artifactId>
+                </exclusion>
+            </exclusions>
+
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server</artifactId>
+            <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

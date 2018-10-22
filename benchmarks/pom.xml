@@ -22,7 +22,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-commit-table-${hbase.shims.concatination}</artifactId>
+            <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <exclusions>
                 <exclusion>
@@ -31,7 +31,7 @@
                 </exclusion>
                 <exclusion>
                     <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exlude.shims.concatination}</artifactId>
+                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
