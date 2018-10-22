@@ -34,6 +34,12 @@
         <url>http://www.apache.org</url>
     </organization>
 
+    <parent>
+        <groupId>org.apache</groupId>
+        <artifactId>apache</artifactId>
+        <version>14</version>
+    </parent>
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -195,7 +201,7 @@
         <harmless.groupId>org.apache.hbase</harmless.groupId>
         <harmless.artifactId>hbase-client</harmless.artifactId>
         <harmless.version>${hbase.version}</harmless.version>
-
+        <additionalparam>-Xdoclint:none</additionalparam>
     </properties>
 
     <build>
@@ -598,6 +604,8 @@
                 <hadoop.version>${hadoop1.version}</hadoop.version>
                 <hbase.version>${hbase1.version}</hbase.version>
                 <shims.module>hbase-1</shims.module>
+                <hbase.shims.concatination>hbase1.3</hbase.shims.concatination>
+                <hbase.exlude.shims.concatination>hbase2.0</hbase.exlude.shims.concatination>
             </properties>
         </profile>
 
@@ -611,6 +619,9 @@
                 <java.version>1.8</java.version>
                 <hadoop.version>${hadoop2.version}</hadoop.version>
                 <hbase.version>${hbase2.version}</hbase.version>
+                <hbase.shims.concatination>hbase2.0</hbase.shims.concatination>
+                <hbase.exlude.shims.concatination>hbase1.3</hbase.exlude.shims.concatination>
+
             </properties>
         </profile>
 
