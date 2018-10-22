@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Singleton;
+import org.apache.omid.committable.hbase.HBaseCommitTableStorageModule;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,6 +150,10 @@ public class TSOServer extends AbstractIdleService {
             TSOServer tsoServer = getInitializedTsoServer(config);
             tsoServer.attachShutDownHook();
             tsoServer.startAndWait();
+            if (config.getLowLatency() &&
+                    !(config.getCommitTableStoreModule() instanceof HBaseCommitTableStorageModule)) {
+                LOG.error("Running low latency mode with memory commit table. Use only with testing!");
+            }
         } catch (Exception e) {
             System.out.println(e.getMessage());
             System.exit(-1);
