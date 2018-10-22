@@ -90,6 +90,14 @@
             <organization>Arimo</organization>
             <organizationUrl>https://www.arimo.com</organizationUrl>
         </developer>
+        <developer>
+            <id>yonigo</id>
+            <name>Yonatan Gottesman</name>
+            <email>yonigo@apache.org</email>
+            <timezone>+2</timezone>
+            <organization>Yahoo Inc</organization>
+            <organizationUrl>http://www.yahoo.com</organizationUrl>
+        </developer>
 
     </developers>
 
