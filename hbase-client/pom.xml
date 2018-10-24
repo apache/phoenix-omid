@@ -40,26 +40,16 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-commit-table-${hbase.shims.concatination}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exlude.shims.concatination}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server-${hbase.shims.concatination}</artifactId>
+            <artifactId>omid-tso-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server-${hbase.shims.concatination}</artifactId>
+            <artifactId>omid-tso-server</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

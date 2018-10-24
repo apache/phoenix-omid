@@ -22,7 +22,7 @@
         <version>0.9.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-tso-server-${hbase.shims.concatination}</artifactId>
+    <artifactId>omid-tso-server</artifactId>
     <packaging>jar</packaging>
     <name>TSO and TO Servers</name>
     <description>Omid Transaction Status Oracle server and Timestamp Oracle</description>

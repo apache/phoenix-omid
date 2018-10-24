@@ -44,12 +44,6 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-common-${hbase.shims.concatination}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- End of Dependencies on Omid modules -->
