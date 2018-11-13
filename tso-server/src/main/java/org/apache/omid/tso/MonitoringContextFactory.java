@@ -20,7 +20,7 @@ package org.apache.omid.tso;
 import org.apache.omid.metrics.MetricsRegistry;
 
 public class MonitoringContextFactory {
-    private MonitoringContextFactory(){};
+    private MonitoringContextFactory(){}
 
     static public MonitoringContext getInstance(TSOServerConfig config, MetricsRegistry metrics) {
         if (config.getMonitorContext())

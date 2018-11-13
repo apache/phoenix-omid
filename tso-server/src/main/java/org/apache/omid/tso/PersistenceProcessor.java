@@ -20,7 +20,6 @@ package org.apache.omid.tso;
 import org.jboss.netty.channel.Channel;
 
 import java.io.Closeable;
-import java.util.concurrent.Future;
 
 interface PersistenceProcessor extends Closeable {
 

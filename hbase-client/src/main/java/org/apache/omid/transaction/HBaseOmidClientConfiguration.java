@@ -20,13 +20,15 @@ package org.apache.omid.transaction;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.omid.YAMLUtils;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.OmidClientConfiguration.PostCommitMode;
 import org.apache.omid.tso.client.OmidClientConfiguration;
-import org.apache.omid.tso.client.OmidClientConfiguration.PostCommitMode;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;

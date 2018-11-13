@@ -34,7 +34,7 @@ import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tso.client.CellId;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.TSOClient;
-
+import org.apache.omid.tso.client.TSOProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +74,6 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         return builder(configuration).build();
     }
 
-
     public static class Builder {
 
         // Required parameters
@@ -90,9 +89,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             this.hbaseOmidClientConf = hbaseOmidClientConf;
         }
 
-
-        public Builder tsoClient(TSOClient tsoClient) {
-
+        public Builder tsoClient(TSOProtocol tsoClient) {
             this.tsoClient = Optional.of(tsoClient);
             return this;
         }
@@ -101,7 +98,6 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             this.commitTableClient = Optional.of(client);
             return this;
         }
-
 
         public Builder commitTableWriter(CommitTable.Writer writer) {
             this.commitTableWriter = Optional.of(writer);
@@ -169,7 +165,6 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         }
 
     }
-
 
     public static Builder builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
         return new Builder(hbaseOmidClientConf);

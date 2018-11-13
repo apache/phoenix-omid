@@ -31,8 +31,8 @@ import java.util.List;
 //This interface is used to wrap the HTableInterface and Region object when doing client and server side filtering accordingly.
 public interface TableAccessWrapper {
 
-    public Result[] get(List<Get> get) throws IOException;
-    public Result get(Get get) throws IOException;
-    public void   put(Put put) throws IOException;
-    public ResultScanner getScanner(Scan scan) throws IOException;
+    Result[] get(List<Get> get) throws IOException;
+    Result get(Get get) throws IOException;
+    void   put(Put put) throws IOException;
+    ResultScanner getScanner(Scan scan) throws IOException;
 }

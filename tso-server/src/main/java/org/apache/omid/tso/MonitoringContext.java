@@ -20,10 +20,10 @@ package org.apache.omid.tso;
 
 public interface MonitoringContext {
 
-    public void timerStart(String name);
+    void timerStart(String name);
 
-    public void timerStop(String name);
+    void timerStop(String name);
 
-    public void publish();
+    void publish();
 
 }

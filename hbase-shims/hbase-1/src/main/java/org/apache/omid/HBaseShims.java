@@ -30,13 +30,10 @@ import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.Region;
-
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.util.Bytes;
 
-
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 
 public class HBaseShims {
 
@@ -46,9 +43,9 @@ public class HBaseShims {
 
     }
 
-    static public RegionWrapper getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
+    static public Region getRegionCoprocessorRegion(RegionCoprocessorEnvironment env) {
 
-        return new RegionWrapper(env.getRegion());
+        return env.getRegion();
 
     }
 
@@ -65,7 +62,6 @@ public class HBaseShims {
         tableDesc.addFamily(columnDesc);
 
     }
-
 
     public static CellComparator cellComparatorInstance() {
         return new CellComparator();

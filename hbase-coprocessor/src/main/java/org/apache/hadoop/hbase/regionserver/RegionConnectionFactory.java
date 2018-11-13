@@ -27,8 +27,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
-import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
-import org.apache.hadoop.hbase.ipc.controller.InterRegionServerRpcControllerFactory;
 import org.apache.omid.HBaseShims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

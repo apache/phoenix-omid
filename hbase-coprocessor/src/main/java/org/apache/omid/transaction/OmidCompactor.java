@@ -29,6 +29,7 @@ import org.apache.omid.HBaseShims;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
+import org.apache.hadoop.hbase.regionserver.CompactorScanner;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionConnectionFactory;
 import org.apache.hadoop.hbase.regionserver.ScanType;
@@ -53,8 +54,8 @@ public class OmidCompactor extends BaseRegionObserver {
 
     private static final Logger LOG = LoggerFactory.getLogger(OmidCompactor.class);
 
-    private static final String HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY =
-            "omid.hbase.compactor.retain.tombstones";
+    private static final String HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY
+            = "omid.hbase.compactor.retain.tombstones";
     private static final boolean HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT = true;
 
     final static String OMID_COMPACTABLE_CF_FLAG = "OMID_ENABLED";
@@ -92,7 +93,6 @@ public class OmidCompactor extends BaseRegionObserver {
             commitTableConf.setTableName(commitTableName);
         }
         retainNonTransactionallyDeletedCells =
-
                 env.getConfiguration().getBoolean(HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY,
                         HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT);
         LOG.info("Compactor coprocessor started");
@@ -117,7 +117,6 @@ public class OmidCompactor extends BaseRegionObserver {
                                       InternalScanner scanner,
                                       ScanType scanType,
                                       CompactionRequest request) throws IOException {
-
         boolean omidCompactable;
         try {
             if (enableCompactorForAllFamilies) {
@@ -144,14 +143,11 @@ public class OmidCompactor extends BaseRegionObserver {
                         isMajorCompaction,
                         retainNonTransactionallyDeletedCells);
             }
-
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
             throw new DoNotRetryIOException(e);
-
         }
-
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {

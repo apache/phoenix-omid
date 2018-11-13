@@ -315,7 +315,6 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     public void postRollback(AbstractTransaction<? extends CellId> transaction) throws TransactionManagerException {}
 
     /**
-
      * @see java.io.Closeable#close()
      */
     @Override
