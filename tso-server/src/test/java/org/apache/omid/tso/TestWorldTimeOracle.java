@@ -19,7 +19,6 @@ package org.apache.omid.tso;
 
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.timestamp.storage.TimestampStorage;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -42,9 +41,9 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class TestTimestampOracle {
+public class TestWorldTimeOracle {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TestTimestampOracle.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestWorldTimeOracle.class);
 
     @Mock
     private MetricsRegistry metrics;
@@ -53,30 +52,34 @@ public class TestTimestampOracle {
     @Mock
     private TimestampStorage timestampStorage;
     @Mock
-    TSOServerConfig config;
+    private TSOServerConfig config;
 
     // Component under test
     @InjectMocks
-    private TimestampOracleImpl timestampOracle;
+    private WorldClockOracleImpl worldClockOracle;
 
     @BeforeMethod(alwaysRun = true, timeOut = 30_000)
     public void initMocksAndComponents() {
         MockitoAnnotations.initMocks(this);
     }
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 30_000)
     public void testMonotonicTimestampGrowth() throws Exception {
 
         // Intialize component under test
-        timestampOracle.initialize();
+        worldClockOracle.initialize();
 
-        long last = timestampOracle.next();
-        for (int i = 0; i < (3 * TimestampOracleImpl.TIMESTAMP_BATCH); i++) {
-            long current = timestampOracle.next();
-            assertEquals(current, last + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN, "Not monotonic growth");
+        long last = worldClockOracle.next();
+        
+        int timestampIntervalSec = (int) (WorldClockOracleImpl.TIMESTAMP_INTERVAL_MS / 1000) * 2;
+        for (int i = 0; i < timestampIntervalSec; i++) {
+            long current = worldClockOracle.next();
+            assertTrue(current > last+1 , "Timestamp should be based on world time");
             last = current;
+            Thread.sleep(1000);
         }
-        assertTrue(timestampOracle.getLast() == last);
+
+        assertTrue(worldClockOracle.getLast() == last);
         LOG.info("Last timestamp: {}", last);
     }
 
@@ -84,7 +87,7 @@ public class TestTimestampOracle {
     public void testTimestampOraclePanicsWhenTheStorageHasProblems() throws Exception {
 
         // Intialize component under test
-        timestampOracle.initialize();
+        worldClockOracle.initialize();
 
         // Cause an exception when updating the max timestamp
         final CountDownLatch updateMaxTimestampMethodCalled = new CountDownLatch(1);
@@ -101,7 +104,7 @@ public class TestTimestampOracle {
             @Override
             public void run() {
                 while (true) {
-                    timestampOracle.next();
+                    worldClockOracle.next();
                 }
             }
         };

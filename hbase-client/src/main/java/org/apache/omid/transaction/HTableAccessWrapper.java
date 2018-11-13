@@ -15,44 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid;
-
-import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.regionserver.HRegion;
+package org.apache.omid.transaction;
 
 import java.io.IOException;
+import java.util.List;
 
-/**
- * Wrapper over  {@link org.apache.hadoop.hbase.regionserver.HRegion} interface in HBase 0.9x versions
- */
-public class RegionWrapper {
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTableInterface;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
 
-    HRegion hRegion;
+// This class wraps the HTableInterface object when doing client side filtering.
+public class HTableAccessWrapper implements TableAccessWrapper {
 
-    public RegionWrapper(HRegion hRegion) {
-
-        this.hRegion = hRegion;
-
+    private final HTableInterface writeTable;
+    private final HTableInterface readTable;
+    
+    public HTableAccessWrapper(HTableInterface table, HTableInterface healerTable) {
+        this.readTable = table;
+        this.writeTable = healerTable;
     }
 
-    public Result get(Get getOperation) throws IOException {
-
-        return hRegion.get(getOperation);
-
+    @Override
+    public Result[] get(List<Get> get) throws IOException {
+        return readTable.get(get);
     }
 
-    void put(Put putOperation) throws IOException {
-
-        hRegion.put(putOperation);
-
+    @Override
+    public Result get(Get get) throws IOException {
+        return readTable.get(get);
     }
 
-    HRegionInfo getRegionInfo() {
-        return hRegion.getRegionInfo();
-
+    @Override
+    public void put(Put put) throws IOException {
+        writeTable.put(put);
     }
 
 }

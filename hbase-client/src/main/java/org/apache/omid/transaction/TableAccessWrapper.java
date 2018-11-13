@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.tso;
+package org.apache.omid.transaction;
 
-import org.jboss.netty.channel.Channel;
+import java.io.IOException;
+import java.util.List;
 
-import java.io.Closeable;
-import java.util.Collection;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Get;
 
-// NOTE: public is required explicitly in the interface definition for Guice injection
-public interface RequestProcessor extends TSOStateManager.StateObserver, Closeable {
+//This interface is used to wrap the HTableInterface and Region object when doing client and server side filtering accordingly.
+public interface TableAccessWrapper {
 
-    void timestampRequest(Channel c, MonitoringContext monCtx);
+    public Result[] get(List<Get> get) throws IOException;
+    public Result get(Get get) throws IOException;
+    public void   put(Put put) throws IOException;
 
-    void commitRequest(long startTimestamp, Collection<Long> writeSet, Collection<Long> tableIdSet, boolean isRetry, Channel c, MonitoringContext monCtx);
-
-    void fenceRequest(long tableID, Channel c, MonitoringContext monCtx);
 }

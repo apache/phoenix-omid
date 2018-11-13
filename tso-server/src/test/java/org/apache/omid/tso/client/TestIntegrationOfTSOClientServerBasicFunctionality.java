@@ -21,8 +21,10 @@ import com.google.common.collect.Sets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
+import org.apache.omid.transaction.AbstractTransactionManager;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
@@ -123,17 +125,21 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         referenceTimestamp = startTsTx1;
 
         long startTsTx2 = tsoClient.getNewStartTimestamp().get();
-        assertEquals(startTsTx2, ++referenceTimestamp, "Should grow monotonically");
+        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        assertEquals(startTsTx2, referenceTimestamp, "Should grow monotonically");
         assertTrue(startTsTx2 > startTsTx1, "Two timestamps obtained consecutively should grow");
 
         long commitTsTx2 = tsoClient.commit(startTsTx2, Sets.newHashSet(c1)).get();
-        assertEquals(commitTsTx2, ++referenceTimestamp, "Should grow monotonically");
+        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        assertEquals(commitTsTx2, referenceTimestamp, "Should grow monotonically");
 
         long commitTsTx1 = tsoClient.commit(startTsTx1, Sets.newHashSet(c2)).get();
-        assertEquals(commitTsTx1, ++referenceTimestamp, "Should grow monotonically");
+        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        assertEquals(commitTsTx1, referenceTimestamp, "Should grow monotonically");
 
         long startTsTx3 = tsoClient.getNewStartTimestamp().get();
-        assertEquals(startTsTx3, ++referenceTimestamp, "Should grow monotonically");
+        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        assertEquals(startTsTx3, referenceTimestamp, "Should grow monotonically");
     }
 
     @Test(timeOut = 30_000)
@@ -206,6 +212,50 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
             Assert.fail("Second TX should fail on commit");
         } catch (ExecutionException ee) {
             assertEquals(AbortException.class, ee.getCause().getClass(), "Should have aborted");
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testTransactionStartedBeforeFenceAborts() throws Exception {
+
+        long startTsTx1 = tsoClient.getNewStartTimestamp().get();
+
+        long fenceID = tsoClient.getFence(c1.getTableId()).get();
+
+        assertTrue(fenceID > startTsTx1, "Fence ID should be higher thank Tx1ID");
+
+        try {
+            tsoClient.commit(startTsTx1, Sets.newHashSet(c1, c2)).get();
+            Assert.fail("TX should fail on commit");
+        } catch (ExecutionException ee) {
+            assertEquals(AbortException.class, ee.getCause().getClass(), "Should have aborted");
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testTransactionStartedBeforeNonOverlapFenceCommits() throws Exception {
+
+        long startTsTx1 = tsoClient.getNewStartTimestamp().get();
+
+        tsoClient.getFence(7).get();
+
+        try {
+            tsoClient.commit(startTsTx1, Sets.newHashSet(c1, c2)).get();
+        } catch (ExecutionException ee) {
+            Assert.fail("TX should successfully commit");        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testTransactionStartedAfterFenceCommits() throws Exception {
+
+        tsoClient.getFence(c1.getTableId()).get();
+
+        long startTsTx1 = tsoClient.getNewStartTimestamp().get();
+
+        try {
+            tsoClient.commit(startTsTx1, Sets.newHashSet(c1, c2)).get();
+        } catch (ExecutionException ee) {
+            Assert.fail("TX should successfully commit");
         }
     }
 

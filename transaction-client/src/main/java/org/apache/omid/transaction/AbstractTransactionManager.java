@@ -19,7 +19,9 @@ package org.apache.omid.transaction;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.Futures;
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.metrics.Counter;
@@ -56,6 +58,8 @@ public abstract class AbstractTransactionManager implements TransactionManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTransactionManager.class);
 
+    public final static int MAX_CHECKPOINTS_PER_TXN = 50;
+
     public interface TransactionFactory<T extends CellId> {
 
         AbstractTransaction<T> createTransaction(long transactionId, long epoch, AbstractTransactionManager tm);
@@ -70,6 +74,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     // Metrics
     private final Timer startTimestampTimer;
     private final Timer commitTimer;
+    private final Timer fenceTimer;
     private final Counter committedTxsCounter;
     private final Counter rolledbackTxsCounter;
     private final Counter errorTxsCounter;
@@ -104,6 +109,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
         // Metrics configuration
         this.startTimestampTimer = metrics.timer(name("omid", "tm", "hbase", "startTimestamp", "latency"));
         this.commitTimer = metrics.timer(name("omid", "tm", "hbase", "commit", "latency"));
+        this.fenceTimer = metrics.timer(name("omid", "tm", "hbase", "fence", "latency"));
         this.committedTxsCounter = metrics.counter(name("omid", "tm", "hbase", "committedTxs"));
         this.rolledbackTxsCounter = metrics.counter(name("omid", "tm", "hbase", "rolledbackTxs"));
         this.errorTxsCounter = metrics.counter(name("omid", "tm", "hbase", "erroredTxs"));
@@ -156,6 +162,48 @@ public abstract class AbstractTransactionManager implements TransactionManager {
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new TransactionException("Interrupted getting timestamp", ie);
+        }
+    }
+
+    /**
+     * Generates hash ID for table name, this hash is later-on sent to the TSO and used for fencing
+     * @param tableName - the table name
+     * @return
+     */
+    abstract public long getHashForTable(byte[] tableName);
+
+    /**
+     * Return the commit table client
+     * @return commitTableClient
+     */
+    public CommitTable.Client getCommitTableClient() {
+        return commitTableClient;
+    }
+
+    /**
+     * @see org.apache.omid.transaction.TransactionManager#fence()
+     */
+    @Override
+    public final Transaction fence(byte[] tableName) throws TransactionException {
+        long fenceTimestamp;
+        long tableID = getHashForTable(tableName); Hashing.murmur3_128().newHasher().putBytes(tableName).hash().asLong();
+
+        try {
+            fenceTimer.start();
+            try {
+                fenceTimestamp = tsoClient.getFence(tableID).get();
+            } finally {
+                fenceTimer.stop();
+            }
+
+            AbstractTransaction<? extends CellId> tx = transactionFactory.createTransaction(fenceTimestamp, fenceTimestamp, this);
+
+            return tx;
+        } catch (ExecutionException e) {
+            throw new TransactionException("Could not get fence", e);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new TransactionException("Interrupted creating a fence", ie);
         }
     }
 
@@ -264,118 +312,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
     public void postRollback(AbstractTransaction<? extends CellId> transaction) throws TransactionManagerException {}
 
     /**
-     * Check if the transaction commit data is in the shadow cell
-     * @param cellStartTimestamp
-     *            the transaction start timestamp
-     *        locator
-     *            the timestamp locator
-     * @throws IOException
-     */
-    Optional<CommitTimestamp> readCommitTimestampFromShadowCell(long cellStartTimestamp, CommitTimestampLocator locator)
-            throws IOException
-    {
 
-        Optional<CommitTimestamp> commitTS = Optional.absent();
-
-        Optional<Long> commitTimestamp = locator.readCommitTimestampFromShadowCell(cellStartTimestamp);
-        if (commitTimestamp.isPresent()) {
-            commitTS = Optional.of(new CommitTimestamp(SHADOW_CELL, commitTimestamp.get(), true)); // Valid commit TS
-        }
-
-        return commitTS;
-    }
-
-    /**
-     * This function returns the commit timestamp for a particular cell if the transaction was already committed in
-     * the system. In case the transaction was not committed and the cell was written by transaction initialized by a
-     * previous TSO server, an invalidation try occurs.
-     * Otherwise the function returns a value that indicates that the commit timestamp was not found.
-     * @param cellStartTimestamp
-     *          start timestamp of the cell to locate the commit timestamp for.
-     * @param epoch
-     *          the epoch of the TSO server the current tso client is working with.
-     * @param locator
-     *          a locator to find the commit timestamp in the system.
-     * @return the commit timestamp joint with the location where it was found
-     *         or an object indicating that it was not found in the system
-     * @throws IOException  in case of any I/O issues
-     */
-    public CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp, long epoch,
-                                                     CommitTimestampLocator locator) throws IOException {
-
-        try {
-            // 1) First check the cache
-            Optional<Long> commitTimestamp = locator.readCommitTimestampFromCache(cellStartTimestamp);
-            if (commitTimestamp.isPresent()) { // Valid commit timestamp
-                return new CommitTimestamp(CACHE, commitTimestamp.get(), true);
-            }
-
-            // 2) Then check the commit table
-            // If the data was written at a previous epoch, check whether the transaction was invalidated
-            Optional<CommitTimestamp> commitTimeStamp = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
-            }
-
-            // 3) Read from shadow cell
-            commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
-            }
-
-            // 4) Check the epoch and invalidate the entry
-            // if the data was written by a transaction from a previous epoch (previous TSO)
-            if (cellStartTimestamp < epoch) {
-                boolean invalidated = commitTableClient.tryInvalidateTransaction(cellStartTimestamp).get();
-                if (invalidated) { // Invalid commit timestamp
-                    return new CommitTimestamp(COMMIT_TABLE, CommitTable.INVALID_TRANSACTION_MARKER, false);
-                }
-            }
-
-            // 5) We did not manage to invalidate the transactions then check the commit table
-            commitTimeStamp = commitTableClient.getCommitTimestamp(cellStartTimestamp).get();
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
-            }
-
-            // 6) Read from shadow cell
-            commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
-            if (commitTimeStamp.isPresent()) {
-                return commitTimeStamp.get();
-            }
-
-            // *) Otherwise return not found
-            return new CommitTimestamp(NOT_PRESENT, -1L /** TODO Check if we should return this */, true);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while finding commit timestamp", e);
-        } catch (ExecutionException e) {
-            throw new IOException("Problem finding commit timestamp", e);
-        }
-
-    }
-
-    /**
-     * This function returns the commit timestamp for a particular cell if the transaction was already committed in
-     * the system. In case the transaction was not committed and the cell was written by transaction initialized by a
-     * previous TSO server, an invalidation try occurs.
-     * Otherwise the function returns a value that indicates that the commit timestamp was not found.
-     * @param cellStartTimestamp
-     *          start timestamp of the cell to locate the commit timestamp for.
-     * @param locator
-     *          a locator to find the commit timestamp in the system.
-     * @return the commit timestamp joint with the location where it was found
-     *         or an object indicating that it was not found in the system
-     * @throws IOException  in case of any I/O issues
-     */
-    public CommitTimestamp locateCellCommitTimestamp(long cellStartTimestamp,
-                                                     CommitTimestampLocator locator) throws IOException {
-
-        return locateCellCommitTimestamp(cellStartTimestamp, tsoClient.getEpoch(), locator);
-
-    }
-
-    /**
      * @see java.io.Closeable#close()
      */
     @Override

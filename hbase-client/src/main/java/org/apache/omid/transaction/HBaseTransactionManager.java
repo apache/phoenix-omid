@@ -23,12 +23,14 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tso.client.CellId;
+import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.TSOClient;
 import org.apache.omid.tso.client.TSOProtocol;
 import org.apache.hadoop.hbase.client.Get;
@@ -196,35 +198,9 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         }
     }
 
-    // ----------------------------------------------------------------------------------------------------------------
-    // HBaseTransactionClient method implementations
-    // ----------------------------------------------------------------------------------------------------------------
-
     @Override
-    public boolean isCommitted(HBaseCellId hBaseCellId) throws TransactionException {
-        try {
-            CommitTimestamp tentativeCommitTimestamp =
-                    locateCellCommitTimestamp(hBaseCellId.getTimestamp(), tsoClient.getEpoch(),
-                                              new CommitTimestampLocatorImpl(hBaseCellId, Maps.<Long, Long>newHashMap()));
-
-            // If transaction that added the cell was invalidated
-            if (!tentativeCommitTimestamp.isValid()) {
-                return false;
-            }
-
-            switch (tentativeCommitTimestamp.getLocation()) {
-                case COMMIT_TABLE:
-                case SHADOW_CELL:
-                    return true;
-                case NOT_PRESENT:
-                    return false;
-                case CACHE: // cache was empty
-                default:
-                    return false;
-            }
-        } catch (IOException e) {
-            throw new TransactionException("Failure while checking if a transaction was committed", e);
-        }
+    public long getHashForTable(byte[] tableName) {
+        return HBaseCellId.getHasher().putBytes(tableName).hash().asLong();
     }
 
     @Override
@@ -254,14 +230,27 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
     }
 
+    public ConflictDetectionLevel getConflictDetectionLevel() {
+        return tsoClient.getConflictDetectionLevel();
+    }
+
     static class CommitTimestampLocatorImpl implements CommitTimestampLocator {
 
         private HBaseCellId hBaseCellId;
         private final Map<Long, Long> commitCache;
+        private TableAccessWrapper tableAccessWrapper;
+
+        CommitTimestampLocatorImpl(HBaseCellId hBaseCellId, Map<Long, Long> commitCache, TableAccessWrapper tableAccessWrapper) {
+            this.hBaseCellId = hBaseCellId;
+            this.commitCache = commitCache;
+            this.tableAccessWrapper = tableAccessWrapper;
+        }
 
         CommitTimestampLocatorImpl(HBaseCellId hBaseCellId, Map<Long, Long> commitCache) {
             this.hBaseCellId = hBaseCellId;
             this.commitCache = commitCache;
+            this.tableAccessWrapper = null;
+            this.tableAccessWrapper = new HTableAccessWrapper(hBaseCellId.getTable(), hBaseCellId.getTable());
         }
 
         @Override
@@ -281,7 +270,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             get.addColumn(family, shadowCellQualifier);
             get.setMaxVersions(1);
             get.setTimeStamp(startTimestamp);
-            Result result = hBaseCellId.getTable().get(get);
+            Result result = tableAccessWrapper.get(get);
             if (result.containsColumn(family, shadowCellQualifier)) {
                 return Optional.of(Bytes.toLong(result.getValue(family, shadowCellQualifier)));
             }
