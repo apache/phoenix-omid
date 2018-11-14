@@ -19,7 +19,7 @@
     <parent>
         <groupId>org.apache.omid</groupId>
         <artifactId>omid</artifactId>
-        <version>0.9.1.0-SNAPSHOT</version>
+        <version>1.0.1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>omid-common</artifactId>
