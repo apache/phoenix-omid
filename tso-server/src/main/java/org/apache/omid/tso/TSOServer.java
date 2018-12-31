@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
@@ -116,12 +117,16 @@ public class TSOServer extends AbstractIdleService {
         LOG.info("{}", DASH_SEPARATOR_80_CHARS);
         LOG.info("Shutting Down TSO Server");
         LOG.info("{}", DASH_SEPARATOR_80_CHARS);
-        leaseManagement.stopService();
+        try {
+            leaseManagement.stopService();
+        } catch (Exception e) {
+            LOG.warn("Exception throw during LeaseManagement shutdown", e);
+        }
         tsoStateManager.unregister(requestProcessor);
-        requestProcessor.close();
-        persistenceProcessor.close();
-        retryProcessor.close();
-        replyProcessor.close();
+        Closeables.close(requestProcessor, true);
+        Closeables.close(persistenceProcessor, true);
+        Closeables.close(retryProcessor, true);
+        Closeables.close(replyProcessor, true);
         LOG.info("{}", DASH_SEPARATOR_80_CHARS);
         LOG.info("TSO Server stopped");
         LOG.info("{}", DASH_SEPARATOR_80_CHARS);
