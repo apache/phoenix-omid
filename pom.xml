@@ -182,6 +182,7 @@
         <log4j.version>1.2.17</log4j.version>
         <netty.version>3.2.6.Final</netty.version>
         <protobuf.version>2.5.0</protobuf.version>
+        <protoc.path></protoc.path>
         <mockito.version>1.9.5</mockito.version>
         <disruptor.version>3.2.0</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
