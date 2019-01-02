@@ -21,16 +21,10 @@ import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TA
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.INVALID_TX_QUALIFIER;
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_QUALIFIER;
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.LOW_WATERMARK_ROW;
-
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+
 
 import javax.inject.Inject;
 
@@ -53,7 +47,6 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 
@@ -169,27 +162,12 @@ public class HBaseCommitTable implements CommitTable {
 
     }
 
-    class HBaseClient implements Client, Runnable {
+    class HBaseClient implements Client{
 
         final Table table;
-        final Table deleteTable;
-        final ExecutorService deleteBatchExecutor;
-        final BlockingQueue<DeleteRequest> deleteQueue;
-        boolean isClosed = false; // @GuardedBy("this")
-        final static int DELETE_BATCH_SIZE = 1024;
 
         HBaseClient() throws IOException {
-            // TODO: create TTable here instead
             table = hbaseConnection.getTable(TableName.valueOf(tableName));
-            // FIXME: why is this using autoFlush of false? Why would every Delete
-            // need to be send through a separate RPC?
-            deleteTable = hbaseConnection.getTable(TableName.valueOf(tableName));
-            deleteQueue = new ArrayBlockingQueue<>(DELETE_BATCH_SIZE);
-
-            deleteBatchExecutor = Executors.newSingleThreadExecutor(
-                    new ThreadFactoryBuilder().setNameFormat("omid-completor-%d").build());
-            deleteBatchExecutor.submit(this);
-
         }
 
         @Override
@@ -245,33 +223,31 @@ public class HBaseCommitTable implements CommitTable {
             return f;
         }
 
+        // This function is only used to delete a CT entry and should be renamed
         @Override
-        public ListenableFuture<Void> completeTransaction(long startTimestamp) {
+        public ListenableFuture<Void> deleteCommitEntry(long startTimestamp) {
+            byte[] key;
             try {
-                synchronized (this) {
-
-                    if (isClosed) {
-                        SettableFuture<Void> f = SettableFuture.create();
-                        f.setException(new IOException("Not accepting requests anymore"));
-                        return f;
-                    }
-
-                    DeleteRequest req = new DeleteRequest(
-                            new Delete(startTimestampToKey(startTimestamp), startTimestamp));
-                    deleteQueue.put(req);
-                    return req;
-                }
-            } catch (IOException ioe) {
-                LOG.warn("Error generating timestamp for transaction completion", ioe);
+                key = startTimestampToKey(startTimestamp);
+            } catch (IOException e) {
+                LOG.warn("Error generating timestamp for transaction completion", e);
                 SettableFuture<Void> f = SettableFuture.create();
-                f.setException(ioe);
-                return f;
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                SettableFuture<Void> f = SettableFuture.create();
-                f.setException(ie);
+                f.setException(e);
                 return f;
             }
+
+            Delete delete = new Delete(key, startTimestamp);
+
+            try {
+                table.delete(delete);
+            } catch (IOException e) {
+                SettableFuture<Void> f = SettableFuture.create();
+                LOG.warn("Error contacting hbase", e);
+                f.setException(e);
+            }
+            SettableFuture<Void> f = SettableFuture.create();
+            f.set(null);
+            return f;
         }
 
         @Override
@@ -297,79 +273,7 @@ public class HBaseCommitTable implements CommitTable {
         }
 
         @Override
-        @SuppressWarnings("InfiniteLoopStatement")
-        public void run() {
-            List<DeleteRequest> reqbatch = new ArrayList<>();
-            try {
-                while (true) {
-                    DeleteRequest r = deleteQueue.poll();
-                    if (r == null && reqbatch.size() == 0) {
-                        r = deleteQueue.take();
-                    }
-
-                    if (r != null) {
-                        reqbatch.add(r);
-                    }
-
-                    if (r == null || reqbatch.size() == DELETE_BATCH_SIZE) {
-                        List<Delete> deletes = new ArrayList<>();
-                        for (DeleteRequest dr : reqbatch) {
-                            deletes.add(dr.getDelete());
-                        }
-                        try {
-                            deleteTable.delete(deletes);
-                            for (DeleteRequest dr : reqbatch) {
-                                dr.complete();
-                            }
-                        } catch (IOException ioe) {
-                            LOG.warn("Error contacting hbase", ioe);
-                            for (DeleteRequest dr : reqbatch) {
-                                dr.error(ioe);
-                            }
-                        } finally {
-                            reqbatch.clear();
-                        }
-                    }
-                }
-            } catch (InterruptedException ie) {
-                // Drain the queue and place the exception in the future
-                // for those who placed requests
-                LOG.warn("Draining delete queue");
-                DeleteRequest queuedRequest = deleteQueue.poll();
-                while (queuedRequest != null) {
-                    reqbatch.add(queuedRequest);
-                    queuedRequest = deleteQueue.poll();
-                }
-                for (DeleteRequest dr : reqbatch) {
-                    dr.error(new IOException("HBase CommitTable is going to be closed"));
-                }
-                reqbatch.clear();
-                Thread.currentThread().interrupt();
-            } catch (Throwable t) {
-                LOG.error("Transaction completion thread threw exception", t);
-            }
-        }
-
-        @Override
         public synchronized void close() throws IOException {
-            isClosed = true;
-            deleteBatchExecutor.shutdownNow(); // may need to interrupt take
-            try {
-                if (!deleteBatchExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    LOG.warn("Delete executor did not shutdown");
-                }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-
-            LOG.warn("Re-Draining delete queue just in case");
-            DeleteRequest queuedRequest = deleteQueue.poll();
-            while (queuedRequest != null) {
-                queuedRequest.error(new IOException("HBase CommitTable is going to be closed"));
-                queuedRequest = deleteQueue.poll();
-            }
-
-            deleteTable.close();
             table.close();
         }
 

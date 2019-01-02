@@ -113,7 +113,7 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
         commitTableUpdateTimer.start();
 
         try {
-            commitTableClient.completeTransaction(tx.getStartTimestamp()).get();
+            commitTableClient.deleteCommitEntry(tx.getStartTimestamp()).get();
             updateSCFuture.set(null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

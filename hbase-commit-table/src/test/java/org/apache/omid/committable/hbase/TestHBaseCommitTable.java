@@ -21,7 +21,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.hadoop.conf.Configuration;
@@ -41,10 +40,8 @@ import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.Client;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.committable.CommitTable.Writer;
-import org.apache.omid.committable.hbase.HBaseCommitTable.HBaseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -165,7 +162,7 @@ public class TestHBaseCommitTable {
         // Test the successful deletion of the 1000 txs
         Future<Void> f;
         for (long i = 0; i < 1000; i++) {
-            f = client.completeTransaction(i);
+            f = client.deleteCommitEntry(i);
             f.get();
         }
         assertEquals(rowCount(TABLE_NAME, commitTableFamily), 0, "Rows should be 0!");
@@ -259,37 +256,6 @@ public class TestHBaseCommitTable {
         // Test that at the end of the test, the commit table contains 2
         // elements, which correspond to the two rows added in the test
         assertEquals(rowCount(TABLE_NAME, commitTableFamily), 2, "Rows should be 2!");
-
-    }
-
-    @Test(timeOut = 30_000)
-    public void testClosingClientEmptyQueuesProperly() throws Throwable {
-        HBaseCommitTableConfig config = new HBaseCommitTableConfig();
-        config.setTableName(TEST_TABLE);
-        HBaseCommitTable commitTable = new HBaseCommitTable(connection, config);
-
-        Writer writer = commitTable.getWriter();
-        HBaseCommitTable.HBaseClient client = (HBaseClient) commitTable.getClient();
-
-        for (int i = 0; i < 1000; i++) {
-            writer.addCommittedTransaction(i, i + 1);
-        }
-        writer.flush();
-
-        // Completing first transaction should be fine
-        client.completeTransaction(0).get();
-        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 999, "Rows should be 999!");
-
-        // When closing, removing a transaction should throw an EE with an IOException
-        client.close();
-        try {
-            client.completeTransaction(1).get();
-            Assert.fail();
-        } catch (ExecutionException e) {
-            // Expected
-        }
-        assertEquals(client.deleteQueue.size(), 0, "Delete queue size should be 0!");
-        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 999, "Rows should be 999!");
 
     }
 

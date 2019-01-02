@@ -103,7 +103,7 @@ public class InMemoryCommitTable implements CommitTable {
         }
 
         @Override
-        public ListenableFuture<Void> completeTransaction(long startTimestamp) {
+        public ListenableFuture<Void> deleteCommitEntry(long startTimestamp) {
             SettableFuture<Void> f = SettableFuture.create();
             table.remove(startTimestamp);
             f.set(null);

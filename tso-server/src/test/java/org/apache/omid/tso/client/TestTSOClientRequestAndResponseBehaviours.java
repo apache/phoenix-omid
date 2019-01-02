@@ -390,7 +390,7 @@ public class TestTSOClientRequestAndResponseBehaviours {
         clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
 
         // Simulate remove entry from the commit table before exercise retry
-        commitTable.getClient().completeTransaction(tx1ST);
+        commitTable.getClient().deleteCommitEntry(tx1ST);
 
         TSOProto.Response response = clientOneShot.makeRequest(createRetryCommitRequest(tx1ST));
         assertTrue(response.getCommitResponse().getAborted(), "Transaction should abort");

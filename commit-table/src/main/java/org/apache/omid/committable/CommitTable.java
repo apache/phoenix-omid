@@ -66,7 +66,7 @@ public interface CommitTable {
 
         ListenableFuture<Long> readLowWatermark();
 
-        ListenableFuture<Void> completeTransaction(long startTimestamp);
+        ListenableFuture<Void> deleteCommitEntry(long startTimestamp);
 
         /**
          * Atomically tries to invalidate a non-committed transaction launched by a previous TSO server.

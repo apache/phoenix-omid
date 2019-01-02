@@ -281,7 +281,7 @@ class RawTxRunner implements Runnable {
 
             try {
                 commitFuture.get();
-                commitTableClient.completeTransaction(txId).get();
+                commitTableClient.deleteCommitEntry(txId).get();
                 commitTimer.update(System.nanoTime() - commitRequestTime);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

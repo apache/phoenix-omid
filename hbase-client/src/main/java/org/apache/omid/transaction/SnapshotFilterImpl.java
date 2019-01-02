@@ -212,7 +212,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                         commitTimeStamp = readCommitTimestampFromShadowCell(cellStartTimestamp, locator);
                         if (commitTimeStamp.isPresent()) {
                             // Remove false invalidation from commit table
-                            commitTableClient.completeTransaction(cellStartTimestamp);
+                            commitTableClient.deleteCommitEntry(cellStartTimestamp);
                             return commitTimeStamp.get();
                         }
                     }

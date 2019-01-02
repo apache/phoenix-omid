@@ -73,6 +73,7 @@ public class OmidCompactor extends BaseRegionObserver {
     // If retained, the deleted cell will appear after a minor compaction, but
     // will be deleted anyways after a major one
     private boolean retainNonTransactionallyDeletedCells;
+    private CommitTable commitTable;
 
     public OmidCompactor() {
         this(false);
@@ -86,12 +87,15 @@ public class OmidCompactor extends BaseRegionObserver {
     @Override
     public void start(CoprocessorEnvironment env) throws IOException {
         LOG.info("Starting compactor coprocessor");
-        this.env = (RegionCoprocessorEnvironment) env;
         commitTableConf = new HBaseCommitTableConfig();
         String commitTableName = env.getConfiguration().get(COMMIT_TABLE_NAME_KEY);
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
+        commitTable = new HBaseCommitTable(RegionConnectionFactory
+                .getConnection(RegionConnectionFactory.ConnectionType.COMPACTION_CONNECTION,
+                        (RegionCoprocessorEnvironment) env)
+                , commitTableConf);
         retainNonTransactionallyDeletedCells =
                 env.getConfiguration().getBoolean(HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY,
                         HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT);
@@ -152,7 +156,6 @@ public class OmidCompactor extends BaseRegionObserver {
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
         LOG.info("Trying to get the commit table client");
-        CommitTable commitTable = new HBaseCommitTable(RegionConnectionFactory.getConnection(RegionConnectionFactory.ConnectionType.COMPACTION_CONNECTION, env), commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
         return commitTableClient;

@@ -23,8 +23,6 @@ import org.apache.hadoop.hbase.client.Scan;
 
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.filter.Filter;
-
-import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 
 
@@ -68,9 +66,10 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     private Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
     private Map<Object, SnapshotFilterImpl> snapshotFilterMap = new ConcurrentHashMap<>();
     private CommitTable.Client inMemoryCommitTable = null;
+    private CommitTable commitTable;
 
     public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
-        LOG.info("Compactor coprocessor initialized with constructor for testing");
+        LOG.info("Compactor coprocessor initialized");
         this.inMemoryCommitTable = commitTableClient;
     }
 
@@ -79,7 +78,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
     @Override
-    public void start(CoprocessorEnvironment env) {
+    public void start(CoprocessorEnvironment env) throws IOException {
         LOG.info("Starting snapshot filter coprocessor");
         this.env = (RegionCoprocessorEnvironment)env;
         commitTableConf = new HBaseCommitTableConfig();
@@ -88,16 +87,13 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
             commitTableConf.setTableName(commitTableName);
         }
         LOG.info("Snapshot filter started");
+        commitTable = new HBaseCommitTable(RegionConnectionFactory
+                .getConnection(RegionConnectionFactory.ConnectionType.READ_CONNECTION, (RegionCoprocessorEnvironment) env),
+                commitTableConf);
     }
 
     @Override
     public void stop(CoprocessorEnvironment e) throws IOException {
-        LOG.info("Stopping snapshot filter coprocessor");
-        if (snapshotFilterQueue != null) {
-            for (SnapshotFilterImpl snapshotFilter: snapshotFilterQueue) {
-                snapshotFilter.closeCommitTableClient();
-            }
-        }
         LOG.info("Snapshot filter stopped");
     }
 
@@ -165,36 +161,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         Filter newFilter = TransactionFilters.getVisibilityFilter(scan.getFilter(),
                 snapshotFilter, hbaseTransaction);
         scan.setFilter(newFilter);
-        snapshotFilterMap.put(scan, snapshotFilter);
         return;
     }
-
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
-    public RegionScanner postScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
-                                         Scan scan,
-                                         RegionScanner s) {
-        byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
-
-        if (byteTransaction == null) {
-            return s;
-        }
-
-        SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(scan);
-        assert(snapshotFilter != null);
-        snapshotFilterMap.remove(scan);
-        snapshotFilterMap.put(s, snapshotFilter);
-        return s;
-    }
-
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
-    public void preScannerClose(ObserverContext<RegionCoprocessorEnvironment> e, InternalScanner s) {
-        SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(s);
-        if (snapshotFilter != null) {
-            snapshotFilterQueue.add(snapshotFilter);
-        }
-    }
-
-
 
     private HBaseTransaction getHBaseTransaction(byte[] byteTransaction, boolean isLowLatency)
             throws InvalidProtocolBufferException {
@@ -210,13 +178,10 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
     private CommitTable.Client initAndGetCommitTableClient() throws IOException {
-        LOG.info("Trying to get the commit table client");
         if (inMemoryCommitTable != null) {
             return inMemoryCommitTable;
         }
-        CommitTable commitTable = new HBaseCommitTable(RegionConnectionFactory.getConnection(RegionConnectionFactory.ConnectionType.READ_CONNECTION, env), commitTableConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
-        LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
         return commitTableClient;
     }
 

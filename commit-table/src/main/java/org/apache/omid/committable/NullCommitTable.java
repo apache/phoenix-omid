@@ -78,7 +78,7 @@ public class NullCommitTable implements CommitTable {
         }
 
         @Override
-        public ListenableFuture<Void> completeTransaction(long startTimestamp) {
+        public ListenableFuture<Void> deleteCommitEntry(long startTimestamp) {
             SettableFuture<Void> f = SettableFuture.create();
             f.set(null);
             return f;

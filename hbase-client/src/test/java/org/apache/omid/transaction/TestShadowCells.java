@@ -293,8 +293,8 @@ public class TestShadowCells extends OmidTestBase {
                 "Cell should be there");
         assertFalse(hasShadowCell(row, family, qualifier, tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should not be there");
-        // 2) and thus, completeTransaction() was never called on the commit table...
-        verify(commitTableClient, times(0)).completeTransaction(anyLong());
+        // 2) and thus, deleteCommitEntry() was never called on the commit table...
+        verify(commitTableClient, times(0)).deleteCommitEntry(anyLong());
         // 3) ...and commit value still in commit table
         assertTrue(commitTableClient.getCommitTimestamp(tx.getStartTimestamp()).get().isPresent());
 

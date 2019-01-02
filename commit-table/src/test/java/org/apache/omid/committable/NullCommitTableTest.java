@@ -57,7 +57,7 @@ public class NullCommitTableTest {
                 // expected
             }
 
-            assertNull(commitTableClient.completeTransaction(TEST_ST).get());
+            assertNull(commitTableClient.deleteCommitEntry(TEST_ST).get());
 
             // Test writer
             commitTableWriter.updateLowWatermark(TEST_LWM);

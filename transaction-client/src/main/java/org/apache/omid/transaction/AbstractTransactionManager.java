@@ -365,7 +365,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
             if (!committed) {
                 // Transaction has been invalidated by other client
                 rollback(tx);
-                commitTableClient.completeTransaction(tx.getStartTimestamp());
+                commitTableClient.deleteCommitEntry(tx.getStartTimestamp());
                 rolledbackTxsCounter.inc();
                 throw new RollbackException("Transaction " + tx.getTransactionId() + " got invalidated");
             }
