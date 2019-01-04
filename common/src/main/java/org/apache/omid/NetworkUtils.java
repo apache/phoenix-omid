@@ -36,15 +36,22 @@ public class NetworkUtils {
 
         try {
             Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            String fallBackName = null;
             while (networkInterfaces.hasMoreElements()) {
                 NetworkInterface nextElement = networkInterfaces.nextElement();
                 String name = nextElement.getDisplayName();
                 LOG.info("Iterating over network interfaces, found '{}'", name);
                 boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 1; // Checking that inet exists, to avoid taking iBridge
+                if (hasInet && fallBackName == null) {
+                    fallBackName = name;
+                }
                 if ((name.startsWith(MAC_TSO_NET_IFACE_PREFIX) && hasInet ) ||
                         name.startsWith(LINUX_TSO_NET_IFACE_PREFIX)) {
                   return name;
-              }
+                }
+            }
+            if (fallBackName != null) {
+                return fallBackName;
             }
         } catch (SocketException ignored) {
             throw new RuntimeException("Failed to find any network interfaces", ignored);
