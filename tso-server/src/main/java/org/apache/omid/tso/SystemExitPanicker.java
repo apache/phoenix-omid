@@ -32,7 +32,16 @@ public class SystemExitPanicker implements Panicker {
     @Override
     public void panic(String reason, Throwable cause) {
         LOG.error(reason, cause);
-        System.exit(-1);
+        // Execute the shutdown sequence from a different thread to avoid deadlocks during the shutdown hooks
+        Runnable shutdown = new Runnable() {
+            @Override
+            public void run() {
+                System.exit(-1);
+            }
+        };
+        Thread panicThread = new Thread(shutdown, "SystemExitPanicker Thread");
+        panicThread.setDaemon(true);
+        panicThread.start();
     }
 
 }
