@@ -20,15 +20,18 @@ package org.apache.omid.transaction;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -44,6 +47,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.FamilyFilter;
@@ -59,6 +63,7 @@ import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -882,5 +887,93 @@ public class TestSnapshotFilter {
 
         tt.close();
     }
+
+
+    @Test (timeOut = 60_000)
+    public void testFilterCommitCacheInSnapshot() throws Throwable {
+        String TEST_TABLE = "testScanWithFilter";
+        byte[] rowName = Bytes.toBytes("row1");
+        byte[] famName = Bytes.toBytes(TEST_FAMILY);
+
+        createTableIfNotExists(TEST_TABLE, famName);
+        TTable tt = new TTable(connection, TEST_TABLE);
+
+        Transaction tx1 = tm.begin();
+        Put put = new Put(rowName);
+        for (int i = 0; i < 200; ++i) {
+            byte[] dataValue1 = Bytes.toBytes("some data");
+            byte[] colName = Bytes.toBytes("col" + i);
+            put.addColumn(famName, colName, dataValue1);
+        }
+        tt.put(tx1, put);
+        tm.commit(tx1);
+        Transaction tx3 = tm.begin();
+
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient()));
+        Filter newFilter = TransactionFilters.getVisibilityFilter(null,
+                snapshotFilter, (HBaseTransaction) tx3);
+
+        Table rawTable = connection.getTable(TableName.valueOf(TEST_TABLE));
+
+        Scan scan = new Scan();
+        ResultScanner scanner = rawTable.getScanner(scan);
+
+        for(Result row: scanner) {
+            for(Cell cell: row.rawCells()) {
+                newFilter.filterKeyValue(cell);
+
+            }
+        }
+        verify(snapshotFilter, Mockito.times(0))
+                .getTSIfInSnapshot(any(Cell.class),any(HBaseTransaction.class), any(Map.class));
+        tm.commit(tx3);
+        tt.close();
+    }
+
+    @Test (timeOut = 60_000)
+    public void testFilterCommitCacheNotInSnapshot() throws Throwable {
+        String TEST_TABLE = "testScanWithFilter";
+        byte[] rowName = Bytes.toBytes("row1");
+        byte[] famName = Bytes.toBytes(TEST_FAMILY);
+
+        createTableIfNotExists(TEST_TABLE, famName);
+        TTable tt = new TTable(connection, TEST_TABLE);
+
+
+        //add some uncommitted values
+        Transaction tx1 = tm.begin();
+        Put put = new Put(rowName);
+        for (int i = 0; i < 200; ++i) {
+            byte[] dataValue1 = Bytes.toBytes("some data");
+            byte[] colName = Bytes.toBytes("col" + i);
+            put.addColumn(famName, colName, dataValue1);
+        }
+        tt.put(tx1, put);
+
+        //try to scan from tx
+        Transaction tx = tm.begin();
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = spy(new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient()));
+        Filter newFilter = TransactionFilters.getVisibilityFilter(null,
+                snapshotFilter, (HBaseTransaction) tx);
+
+        Table rawTable = connection.getTable(TableName.valueOf(TEST_TABLE));
+
+        Scan scan = new Scan();
+        ResultScanner scanner = rawTable.getScanner(scan);
+
+        for(Result row: scanner) {
+            for(Cell cell: row.rawCells()) {
+                newFilter.filterKeyValue(cell);
+            }
+        }
+        verify(snapshotFilter, Mockito.times(1))
+                .getTSIfInSnapshot(any(Cell.class),any(HBaseTransaction.class), any(Map.class));
+        tt.close();
+    }
+
 
 }

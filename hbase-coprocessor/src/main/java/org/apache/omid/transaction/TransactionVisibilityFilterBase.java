@@ -19,17 +19,22 @@ package org.apache.omid.transaction;
 
 import com.google.common.base.Optional;
 
+
+import org.apache.commons.collections4.map.LRUMap;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.OmidFilterBase;
 
+
 import java.io.IOException;
 import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +44,7 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
     // optional sub-filter to apply to visible cells
     private final Filter userFilter;
     private final SnapshotFilterImpl snapshotFilter;
-    private final Map<Long ,Long> commitCache;
+    private final LRUMap<Long ,Long> commitCache;
     private final HBaseTransaction hbaseTransaction;
 
     // This cache is cleared when moving to the next row
@@ -51,9 +56,10 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
                                            HBaseTransaction hbaseTransaction) {
         this.userFilter = cellFilter;
         this.snapshotFilter = snapshotFilter;
-        commitCache = new HashMap<>();
+        commitCache = new LRUMap<>(1000);
         this.hbaseTransaction = hbaseTransaction;
         familyDeletionCache = new HashMap<>();
+
     }
 
     @Override
@@ -69,15 +75,14 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
             }
         }
 
-        Optional<Long> ct = getCommitIfInSnapshot(v, CellUtils.isFamilyDeleteCell(v));
-        if (ct.isPresent()) {
-            commitCache.put(v.getTimestamp(), ct.get());
+        Optional<Long> commitTS = getCommitIfInSnapshot(v, CellUtils.isFamilyDeleteCell(v));
+        if (commitTS.isPresent()) {
             if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL &&
                     snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
                 return runUserFilter(v, ReturnCode.INCLUDE);
             }
             if (CellUtils.isFamilyDeleteCell(v)) {
-                familyDeletionCache.put(createImmutableBytesWritable(v), ct.get());
+                familyDeletionCache.put(createImmutableBytesWritable(v), commitTS.get());
                 if (hbaseTransaction.getVisibilityLevel() == AbstractTransaction.VisibilityLevel.SNAPSHOT_ALL) {
                     return runUserFilter(v, ReturnCode.INCLUDE_AND_NEXT_COL);
                 } else {
@@ -134,8 +139,12 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
     // For family delete cells, the sc hasn't arrived yet so get sc from region before going to ct
     private Optional<Long> getCommitIfInSnapshot(Cell v, boolean getShadowCellBeforeCT) throws IOException {
         Long cachedCommitTS = commitCache.get(v.getTimestamp());
-        if (cachedCommitTS != null && hbaseTransaction.getStartTimestamp() >= cachedCommitTS) {
-            return Optional.of(cachedCommitTS);
+        if (cachedCommitTS != null) {
+            if (hbaseTransaction.getStartTimestamp() >= cachedCommitTS) {
+                return Optional.of(cachedCommitTS);
+            } else {
+                return Optional.absent();
+            }
         }
         if (snapshotFilter.getTSIfInTransaction(v, hbaseTransaction).isPresent()) {
             return Optional.of(v.getTimestamp());
@@ -151,13 +160,20 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
 
             if (!shadowCell.isEmpty()) {
                 long commitTS = Bytes.toLong(CellUtil.cloneValue(shadowCell.rawCells()[0]));
+                commitCache.put(v.getTimestamp(), commitTS);
                 if (commitTS <= hbaseTransaction.getStartTimestamp()) {
                     return Optional.of(commitTS);
                 }
             }
         }
 
-        return snapshotFilter.getTSIfInSnapshot(v, hbaseTransaction, commitCache);
+        Optional<Long> commitTS = snapshotFilter.getTSIfInSnapshot(v, hbaseTransaction, commitCache);
+        if (commitTS.isPresent()) {
+            commitCache.put(v.getTimestamp(), commitTS.get());
+        } else {
+            commitCache.put(v.getTimestamp(), Long.MAX_VALUE);
+        }
+        return commitTS;
     }
 
 
