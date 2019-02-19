@@ -18,13 +18,21 @@
 package org.apache.omid.transaction;
 
 import static com.google.common.base.Charsets.UTF_8;
+import static org.apache.omid.transaction.CellUtils.SHARED_FAMILY_QUALIFIER;
 
+import com.google.common.base.Charsets;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.tso.client.CellId;
 
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 public class HBaseCellId implements CellId {
+
+
 
     private final TTable table;
     private final byte[] row;
@@ -32,7 +40,7 @@ public class HBaseCellId implements CellId {
     private final byte[] qualifier;
     private long timestamp;
 
-    public HBaseCellId(TTable table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
+    private HBaseCellId(TTable table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
         this.timestamp = timestamp;
         this.table = table;
         this.row = row;
@@ -62,7 +70,7 @@ public class HBaseCellId implements CellId {
 
     @Override
     public String toString() {
-        return new String(table.getTableName(), UTF_8)
+        return (table == null?"NO_TABLE":new String(table.getTableName(), UTF_8))
                 + ":" + new String(row, UTF_8)
                 + ":" + new String(family, UTF_8)
                 + ":" + new String(qualifier, UTF_8)
@@ -97,4 +105,66 @@ public class HBaseCellId implements CellId {
     public static Hasher getHasher() {
         return Hashing.murmur3_128().newHasher();
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(Arrays.hashCode(table.getTableName()),
+                Arrays.hashCode(row),
+                Arrays.hashCode(family),
+                Arrays.hashCode(qualifier));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) return true;
+        assert(o instanceof HBaseCellId);
+        HBaseCellId other = (HBaseCellId) o;
+
+        return Arrays.equals(table.getTableName(), other.getTable().getTableName()) &&
+                Arrays.equals(row, other.getRow()) &&
+                Arrays.equals(family, other.getFamily()) &&
+                Arrays.equals(qualifier, other.getQualifier());
+    }
+
+
+    public int compareTo(CellId o) {
+        assert(o instanceof HBaseCellId);
+        HBaseCellId other = (HBaseCellId) o;
+
+        int tableCompare = Bytes.compareTo(table.getTableName(), other.getTable().getTableName());
+        if (tableCompare != 0) {
+            return tableCompare;
+        } else {
+            int rowCompare = Bytes.compareTo(row, other.getRow());
+            if (rowCompare != 0) {
+                return rowCompare;
+            } else {
+                int familyCompare = Bytes.compareTo(family, other.getFamily());
+                if (familyCompare != 0) {
+                    return familyCompare;
+                } else {
+                    return Bytes.compareTo(qualifier, other.getQualifier());
+                }
+            }
+        }
+    }
+    public static HBaseCellId valueOf(Transaction tx, TTable table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
+        if (((HBaseTransaction)tx).getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+            return new HBaseCellId(table, row, family, SHARED_FAMILY_QUALIFIER, timestamp);
+        } else {
+            return new HBaseCellId(table, row, family, qualifier, timestamp);
+        }
+    }
+
+    public static HBaseCellId valueOf(HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel,
+                                      TTable table, byte[] row, byte[] family, byte[] qualifier, long timestamp) {
+        if (conflictDetectionLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+            return new HBaseCellId(table, row, family, SHARED_FAMILY_QUALIFIER, timestamp);
+        } else {
+            return new HBaseCellId(table, row, family, qualifier, timestamp);
+        }
+    }
+
+
+
 }

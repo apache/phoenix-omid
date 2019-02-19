@@ -49,7 +49,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -193,14 +193,20 @@ public class TTable implements Closeable {
         Map<byte[], NavigableSet<byte[]>> kvs = get.getFamilyMap();
         for (Map.Entry<byte[], NavigableSet<byte[]>> entry : kvs.entrySet()) {
             byte[] family = entry.getKey();
+            if (((HBaseTransaction)tx).getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+                tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+            }
             NavigableSet<byte[]> qualifiers = entry.getValue();
             if (qualifiers == null || qualifiers.isEmpty()) {
                 tsget.addFamily(family);
             } else {
                 for (byte[] qualifier : qualifiers) {
                     tsget.addColumn(family, qualifier);
-                    tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+                    if (((HBaseTransaction)tx).getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.CELL) {
+                        tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+                    }
                 }
+                //TODO YONIGO - why is this here and not out the if?
                 tsget.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER);
                 tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             }
@@ -226,12 +232,12 @@ public class TTable implements Closeable {
                 byte[] family = entryF.getKey();
                 for (Entry<byte[], NavigableMap<Long, byte[]>> entryQ : entryF.getValue().entrySet()) {
                     byte[] qualifier = entryQ.getKey();
-                    addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, qualifier,
+                    addWriteSetElement(tx, HBaseCellId.valueOf(tx,this, deleteP.getRow(), family, qualifier,
                             tx.getWriteTimestamp()));
                 }
                 deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                         HConstants.EMPTY_BYTE_ARRAY);
-                addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+                addWriteSetElement(tx, HBaseCellId.valueOf(tx,this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                                                 tx.getWriteTimestamp()));
             }
         }
@@ -243,7 +249,7 @@ public class TTable implements Closeable {
         for (byte[] family : fset) {
             deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
                     HConstants.EMPTY_BYTE_ARRAY);
-            addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
+            addWriteSetElement(tx, HBaseCellId.valueOf(tx,this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                     tx.getWriteTimestamp()));
 
         }
@@ -291,7 +297,7 @@ public class TTable implements Closeable {
                                     writeTimestamp,
                                     CellUtils.DELETE_TOMBSTONE);
                         addWriteSetElement(transaction,
-                            new HBaseCellId(this,
+                            HBaseCellId.valueOf(tx,this,
                                             delete.getRow(),
                                             CellUtil.cloneFamily(cell),
                                             CellUtil.cloneQualifier(cell),
@@ -308,7 +314,7 @@ public class TTable implements Closeable {
                                         writeTimestamp,
                                         CellUtils.DELETE_TOMBSTONE);
                             addWriteSetElement(transaction,
-                                new HBaseCellId(this,
+                                HBaseCellId.valueOf(tx,this,
                                                 delete.getRow(),
                                                 CellUtil.cloneFamily(cell),
                                                 CellUtil.cloneQualifier(cell),
@@ -324,8 +330,7 @@ public class TTable implements Closeable {
             }
         }
         if (deleteFamily) {
-            if (enforceHBaseTransactionManagerAsParam(transaction.getTransactionManager()).
-                    getConflictDetectionLevel() == ConflictDetectionLevel.ROW) {
+            if (transaction.getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
                 familyQualifierBasedDeletionWithOutRead(transaction, deleteP, deleteG);
             } else {
                 familyQualifierBasedDeletion(transaction, deleteP, deleteG);
@@ -419,7 +424,7 @@ public class TTable implements Closeable {
                             kv.getTimestamp(),
                             Bytes.toBytes(kv.getTimestamp()));
                 } else {
-                    HBaseCellId cellId = new HBaseCellId(this,
+                    HBaseCellId cellId = HBaseCellId.valueOf(tx,this,
                             CellUtil.cloneRow(kv),
                             CellUtil.cloneFamily(kv),
                             CellUtil.cloneQualifier(kv),
@@ -480,11 +485,19 @@ public class TTable implements Closeable {
             if (qualifiers == null) {
                 continue;
             }
-            for (byte[] qualifier : qualifiers) {
-                tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+            if (transaction.getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+                tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+            } else {
+                for (byte[] qualifier : qualifiers) {
+                    //TODO YONIGO - why not add the cells of the scan?
+                    tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+                }
             }
+
             if (!qualifiers.isEmpty()) {
+                //TODO YONIGO - why is this added here and not always?
                 tsscan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
+                tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             }
         }
 
@@ -598,7 +611,7 @@ public class TTable implements Closeable {
      *
      * @param transaction an instance of transaction to be used
      * @param puts        List of puts
-     * @param addShadowCell  denotes whether to add the shadow cell
+     * @param addShadowCells  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
     public void put(Transaction transaction, List<Put> puts, boolean addShadowCells) throws IOException {
@@ -618,7 +631,7 @@ public class TTable implements Closeable {
      *
      * @param transaction an instance of transaction to be used
      * @param rows        List of rows that must be instances of Put or Delete
-     * @param addShadowCell  denotes whether to add the shadow cell
+     * @param addShadowCells  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
     public void batch(Transaction transaction, List<? extends Row> rows, boolean addShadowCells) throws IOException {

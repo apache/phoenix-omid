@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.omid.proto.TSOProto;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.zk.ZKUtils;
 import org.apache.statemachine.StateMachine;
 import org.apache.curator.framework.CuratorFramework;
@@ -100,9 +99,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
     // Use to extract unique table identifiers from the modified cells list.
     private final Set<Long> tableIDs;
-    // Conflict detection level of the entire system. Can either be Row or Cell level.
-    private ConflictDetectionLevel conflictDetectionLevel;
-    private Set<Long> rowLevelWriteSet;
+
 
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
@@ -174,9 +171,6 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         lowLatency = false;
 
         this.tableIDs = new HashSet<Long>();
-
-        conflictDetectionLevel = omidConf.getConflictAnalysisLevel();
-        rowLevelWriteSet = new HashSet<Long>();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -213,28 +207,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         TSOProto.CommitRequest.Builder commitbuilder = TSOProto.CommitRequest.newBuilder();
         commitbuilder.setStartTimestamp(transactionId);
 
-        rowLevelWriteSet.clear();
         for (CellId cell : cells) {
-            long id;
-
-            switch (conflictDetectionLevel) {
-            case ROW:
-                id = cell.getRowId();
-                if (rowLevelWriteSet.contains(id)) {
-                    continue;
-                } else {
-                    rowLevelWriteSet.add(id);
-                }
-                break;
-            case CELL:
-                id = cell.getCellId();
-                break;
-            default:
-                id = 0;
-                assert (false);
-            }
-
-            commitbuilder.addCellId(id);
+            commitbuilder.addCellId(cell.getCellId());
             tableIDs.add(cell.getTableId());
         }
 
@@ -312,20 +286,6 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         return epoch;
     }
 
-    /**
-     * Used for family deletion
-     * @return the conflict detection level.
-     */
-    public ConflictDetectionLevel getConflictDetectionLevel() {
-        return conflictDetectionLevel;
-    }
-
-    /**
-     * Used for family deletion testing
-     */
-    public void setConflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
-        this.conflictDetectionLevel = conflictDetectionLevel;
-    }
 
     // ----------------------------------------------------------------------------------------------------------------
     // NodeCacheListener interface

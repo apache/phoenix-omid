@@ -116,12 +116,19 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return false;
     }
 
-    private void healShadowCell(Cell cell, long commitTimestamp) {
+    private void healShadowCell(Cell cell, long commitTimestamp,
+                                HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel) {
         Put put = new Put(CellUtil.cloneRow(cell));
         byte[] family = CellUtil.cloneFamily(cell);
-        byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                                                                   cell.getQualifierOffset(),
-                                                                   cell.getQualifierLength());
+        byte[] shadowCellQualifier;
+        if (conflictDetectionLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+            shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER);
+        } else {
+            shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                    cell.getQualifierOffset(),
+                    cell.getQualifierLength());
+        }
+
         put.addColumn(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
         try {
             tableAccessWrapper.put(put);
@@ -244,10 +251,11 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    public Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
-                                                         Cell cell,
-                                                         Map<Long, Long> commitCache,
-                                                         boolean isLowLatency)
+    private Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
+                                                          Cell cell,
+                                                          Map<Long, Long> commitCache,
+                                                          boolean isLowLatency,
+                                                          HBaseTransactionManager.ConflictDetectionLevel conflictLevel)
                     throws IOException {
 
         CommitTimestamp tentativeCommitTimestamp =
@@ -255,7 +263,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                         cell.getTimestamp(),
                         epoch,
                         new CommitTimestampLocatorImpl(
-                                new HBaseCellId(null,
+                                HBaseCellId.valueOf(conflictLevel,null,
                                         CellUtil.cloneRow(cell),
                                         CellUtil.cloneFamily(cell),
                                         CellUtil.cloneQualifier(cell),
@@ -276,7 +284,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             // commit phase of the client probably failed, so we heal the shadow
             // cell with the right commit timestamp for avoiding further reads to
             // hit the storage
-            healShadowCell(cell, tentativeCommitTimestamp.getValue());
+            healShadowCell(cell, tentativeCommitTimestamp.getValue(), conflictLevel);
             return Optional.of(tentativeCommitTimestamp.getValue());
         case CACHE:
         case SHADOW_CELL:
@@ -305,7 +313,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         return tryToLocateCellCommitTimestamp(transaction.getEpoch(), kv,
-                commitCache, transaction.isLowLatency());
+                commitCache, transaction.isLowLatency(), transaction.getConflictDetectionLevel());
     }
     
     private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
@@ -344,7 +352,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     boolean foundCommittedFamilyDeletion = false;
                     while (!foundCommittedFamilyDeletion) {
 
-                        Get g = createPendingGet(lastCell, 3);
+                        Get g = createPendingGet(lastCell, 3, transaction.getConflictDetectionLevel());
 
                         Result result = tableAccessWrapper.get(g);
                         List<Cell> resultCells = result.listCells();
@@ -397,13 +405,20 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return Optional.absent();
     }
 
-    private Get createPendingGet(Cell cell, int versionCount) throws IOException {
-
+    private Get createPendingGet(Cell cell, int versionCount, HBaseTransactionManager.ConflictDetectionLevel cfLevel)
+            throws IOException {
         Get pendingGet = new Get(CellUtil.cloneRow(cell));
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
-        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                                                                                       cell.getQualifierOffset(),
-                                                                                       cell.getQualifierLength()));
+        if (cfLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+            //TODO YONIGO - not tested
+            pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+        }else {
+            pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                    cell.getQualifierOffset(),
+                    cell.getQualifierLength()));
+        }
+
+
         pendingGet.setMaxVersions(versionCount);
         pendingGet.setTimeRange(0, cell.getTimestamp());
 
@@ -474,7 +489,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             }
             if (!snapshotValueFound) {
                 assert (oldestCell != null);
-                Get pendingGet = createPendingGet(oldestCell, numberOfVersionsToFetch);
+                Get pendingGet = createPendingGet(oldestCell, numberOfVersionsToFetch, transaction.getConflictDetectionLevel());
                 for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
                     pendingGet.setAttribute(entry.getKey(), entry.getValue());
                 }

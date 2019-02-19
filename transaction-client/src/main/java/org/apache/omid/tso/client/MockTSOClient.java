@@ -164,16 +164,6 @@ public class MockTSOClient implements TSOProtocol {
     }
 
     @Override
-    public void setConflictDetectionLevel(OmidClientConfiguration.ConflictDetectionLevel conflictDetectionLevel) {
-
-    }
-
-    @Override
-    public OmidClientConfiguration.ConflictDetectionLevel getConflictDetectionLevel() {
-        return null;
-    }
-
-    @Override
     public long getEpoch() {
         return 0;
     }

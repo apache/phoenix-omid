@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.hbase.client.Delete;
+import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +98,10 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
             tables.add(cell.getTable());
         }
         return tables;
+    }
+
+    public HBaseTransactionManager.ConflictDetectionLevel getConflictDetectionLevel() {
+        return ((HBaseTransactionManager)getTransactionManager()).getConflictDetectionLevel();
     }
 
 }

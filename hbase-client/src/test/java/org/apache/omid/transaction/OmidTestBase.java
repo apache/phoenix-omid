@@ -137,8 +137,13 @@ public abstract class OmidTestBase {
     }
 
     protected void createTestTable() throws IOException {
+        createTable(TEST_TABLE);
+    }
+
+
+    protected void createTable(String tableName) throws IOException {
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(TEST_TABLE));
+        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(tableName));
         HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
         HColumnDescriptor datafam2 = new HColumnDescriptor(TEST_FAMILY2);
         datafam.setMaxVersions(Integer.MAX_VALUE);
@@ -171,6 +176,37 @@ public abstract class OmidTestBase {
     protected TransactionManager newTransactionManager(ITestContext context) throws Exception {
         return newTransactionManager(context, getClient(context));
     }
+
+    protected TransactionManager newTransactionManager(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        return newTransactionManager(context, getClient(context), cfLevel);
+    }
+
+    protected TransactionManager newTransactionManager(ITestContext context, TSOClient tsoClient,
+                                                       HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(cfLevel)
+                .tsoClient(tsoClient).build();
+    }
+
+    protected TransactionManager newTransactionManager(ITestContext context,
+                                                       PostCommitActions postCommitActions,
+                                                       HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .postCommitter(postCommitActions)
+                .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(cfLevel)
+                .tsoClient(getClient(context)).build();
+    }
+
 
     protected TransactionManager newTransactionManager(ITestContext context, PostCommitActions postCommitActions) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
@@ -221,6 +257,10 @@ public abstract class OmidTestBase {
         try {
             LOG.info("tearing Down");
             Admin admin = hBaseUtils.getHBaseAdmin();
+            HTableDescriptor[] tables = admin.listTables();
+            for (int i = 0; i< tables.length; ++i) {
+                deleteTable(admin, tables[i].getTableName());
+            }
             deleteTable(admin, TableName.valueOf(TEST_TABLE));
             createTestTable();
             if (hBaseCommitTableConfig != null) {

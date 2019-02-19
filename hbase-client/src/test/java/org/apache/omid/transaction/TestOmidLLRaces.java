@@ -194,9 +194,9 @@ public class TestOmidLLRaces {
         table.put(t3, put);
         tm.commit(t3);
 
-        HBaseCellId hBaseCellId1 = new HBaseCellId(table, row1, family, qualifier, t1.getStartTimestamp());
-        HBaseCellId hBaseCellId2 = new HBaseCellId(table, row2, family, qualifier, t2.getStartTimestamp());
-        HBaseCellId hBaseCellId3 = new HBaseCellId(table, row2, family, qualifier, t3.getStartTimestamp());
+        HBaseCellId hBaseCellId1 = HBaseCellId.valueOf(t1, table, row1, family, qualifier, t1.getStartTimestamp());
+        HBaseCellId hBaseCellId2 = HBaseCellId.valueOf(t2, table, row2, family, qualifier, t2.getStartTimestamp());
+        HBaseCellId hBaseCellId3 = HBaseCellId.valueOf(t3, table, row2, family, qualifier, t3.getStartTimestamp());
 
         assertTrue(snapshotFilter.isCommitted(hBaseCellId1, 0, false), "row1 should be committed");
         assertFalse(snapshotFilter.isCommitted(hBaseCellId2, 0, false), "row2 should not be committed for kv2");
