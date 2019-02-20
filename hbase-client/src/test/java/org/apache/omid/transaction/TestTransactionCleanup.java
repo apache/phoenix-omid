@@ -35,6 +35,7 @@ import org.apache.omid.tso.client.TSOClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -51,14 +52,24 @@ public class TestTransactionCleanup extends OmidTestBase {
     private byte[] qual = Bytes.toBytes("qual");
     private byte[] data = Bytes.toBytes("data");
 
+
+    @DataProvider(name = "cflevel")
+    public static Object[][] cfLevels() {
+        return new Object[][] {
+                {HBaseTransactionManager.ConflictDetectionLevel.CELL},
+                {HBaseTransactionManager.ConflictDetectionLevel.ROW}};
+    }
+
     // NOTE: This test is maybe redundant with runTestCleanupAfterConflict()
     // and testCleanupWithDeleteRow() tests in TestTransactionCleanup class.
     // Code in TestTransactionCleanup is a little more difficult to follow,
     // lacks some assertions and includes some magic numbers, so we should
     // try to review and improve the tests in these two classes in a further
     // commit.
-    @Test(timeOut = 10_000)
-    public void testTransactionIsCleanedUpAfterBeingAborted(ITestContext context) throws Exception {
+    @Test(timeOut = 10_000, dataProvider = "cflevel")
+    public void testTransactionIsCleanedUpAfterBeingAborted(ITestContext context,
+                                                            HBaseTransactionManager.ConflictDetectionLevel cdLevel)
+            throws Exception {
 
         final int ROWS_MODIFIED = 1;
 
@@ -80,7 +91,7 @@ public class TestTransactionCleanup extends OmidTestBase {
         doReturn(abortingFF)
                 .when(mockedTSOClient).commit(eq(START_TS), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
 
-        try (TransactionManager tm = newTransactionManager(context, mockedTSOClient);
+        try (TransactionManager tm = newTransactionManager(context, mockedTSOClient,cdLevel);
              TTable txTable = new TTable(connection, TEST_TABLE)) {
 
             // Start a transaction and put some data in a column

@@ -21,9 +21,15 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
@@ -55,13 +61,38 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         this.conflictDetectionLevel = conflictDetectionLevel;
     }
 
+
     private void deleteCell(HBaseCellId cell) {
-        Delete delete = new Delete(cell.getRow());
-        delete.addColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
-        try {
-            cell.getTable().getHTable().delete(delete);
-        } catch (IOException e) {
-            LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
+
+        if (conflictDetectionLevel == ROW) {
+            //cell only has family info so we need to query the table to get list of cells.
+            Get get = new Get(cell.getRow());
+            get.addFamily(cell.getFamily());
+            try {
+                get.setTimeStamp(cell.getTimestamp());
+                Result res = cell.getTable().getHTable().get(get);
+                Delete delete = new Delete(cell.getRow());
+                for (Cell rawCell: res.listCells()) {
+
+
+                    delete.addColumn(cell.getFamily(),
+                            Bytes.copy(rawCell.getQualifierArray(),rawCell.getQualifierOffset(),rawCell.getQualifierLength()),
+                                    cell.getTimestamp());
+
+                }
+                cell.getTable().getHTable().delete(delete);
+            } catch (IOException e) {
+                LOG.warn("Failed cleanup cells in family {} for Tx {}. This issue has been ignored",
+                        cell.getFamily(), getTransactionId(), e);
+            }
+        } else {
+            Delete delete = new Delete(cell.getRow());
+            delete.addColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
+            try {
+                cell.getTable().getHTable().delete(delete);
+            } catch (IOException e) {
+                LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
+            }
         }
     }
     @Override
