@@ -672,7 +672,7 @@ public class TestCompaction {
                 }
             }).when(failableHTable).flushCommits();
 
-            newWriteSet.add(new HBaseCellId(failableHTable,
+            newWriteSet.add(HBaseCellId.valueOf(tx3,failableHTable,
                                             id.getRow(), id.getFamily(),
                                             id.getQualifier(), id.getTimestamp()));
         }

@@ -29,9 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 import java.util.Arrays;
 import java.util.List;
@@ -75,7 +73,7 @@ public class TestRowShadowCells extends OmidTestBase {
     private static final int TSO_SERVER_PORT = 1234;
 
     private static final String TEST_TABLE = "test";
-    private static final String TEST_FAMILY = "data";
+
 
     static final byte[] row = Bytes.toBytes("test-sc");
     private static final byte[] row1 = Bytes.toBytes("test-sc1");
@@ -89,7 +87,46 @@ public class TestRowShadowCells extends OmidTestBase {
 
     @Test(timeOut = 60_000)
     public void testOneShadowCellPerFamily(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context, HBaseTransactionManager.ConflictDetectionLevel.ROW);
+        TTable table = new TTable(connection, TEST_TABLE);
 
+        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+        Put put = new Put(row);
+
+        for (int i = 0; i < 3; ++i) {
+            put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(i), data1);
+        }
+        for (int i = 0; i < 3; ++i) {
+            put.addColumn(Bytes.toBytes(TEST_FAMILY2), Bytes.toBytes(i), data1);
+        }
+
+        table.put(t1, put);
+
+        assertFalse(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+        assertFalse(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY2), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+
+        tm.commit(t1);
+
+        assertTrue(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+        assertTrue(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY2), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+
+        int counter = 0;
+        ResultScanner scanner = table.getHTable().getScanner(new Scan());
+        Result res = scanner.next();
+        while (res != null) {
+            for (Cell cell: res.listCells()) {
+                if (CellUtils.isShadowCell(cell)) {
+                    counter ++;
+                }
+            }
+            res = scanner.next();
+        }
+
+        assertEquals(2, counter);
     }
 
     @Test(timeOut = 60_000)
@@ -127,6 +164,7 @@ public class TestRowShadowCells extends OmidTestBase {
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         TransactionManager tm2 = HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(HBaseTransactionManager.ConflictDetectionLevel.ROW)
                 .build();
 
         Transaction t2 = tm2.begin();
@@ -152,6 +190,7 @@ public class TestRowShadowCells extends OmidTestBase {
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
                 .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(HBaseTransactionManager.ConflictDetectionLevel.ROW)
                 .build());
 
         // The following line emulates a crash after commit that is observed in (*) below

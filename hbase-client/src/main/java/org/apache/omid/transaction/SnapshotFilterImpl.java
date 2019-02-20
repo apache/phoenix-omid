@@ -329,7 +329,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return commitCache;
     }
 
-
+    //TODO YONIGO - explain why we must generate the whole chache and not be lazy/
+    // We must find the first commit timestamp (if exists) of any familydelete
     private void buildFamilyDeletionCache(HBaseTransaction transaction, List<Cell> rawCells, Map<String, Long> familyDeletionCache, Map<Long, Long> commitCache, Map<String,byte[]> attributeMap) throws IOException {
         for (Cell cell : rawCells) {
             if (CellUtils.isFamilyDeleteCell(cell)) {
@@ -356,7 +357,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
                         Result result = tableAccessWrapper.get(g);
                         List<Cell> resultCells = result.listCells();
-                        if (resultCells == null) {
+                        if (resultCells == null || !hasFamilyDelete(resultCells)) {
                             break;
                         }
 
@@ -378,6 +379,14 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
     }
 
+    private boolean hasFamilyDelete(List<Cell> resultCells) {
+        for (Cell cell: resultCells) {
+            if (CellUtils.isFamilyDeleteCell(cell)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public Optional<Long> getTSIfInTransaction(Cell kv, HBaseTransaction transaction) {
         long startTimestamp = transaction.getStartTimestamp();
@@ -410,7 +419,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         Get pendingGet = new Get(CellUtil.cloneRow(cell));
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
         if (cfLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
-            //TODO YONIGO - not tested
             pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
         }else {
             pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),

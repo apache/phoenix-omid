@@ -85,6 +85,7 @@ public class TestRowLevelTSOConflict extends OmidTestBase {
 
         Table table1 = connection.getTable(TableName.valueOf(TEST_TABLE));
         TTable ttable1 = new TTable(table1);
+        deleteTable(hBaseUtils.getHBaseAdmin(), TableName.valueOf("table2"));
         createTable("table2");
         Table table2 = connection.getTable(TableName.valueOf("table2"));
         TTable ttable2 = new TTable(table2);

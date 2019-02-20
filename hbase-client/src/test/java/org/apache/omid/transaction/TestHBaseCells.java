@@ -52,6 +52,7 @@ public class TestHBaseCells extends OmidTestBase {
         assertEquals(2,  tx2.getWriteSet().size());
 
         //add from different table
+        deleteTable(hBaseUtils.getHBaseAdmin(), TableName.valueOf("table2"));
         createTable("table2");
         Table table2 = connection.getTable(TableName.valueOf("table2"));
         TTable ttable2 = new TTable(table2);
@@ -95,6 +96,7 @@ public class TestHBaseCells extends OmidTestBase {
         assertEquals(1,  tx2.getWriteSet().size());
 
         //add from different table
+        deleteTable(hBaseUtils.getHBaseAdmin(), TableName.valueOf("table2"));
         createTable("table2");
         Table table2 = connection.getTable(TableName.valueOf("table2"));
         TTable ttable2 = new TTable(table2);

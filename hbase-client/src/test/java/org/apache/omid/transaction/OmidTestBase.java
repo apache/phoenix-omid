@@ -258,9 +258,7 @@ public abstract class OmidTestBase {
             LOG.info("tearing Down");
             Admin admin = hBaseUtils.getHBaseAdmin();
             HTableDescriptor[] tables = admin.listTables();
-            for (int i = 0; i< tables.length; ++i) {
-                deleteTable(admin, tables[i].getTableName());
-            }
+
             deleteTable(admin, TableName.valueOf(TEST_TABLE));
             createTestTable();
             if (hBaseCommitTableConfig != null) {

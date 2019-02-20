@@ -26,6 +26,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,20 +65,24 @@ import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
+
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.fail;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+
 
 public class TestSnapshotFilter {
 
@@ -100,6 +106,8 @@ public class TestSnapshotFilter {
     private CommitTable commitTable;
     private PostCommitActions syncPostCommitter;
     private Connection connection;
+    private HBaseTimestampStorageConfig hBaseTimestampStorageConfig;
+    private HBaseCommitTableConfig hBaseCommitTableConfig;
 
     @BeforeClass
     public void setupTestSnapshotFilter() throws Exception {
@@ -122,8 +130,8 @@ public class TestSnapshotFilter {
         hbaseConf.setInt("hbase.regionserver.info.port", 0);
 
 
-        HBaseCommitTableConfig hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
-        HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
+        hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
+        hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
 
         setupHBase();
         connection = ConnectionFactory.createConnection(hbaseConf);
@@ -196,12 +204,19 @@ public class TestSnapshotFilter {
         TestUtils.waitForSocketNotListening("localhost", 5679, 1000);
     }
 
+
     @BeforeMethod
-    public void setupTestSnapshotFilterIndividualTest() throws Exception {
-        tm = spy((AbstractTransactionManager) newTransactionManager());
+    public void setupTestSnapshotFilterIndividualTest(Object[] testArgs) throws Exception {
+        HBaseTransactionManager.ConflictDetectionLevel cfLevel;
+        if (testArgs.length == 0) {
+            cfLevel = HBaseTransactionManager.ConflictDetectionLevel.CELL;
+        } else {
+            cfLevel = (HBaseTransactionManager.ConflictDetectionLevel) testArgs[0];
+        }
+        tm = spy((AbstractTransactionManager) newTransactionManager(cfLevel));
     }
 
-    private TransactionManager newTransactionManager() throws Exception {
+    private TransactionManager newTransactionManager(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
         hbaseOmidClientConf.setConnectionString("localhost:5679");
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
@@ -211,18 +226,27 @@ public class TestSnapshotFilter {
         return HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(cfLevel)
                 .build();
     }
 
 
-    @Test(timeOut = 60_000)
-    public void testGetFirstResult() throws Throwable {
+
+    @DataProvider(name = "cflevel")
+    public static Object[][] cfLevels() {
+        return new Object[][] {
+                {HBaseTransactionManager.ConflictDetectionLevel.CELL},
+                {HBaseTransactionManager.ConflictDetectionLevel.ROW}};
+    }
+
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testGetFirstResult(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetFirstResult";
+        String TEST_TABLE = cfLevel+"testGetFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -271,15 +295,15 @@ public class TestSnapshotFilter {
 
 
     // This test will fail if filtering is done before snapshot filtering
-    @Test(timeOut = 60_000)
-    public void testServerSideSnapshotFiltering() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testServerSideSnapshotFiltering(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testServerSideSnapshotFiltering";
+        String TEST_TABLE = cfLevel+"testServerSideSnapshotFiltering";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
 
         TTable tt = new TTable(connection, TEST_TABLE);
@@ -313,15 +337,15 @@ public class TestSnapshotFilter {
 
 
     // This test will fail if filtering is done before snapshot filtering
-    @Test(timeOut = 60_000)
-    public void testServerSideSnapshotScannerFiltering() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testServerSideSnapshotScannerFiltering(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testServerSideSnapshotFiltering";
+        String TEST_TABLE = cfLevel+"testServerSideSnapshotFiltering";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
 
         TTable tt = new TTable(connection, TEST_TABLE);
@@ -358,8 +382,8 @@ public class TestSnapshotFilter {
     }
 
 
-    @Test(timeOut = 60_000)
-    public void testGetWithFamilyDelete() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testGetWithFamilyDelete(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] famName2 = Bytes.toBytes("test-fam2");
@@ -367,7 +391,7 @@ public class TestSnapshotFilter {
         byte[] colName2 = Bytes.toBytes("col2");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetWithFamilyDelete";
+        String TEST_TABLE = cfLevel+"testGetWithFamilyDelete";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
 
         TTable tt = new TTable(connection, TEST_TABLE);
@@ -419,20 +443,20 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test(timeOut = 60_000)
-    public void testReadFromCommitTable() throws Exception {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testReadFromCommitTable(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
         final byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
-        final String TEST_TABLE = "testReadFromCommitTable";
+        final String TEST_TABLE = cfLevel+"testReadFromCommitTable";
         final byte[] famName2 = Bytes.toBytes("test-fam2");
 
         final CountDownLatch readAfterCommit = new CountDownLatch(1);
         final CountDownLatch postCommitBegin = new CountDownLatch(1);
 
         final AtomicBoolean readFailed = new AtomicBoolean(false);
-        final AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager();
+        final AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager(cfLevel);
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
 
         doAnswer(new Answer<ListenableFuture<Void>>() {
@@ -497,8 +521,8 @@ public class TestSnapshotFilter {
 
 
 
-    @Test(timeOut = 60_000)
-    public void testGetWithFilter() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testGetWithFilter(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] famName2 = Bytes.toBytes("test-fam2");
@@ -506,7 +530,7 @@ public class TestSnapshotFilter {
         byte[] colName2 = Bytes.toBytes("col2");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetWithFilter";
+        String TEST_TABLE = cfLevel+"testGetWithFilter";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY), famName2);
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -550,14 +574,14 @@ public class TestSnapshotFilter {
     }
 
 
-    @Test(timeOut = 60_000)
-    public void testGetSecondResult() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testGetSecondResult(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testGetSecondResult";
+        String TEST_TABLE = cfLevel+"testGetSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -589,15 +613,15 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test(timeOut = 60_000)
-    public void testScanFirstResult() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanFirstResult(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testScanFirstResult";
+        String TEST_TABLE = cfLevel+"testScanFirstResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -642,8 +666,8 @@ public class TestSnapshotFilter {
     }
 
 
-    @Test(timeOut = 60_000)
-    public void testScanWithFilter() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanWithFilter(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
@@ -652,7 +676,7 @@ public class TestSnapshotFilter {
         byte[] colName2 = Bytes.toBytes("col2");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testScanWithFilter";
+        String TEST_TABLE = cfLevel+"testScanWithFilter";
         createTableIfNotExists(TEST_TABLE, famName1, famName2);
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -694,15 +718,15 @@ public class TestSnapshotFilter {
     }
 
 
-    @Test(timeOut = 60_000)
-    public void testScanSecondResult() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanSecondResult(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] famName1 = Bytes.toBytes(TEST_FAMILY);
         byte[] colName1 = Bytes.toBytes("col1");
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
 
-        String TEST_TABLE = "testScanSecondResult";
+        String TEST_TABLE = cfLevel+"testScanSecondResult";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -734,8 +758,8 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test (timeOut = 60_000)
-    public void testScanFewResults() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanFewResults(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] rowName2 = Bytes.toBytes("row2");
@@ -746,7 +770,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testScanFewResults";
+        String TEST_TABLE = cfLevel+"testScanFewResults";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -784,8 +808,8 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test (timeOut = 60_000)
-    public void testScanFewResultsDifferentTransaction() throws Throwable {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanFewResultsDifferentTransaction(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] rowName2 = Bytes.toBytes("row2");
@@ -796,7 +820,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testScanFewResultsDifferentTransaction";
+        String TEST_TABLE = cfLevel+"testScanFewResultsDifferentTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -837,8 +861,8 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test (timeOut = 60_000)
-    public void testScanFewResultsSameTransaction() throws Throwable {
+    @Test (timeOut = 60_000, dataProvider = "cflevel")
+    public void testScanFewResultsSameTransaction(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
 
         byte[] rowName1 = Bytes.toBytes("row1");
         byte[] rowName2 = Bytes.toBytes("row2");
@@ -849,7 +873,7 @@ public class TestSnapshotFilter {
         byte[] dataValue1 = Bytes.toBytes("testWrite-1");
         byte[] dataValue2 = Bytes.toBytes("testWrite-2");
 
-        String TEST_TABLE = "testScanFewResultsSameTransaction";
+        String TEST_TABLE = cfLevel+"testScanFewResultsSameTransaction";
         createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
         TTable tt = new TTable(connection, TEST_TABLE);
 
@@ -889,9 +913,9 @@ public class TestSnapshotFilter {
     }
 
 
-    @Test (timeOut = 60_000)
-    public void testFilterCommitCacheInSnapshot() throws Throwable {
-        String TEST_TABLE = "testScanWithFilter";
+    @Test (timeOut = 60_000, dataProvider = "cflevel")
+    public void testFilterCommitCacheInSnapshot(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
+        String TEST_TABLE = cfLevel+"testFilterCommitCacheInSnapshot";
         byte[] rowName = Bytes.toBytes("row1");
         byte[] famName = Bytes.toBytes(TEST_FAMILY);
 
@@ -932,9 +956,9 @@ public class TestSnapshotFilter {
         tt.close();
     }
 
-    @Test (timeOut = 60_000)
-    public void testFilterCommitCacheNotInSnapshot() throws Throwable {
-        String TEST_TABLE = "testScanWithFilter";
+    @Test (timeOut = 60_000, dataProvider = "cflevel")
+    public void testFilterCommitCacheNotInSnapshot(HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Throwable {
+        String TEST_TABLE = cfLevel+"testFilterCommitCacheNotInSnapshot";
         byte[] rowName = Bytes.toBytes("row1");
         byte[] famName = Bytes.toBytes(TEST_FAMILY);
 

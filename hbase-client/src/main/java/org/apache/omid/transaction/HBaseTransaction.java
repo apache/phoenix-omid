@@ -22,28 +22,37 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.hbase.client.Delete;
-import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
-
+    private final HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel;
     public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet,
                             Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm, boolean isLowLatency) {
         super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm, isLowLatency);
+        this.conflictDetectionLevel = ((HBaseTransactionManager)tm).getConflictDetectionLevel();
     }
 
     public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet,
                             Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm,
                             long readTimestamp, long writeTimestamp, boolean isLowLatency) {
         super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm, readTimestamp, writeTimestamp, isLowLatency);
+        this.conflictDetectionLevel = ((HBaseTransactionManager)tm).getConflictDetectionLevel();
     }
 
     public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch,
                             Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet,
                             AbstractTransactionManager tm, boolean isLowLatency) {
         super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, tm, isLowLatency);
+        this.conflictDetectionLevel = ((HBaseTransactionManager)tm).getConflictDetectionLevel();
+    }
+
+    public HBaseTransaction(long transactionId, long readTimestamp, VisibilityLevel visibilityLevel, long epoch,
+                            Set<HBaseCellId> writeSet, Set<HBaseCellId> conflictFreeWriteSet,
+                            HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel, boolean isLowLatency) {
+        super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, null, isLowLatency);
+        this.conflictDetectionLevel = conflictDetectionLevel;
     }
 
     private void deleteCell(HBaseCellId cell) {
@@ -101,7 +110,7 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     }
 
     public HBaseTransactionManager.ConflictDetectionLevel getConflictDetectionLevel() {
-        return ((HBaseTransactionManager)getTransactionManager()).getConflictDetectionLevel();
+        return conflictDetectionLevel;
     }
 
 }
