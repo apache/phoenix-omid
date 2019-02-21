@@ -35,6 +35,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.transaction.HBaseTransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,7 @@ import java.util.SortedMap;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 
 public class CompactorScanner implements InternalScanner {
     private static final Logger LOG = LoggerFactory.getLogger(CompactorScanner.class);
@@ -60,6 +62,7 @@ public class CompactorScanner implements InternalScanner {
     private final long lowWatermark;
 
     private final Region hRegion;
+    private final HBaseTransactionManager.ConflictDetectionLevel cdLevel;
 
     private boolean hasMoreRows = false;
     private List<Cell> currentRowWorthValues = new ArrayList<Cell>();
@@ -69,7 +72,8 @@ public class CompactorScanner implements InternalScanner {
                             Client commitTableClient,
                             Queue<CommitTable.Client> commitTableClientQueue,
                             boolean isMajorCompaction,
-                            boolean preserveNonTransactionallyDeletedCells) throws IOException {
+                            boolean preserveNonTransactionallyDeletedCells,
+                            HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws IOException {
         this.internalScanner = internalScanner;
         this.commitTableClient = commitTableClient;
         this.commitTableClientQueue = commitTableClientQueue;
@@ -78,6 +82,7 @@ public class CompactorScanner implements InternalScanner {
         this.lowWatermark = getLowWatermarkFromCommitTable();
         // Obtain the table in which the scanner is going to operate
         this.hRegion = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
+        this.cdLevel = cdLevel;
         LOG.info("Scanner cleaning up uncommitted txs older than LW [{}] in region [{}]",
                 lowWatermark, hRegion.getRegionInfo());
     }
@@ -235,9 +240,15 @@ public class CompactorScanner implements InternalScanner {
             } else {
                 Get g = new Get(CellUtil.cloneRow(cell));
                 byte[] family = CellUtil.cloneFamily(cell);
-                byte[] qualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                        cell.getQualifierOffset(),
-                        cell.getQualifierLength());
+                byte[] qualifier;
+                if (cdLevel == ROW) {
+                    qualifier = CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER);
+                } else {
+                    qualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                            cell.getQualifierOffset(),
+                            cell.getQualifierLength());
+                }
+
                 g.addColumn(family, qualifier);
                 g.setTimeStamp(cell.getTimestamp());
                 Result r = hRegion.get(g);

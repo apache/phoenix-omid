@@ -284,6 +284,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             // commit phase of the client probably failed, so we heal the shadow
             // cell with the right commit timestamp for avoiding further reads to
             // hit the storage
+            //TODO YONIGO - update commitcache
             healShadowCell(cell, tentativeCommitTimestamp.getValue(), conflictLevel);
             return Optional.of(tentativeCommitTimestamp.getValue());
         case CACHE:
@@ -357,13 +358,14 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
                         Result result = tableAccessWrapper.get(g);
                         List<Cell> resultCells = result.listCells();
-                        if (resultCells == null || !hasFamilyDelete(resultCells)) {
+                        if (!hasFamilyDelete(resultCells)) {
                             break;
                         }
 
                         cmtCache = buildCommitCache(resultCells);
                         for (Cell c : resultCells) {
                             if (CellUtils.isFamilyDeleteCell(c)) {
+                                //TODO YONIGO - call again to get sc
                                     commitTimeStamp = getTSIfInSnapshot(c, transaction, cmtCache);
                                     if (commitTimeStamp.isPresent()) {
                                         familyDeletionCache.put(key, commitTimeStamp.get());
@@ -380,6 +382,9 @@ public class SnapshotFilterImpl implements SnapshotFilter {
     }
 
     private boolean hasFamilyDelete(List<Cell> resultCells) {
+        if (resultCells == null) {
+            return false;
+        }
         for (Cell cell: resultCells) {
             if (CellUtils.isFamilyDeleteCell(cell)) {
                 return true;
@@ -425,8 +430,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     cell.getQualifierOffset(),
                     cell.getQualifierLength()));
         }
-
-
         pendingGet.setMaxVersions(versionCount);
         pendingGet.setTimeRange(0, cell.getTimestamp());
 
@@ -507,6 +510,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
         if (!pendingGetsList.isEmpty()) {
             Result[] pendingGetsResults = tableAccessWrapper.get(pendingGetsList);
+            //TODO YONIGO - go over results and do additional call to get sc.
             for (Result pendingGetResult : pendingGetsResults) {
                 if (!pendingGetResult.isEmpty()) {
                     keyValuesInSnapshot.addAll(

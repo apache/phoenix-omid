@@ -44,6 +44,8 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.COMMIT_TABLE_NAME_KEY;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 
 /**
  * Garbage collector for stale data: triggered upon HBase
@@ -59,6 +61,7 @@ public class OmidCompactor extends BaseRegionObserver {
     private static final boolean HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT = true;
 
     final static String OMID_COMPACTABLE_CF_FLAG = "OMID_ENABLED";
+    private HBaseTransactionManager.ConflictDetectionLevel cdLevel;
 
     private boolean enableCompactorForAllFamilies = false;
 
@@ -76,12 +79,15 @@ public class OmidCompactor extends BaseRegionObserver {
     private CommitTable commitTable;
 
     public OmidCompactor() {
-        this(false);
+        this(false,
+                CELL);
     }
 
-    public OmidCompactor(boolean enableCompactorForAllFamilies) {
+    public OmidCompactor(boolean enableCompactorForAllFamilies,
+                         HBaseTransactionManager.ConflictDetectionLevel cdLevel) {
         LOG.info("Compactor coprocessor initialized");
         this.enableCompactorForAllFamilies = enableCompactorForAllFamilies;
+        this.cdLevel = cdLevel;
     }
 
     @Override
@@ -89,6 +95,15 @@ public class OmidCompactor extends BaseRegionObserver {
         LOG.info("Starting compactor coprocessor");
         commitTableConf = new HBaseCommitTableConfig();
         String commitTableName = env.getConfiguration().get(COMMIT_TABLE_NAME_KEY);
+        String conflictDetectionLevel = env.getConfiguration().get("omid.conflictdetection.level");
+        if (conflictDetectionLevel != null) {
+            if (conflictDetectionLevel.equals(ROW.toString())) {
+                cdLevel = ROW;
+            } else {
+                cdLevel = CELL;
+            }
+        }
+
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
@@ -145,7 +160,8 @@ public class OmidCompactor extends BaseRegionObserver {
                         commitTableClient,
                         commitTableClientQueue,
                         isMajorCompaction,
-                        retainNonTransactionallyDeletedCells);
+                        retainNonTransactionallyDeletedCells,
+                        cdLevel);
             }
         } catch (IOException e) {
             throw e;

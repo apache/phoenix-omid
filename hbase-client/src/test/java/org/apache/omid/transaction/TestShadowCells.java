@@ -503,6 +503,13 @@ public class TestShadowCells extends OmidTestBase {
         assertTrue(result2.containsColumn(family, qualifier), "Should have column family");
     }
 
+
+    @Test(timeOut = 30_000)
+    public void testResusedShadowCellsAfterHealing(){
+
+
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // Helper methods
     // ----------------------------------------------------------------------------------------------------------------

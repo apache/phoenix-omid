@@ -484,6 +484,9 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             assertEquals(ct.getValue(), -1L);
             assertTrue(ct.getLocation().compareTo(NOT_PRESENT) == 0);
         }
-
     }
+
+
+
+
 }

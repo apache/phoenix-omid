@@ -97,10 +97,6 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
     private boolean lowLatency;
 
-    // Use to extract unique table identifiers from the modified cells list.
-    private final Set<Long> tableIDs;
-
-
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
     // ----------------------------------------------------------------------------------------------------------------
@@ -170,7 +166,6 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         bootstrap.setOption("connectTimeoutMillis", 100);
         lowLatency = false;
 
-        this.tableIDs = new HashSet<Long>();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -207,6 +202,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         TSOProto.CommitRequest.Builder commitbuilder = TSOProto.CommitRequest.newBuilder();
         commitbuilder.setStartTimestamp(transactionId);
 
+        HashSet<Long> tableIDs = new HashSet<Long>();
         for (CellId cell : cells) {
             commitbuilder.addCellId(cell.getCellId());
             tableIDs.add(cell.getTableId());

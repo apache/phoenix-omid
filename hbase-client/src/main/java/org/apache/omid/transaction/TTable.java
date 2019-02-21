@@ -206,7 +206,6 @@ public class TTable implements Closeable {
                         tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
                     }
                 }
-                //TODO YONIGO - why is this here and not out the if?
                 tsget.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER);
                 tsget.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             }
@@ -489,15 +488,14 @@ public class TTable implements Closeable {
                 tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
             } else {
                 for (byte[] qualifier : qualifiers) {
-                    //TODO YONIGO - why not add the cells of the scan?
                     tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
                 }
             }
-
             if (!qualifiers.isEmpty()) {
-                //TODO YONIGO - why is this added here and not always?
                 tsscan.addColumn(entry.getKey(), CellUtils.FAMILY_DELETE_QUALIFIER);
-                tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
+                if (transaction.getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.CELL) {
+                    tsscan.addColumn(family, CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
+                }
             }
         }
 

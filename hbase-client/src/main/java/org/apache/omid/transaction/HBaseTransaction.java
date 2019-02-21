@@ -34,6 +34,7 @@ import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetect
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
     private final HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel;
+
     public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet,
                             Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm, boolean isLowLatency) {
         super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm, isLowLatency);
@@ -73,12 +74,9 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
                 Result res = cell.getTable().getHTable().get(get);
                 Delete delete = new Delete(cell.getRow());
                 for (Cell rawCell: res.listCells()) {
-
-
                     delete.addColumn(cell.getFamily(),
                             Bytes.copy(rawCell.getQualifierArray(),rawCell.getQualifierOffset(),rawCell.getQualifierLength()),
                                     cell.getTimestamp());
-
                 }
                 cell.getTable().getHTable().delete(delete);
             } catch (IOException e) {

@@ -291,6 +291,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
         @Override
         public Optional<Long> readCommitTimestampFromShadowCell(long startTimestamp) throws IOException {
+
             Get get = new Get(hBaseCellId.getRow());
             byte[] family = hBaseCellId.getFamily();
             byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(hBaseCellId.getQualifier());
@@ -305,4 +306,5 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         }
 
     }
+
 }

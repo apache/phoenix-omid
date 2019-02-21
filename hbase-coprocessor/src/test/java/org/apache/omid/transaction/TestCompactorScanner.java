@@ -36,6 +36,8 @@ import org.testng.annotations.Test;
 
 import java.util.Queue;
 
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -84,7 +86,7 @@ public class TestCompactorScanner {
                 ctClient,
                 queue,
                 false,
-                retainOption))) {
+                retainOption,CELL))) {
 
             // Different cell types to test
             KeyValue regularKV = new KeyValue(Bytes.toBytes("test-row"), TEST_TS, Type.Put);
