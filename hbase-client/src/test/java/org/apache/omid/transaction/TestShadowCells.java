@@ -17,8 +17,11 @@
  */
 package org.apache.omid.transaction;
 
+import static org.apache.omid.transaction.CellUtils.SHARED_FAMILY_QUALIFIER;
 import static org.apache.omid.transaction.CellUtils.hasCell;
 import static org.apache.omid.transaction.CellUtils.hasShadowCell;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
@@ -28,10 +31,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
@@ -85,10 +88,72 @@ public class TestShadowCells extends OmidTestBase {
     private static final byte[] data1 = Bytes.toBytes("testWrite-1");
 
 
-    @Test(timeOut = 60_000)
-    public void testShadowCellsBasics(ITestContext context) throws Exception {
+    @DataProvider(name = "cflevel")
+    public static Object[][] cfLevels() {
+        return new Object[][] {
+//                {CELL},
+                {ROW}};
+    }
 
-        TransactionManager tm = newTransactionManager(context);
+
+    private byte[] shadowCellQualifier(HBaseTransactionManager.ConflictDetectionLevel cdLevel) {
+        if (cdLevel == ROW) {
+            return SHARED_FAMILY_QUALIFIER;
+        } else {
+            return qualifier;
+        }
+    }
+
+
+    @Test(timeOut = 60_000)
+    public void testOneShadowCellPerFamily(ITestContext context) throws Exception {
+        TransactionManager tm = newTransactionManager(context, HBaseTransactionManager.ConflictDetectionLevel.ROW);
+        TTable table = new TTable(connection, TEST_TABLE);
+
+        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+        Put put = new Put(row);
+
+        for (int i = 0; i < 3; ++i) {
+            put.addColumn(Bytes.toBytes(TEST_FAMILY), Bytes.toBytes(i), data1);
+        }
+        for (int i = 0; i < 3; ++i) {
+            put.addColumn(Bytes.toBytes(TEST_FAMILY2), Bytes.toBytes(i), data1);
+        }
+
+        table.put(t1, put);
+
+        assertFalse(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+        assertFalse(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY2), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+
+        tm.commit(t1);
+
+        assertTrue(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+        assertTrue(hasShadowCell(row, Bytes.toBytes(TEST_FAMILY2), SHARED_FAMILY_QUALIFIER, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell shouldn't be there");
+
+        int counter = 0;
+        ResultScanner scanner = table.getHTable().getScanner(new Scan());
+        Result res = scanner.next();
+        while (res != null) {
+            for (Cell cell: res.listCells()) {
+                if (CellUtils.isShadowCell(cell)) {
+                    counter ++;
+                }
+            }
+            res = scanner.next();
+        }
+
+        assertEquals(2, counter);
+    }
+
+
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testShadowCellsBasics(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context,cdLevel);
 
         TTable table = new TTable(connection, TEST_TABLE);
 
@@ -102,7 +167,7 @@ public class TestShadowCells extends OmidTestBase {
         // Before commit test that only the cell is there
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertFalse(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertFalse(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell shouldn't be there");
 
         tm.commit(t1);
@@ -110,7 +175,7 @@ public class TestShadowCells extends OmidTestBase {
         // After commit test that both cell and shadow cell are there
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertTrue(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertTrue(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should be there");
 
         // Test that we can make a valid read after adding a shadow cell without hitting the commit table
@@ -121,6 +186,7 @@ public class TestShadowCells extends OmidTestBase {
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         TransactionManager tm2 = HBaseTransactionManager.builder(hbaseOmidClientConf)
                                                         .commitTableClient(commitTableClient)
+                                                        .conflictDetectionLevel(cdLevel)
                                                         .build();
 
         Transaction t2 = tm2.begin();
@@ -132,8 +198,8 @@ public class TestShadowCells extends OmidTestBase {
         verify(commitTableClient, never()).getCommitTimestamp(anyLong());
     }
 
-    @Test(timeOut = 60_000)
-    public void testCrashingAfterCommitDoesNotWriteShadowCells(ITestContext context) throws Exception {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testCrashingAfterCommitDoesNotWriteShadowCells(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
 
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
@@ -146,6 +212,7 @@ public class TestShadowCells extends OmidTestBase {
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
                 .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(cdLevel)
                 .build());
 
         // The following line emulates a crash after commit that is observed in (*) below
@@ -168,7 +235,7 @@ public class TestShadowCells extends OmidTestBase {
         // After commit with the emulated crash, test that only the cell is there
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertFalse(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertFalse(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should not be there");
 
         Transaction t2 = tm.begin();
@@ -180,8 +247,8 @@ public class TestShadowCells extends OmidTestBase {
         verify(commitTableClient, times(1)).getCommitTimestamp(anyLong());
     }
 
-    @Test(timeOut = 60_000)
-    public void testShadowCellIsHealedAfterCommitCrash(ITestContext context) throws Exception {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testShadowCellIsHealedAfterCommitCrash(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
 
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
@@ -194,6 +261,7 @@ public class TestShadowCells extends OmidTestBase {
                 .postCommitter(syncPostCommitter)
                 .commitTableWriter(getCommitTable(context).getWriter())
                 .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(cdLevel)
                 .build());
 
         // The following line emulates a crash after commit that is observed in (*) below
@@ -215,7 +283,7 @@ public class TestShadowCells extends OmidTestBase {
 
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertFalse(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertFalse(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should not be there");
 
         Transaction t2 = tm.begin();
@@ -229,7 +297,7 @@ public class TestShadowCells extends OmidTestBase {
 
         assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertTrue(hasShadowCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertTrue(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should be there after being healed");
 
         // As the shadow cell is healed, this get shouldn't have to hit the storage,
@@ -240,8 +308,8 @@ public class TestShadowCells extends OmidTestBase {
         verify(commitTableClient, times(1)).getCommitTimestamp(anyLong());
     }
 
-    @Test(timeOut = 60_000)
-    public void testTransactionNeverCompletesWhenAnExceptionIsThrownUpdatingShadowCells(ITestContext context)
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testTransactionNeverCompletesWhenAnExceptionIsThrownUpdatingShadowCells(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cdLevel)
             throws Exception {
 
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
@@ -254,6 +322,7 @@ public class TestShadowCells extends OmidTestBase {
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(cdLevel)
                 .commitTableWriter(getCommitTable(context).getWriter())
                 .build());
 
@@ -291,7 +360,7 @@ public class TestShadowCells extends OmidTestBase {
         // 1) check that shadow cell is not created...
         assertTrue(hasCell(row, family, qualifier, tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Cell should be there");
-        assertFalse(hasShadowCell(row, family, qualifier, tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+        assertFalse(hasShadowCell(row, family, shadowCellQualifier(cdLevel), tx.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                 "Shadow cell should not be there");
         // 2) and thus, deleteCommitEntry() was never called on the commit table...
         verify(commitTableClient, times(0)).deleteCommitEntry(anyLong());
@@ -300,8 +369,8 @@ public class TestShadowCells extends OmidTestBase {
 
     }
 
-    @Test(timeOut = 60_000)
-    public void testRaceConditionBetweenReaderAndWriterThreads(final ITestContext context) throws Exception {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testRaceConditionBetweenReaderAndWriterThreads(final ITestContext context, final HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
         final CountDownLatch readAfterCommit = new CountDownLatch(1);
         final CountDownLatch postCommitBegin = new CountDownLatch(1);
         final CountDownLatch postCommitEnd = new CountDownLatch(1);
@@ -309,7 +378,7 @@ public class TestShadowCells extends OmidTestBase {
         final AtomicBoolean readFailed = new AtomicBoolean(false);
         PostCommitActions syncPostCommitter =
                 spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), getCommitTable(context).getClient()));
-        AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager(context, syncPostCommitter);
+        AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager(context, syncPostCommitter,cdLevel);
 
         doAnswer(new Answer<ListenableFuture<Void>>() {
             @Override
@@ -355,10 +424,10 @@ public class TestShadowCells extends OmidTestBase {
                     }).when(snapshotFilter).filterCellsForSnapshot(Matchers.<List<Cell>>any(),
                             any(HBaseTransaction.class), anyInt(), Matchers.<Map<String, Long>>any(), Matchers.<Map<String,byte[]>>any());
 
-                    TransactionManager tm = newTransactionManager(context);
+                    TransactionManager tm = newTransactionManager(context,cdLevel);
                     if (hasShadowCell(row,
                             family,
-                            qualifier,
+                            shadowCellQualifier(cdLevel),
                             t1.getStartTimestamp(),
                             new TTableCellGetterAdapter(table))) {
                         readFailed.set(true);
@@ -373,7 +442,7 @@ public class TestShadowCells extends OmidTestBase {
                     if (!Arrays.equals(data1, CellUtil.cloneValue(cell))
                             || !hasShadowCell(row,
                             family,
-                            qualifier,
+                            shadowCellQualifier(cdLevel),
                             cell.getTimestamp(),
                             new TTableCellGetterAdapter(table))) {
                         readFailed.set(true);
@@ -406,10 +475,10 @@ public class TestShadowCells extends OmidTestBase {
     /**
      * Test that the new client can read shadow cells written by the old client.
      */
-    @Test(timeOut = 60_000)
-    public void testGetOldShadowCells(ITestContext context) throws Exception {
+    @Test(timeOut = 60_000, dataProvider = "cflevel")
+    public void testGetOldShadowCells(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
 
-        TransactionManager tm = newTransactionManager(context);
+        TransactionManager tm = newTransactionManager(context,cdLevel);
 
         TTable table = new TTable(connection, TEST_TABLE);
         Table htable = table.getHTable();
@@ -445,7 +514,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // delete new shadow cell
         Delete del = new Delete(row2);
-        del.addColumn(family, CellUtils.addShadowCellSuffixPrefix(qualifier));
+        del.addColumn(family, CellUtils.addShadowCellSuffixPrefix(shadowCellQualifier(cdLevel)));
         htable.delete(del);
         table.flushCommits();
 
@@ -474,7 +543,7 @@ public class TestShadowCells extends OmidTestBase {
         // now add in the previous legacy shadow cell for that row
         put = new Put(row2);
         put.addColumn(family,
-                addLegacyShadowCellSuffix(qualifier),
+                addLegacyShadowCellSuffix(shadowCellQualifier(cdLevel)),
                 t2.getStartTimestamp(),
                 Bytes.toBytes(t2.getCommitTimestamp()));
         htable.put(put);
@@ -504,11 +573,145 @@ public class TestShadowCells extends OmidTestBase {
     }
 
 
-    @Test(timeOut = 30_000)
-    public void testResusedShadowCellsAfterHealing(){
+    @Test(timeOut = 30_000, dataProvider = "cflevel")
+    public void testResusedShadowCellsAfterHealing(ITestContext context,
+                                                   HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws IOException, InterruptedException {
+        CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
+        HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
+        PostCommitActions syncPostCommitter = spy(
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+        AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
+                .postCommitter(syncPostCommitter)
+                .commitTableWriter(getCommitTable(context).getWriter())
+                .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(cdLevel)
+                .build());
+
+        // The following line emulates a crash after commit that is observed in (*) below
+        doThrow(new RuntimeException()).when(syncPostCommitter).updateShadowCells(any(HBaseTransaction.class));
+
+        TTable table = new TTable(connection, TEST_TABLE);
+
+        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+
+        // Test shadow cell are created properly
+        byte[] qualifier2 = Bytes.toBytes("qual2");
+        byte[] family2 = Bytes.toBytes(TEST_FAMILY2);
+
+
+        Put put = new Put(row);
+        put.addColumn(family, qualifier, data1);
+        put.addColumn(family2, qualifier2 , data1);
+
+        table.put(t1, put);
+        try {
+            tm.commit(t1);
+        } catch (Exception e) { // (*) Crash
+            // Do nothing
+        }
+
+        assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        assertTrue(hasCell(row, family2, qualifier2, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+
+        assertFalse(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell should not be there");
+        assertFalse(hasShadowCell(row, family2, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell should not be there");
+
+        Transaction t2 = tm.begin();
+        Get get = new Get(row);
+        get.addColumn(family, qualifier);
+        get.addColumn(family2, qualifier2);
+
+        // This get should heal the shadow cell, and use it in commitCache for other cell reads instead of jumping to commit table
+        Result getResult = table.get(t2, get);
+        assertTrue(Arrays.equals(data1, getResult.getValue(family, qualifier)), "Values should be the same");
+        verify(commitTableClient, times(1)).getCommitTimestamp(anyLong());
+
+        assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        //only 1 shadow cell will be healed, the others cells got read from commitCache
+        int count=0;
+
+        count += hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(),
+                new TTableCellGetterAdapter(table))?1:0;
+        count += hasShadowCell(row, family2, shadowCellQualifier(cdLevel), t1.getStartTimestamp(),
+                new TTableCellGetterAdapter(table))?1:0;
+
+        assertEquals(1,count);
 
     }
+
+
+    @Test(timeOut = 30_0000000, dataProvider = "cflevel")
+    public void testStackedFamilyShadowCellsRetryAndNotCommitTable(ITestContext context,
+                                                                   HBaseTransactionManager.ConflictDetectionLevel cdLevel) throws Exception {
+
+        TransactionManager tm = newTransactionManager(context,cdLevel);
+
+        TTable table = new TTable(connection, TEST_TABLE);
+
+        //create stack of shadow cells
+        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+        Put put = new Put(row);
+        put.addColumn(family, qualifier, data1);
+        table.put(t1, put);
+        tm.commit(t1);
+
+        HBaseTransaction t2 = (HBaseTransaction) tm.begin();
+        put = new Put(row);
+        put.addColumn(family, qualifier, data1);
+        table.put(t2, put);
+        tm.commit(t2);
+
+        HBaseTransaction t3 = (HBaseTransaction) tm.begin();
+        put = new Put(row);
+        put.addColumn(family, qualifier, data1);
+        table.put(t3, put);
+        tm.commit(t3);
+
+
+        HBaseTransaction t4 = (HBaseTransaction) tm.begin();
+        Put put2 = new Put(row);
+        byte[] qualifier2 = Bytes.toBytes("qual2");
+        put2.addColumn(family, qualifier2, data1);
+        table.put(t4, put2);
+        tm.commit(t4);
+
+
+        // After commit test that both cell and shadow cell are there
+        assertTrue(hasCell(row, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        assertTrue(hasShadowCell(row, family, shadowCellQualifier(cdLevel), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                "Shadow cell should be there");
+
+        // Test that we can make a valid read after adding a shadow cell without hitting the commit table
+        CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
+
+        HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
+        TransactionManager tm2 = HBaseTransactionManager.builder(hbaseOmidClientConf)
+                .commitTableClient(commitTableClient)
+                .conflictDetectionLevel(cdLevel)
+                .build();
+
+        Transaction t5 = tm2.begin();
+        Get get = new Get(row);
+        get.addColumn(family, qualifier);
+        get.addColumn(family, qualifier2);
+
+        Result getResult = table.get(t5, get);
+        assertTrue(Arrays.equals(data1, getResult.getValue(family, qualifier)), "Values should be the same");
+        verify(commitTableClient, never()).getCommitTimestamp(anyLong());
+    }
+
+
 
     // ----------------------------------------------------------------------------------------------------------------
     // Helper methods

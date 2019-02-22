@@ -22,6 +22,8 @@ import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -140,16 +142,21 @@ public abstract class OmidTestBase {
         createTable(TEST_TABLE);
     }
 
-
     protected void createTable(String tableName) throws IOException {
+        List<String> families = new ArrayList<>();
+        families.add(TEST_FAMILY2);
+        families.add(TEST_FAMILY);
+        createTable(tableName, families);
+    }
+
+    protected void createTable(String tableName, List<String> families) throws IOException {
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
         HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(tableName));
-        HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-        HColumnDescriptor datafam2 = new HColumnDescriptor(TEST_FAMILY2);
-        datafam.setMaxVersions(Integer.MAX_VALUE);
-        datafam2.setMaxVersions(Integer.MAX_VALUE);
-        test_table_desc.addFamily(datafam);
-        test_table_desc.addFamily(datafam2);
+        for (String family: families) {
+            HColumnDescriptor datafam = new HColumnDescriptor(family);
+            datafam.setMaxVersions(Integer.MAX_VALUE);
+            test_table_desc.addFamily(datafam);
+        }
         admin.createTable(test_table_desc);
     }
 

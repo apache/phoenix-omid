@@ -21,6 +21,7 @@ import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.C
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.COMMIT_TABLE;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.NOT_PRESENT;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -121,7 +122,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         Put put = new Put(CellUtil.cloneRow(cell));
         byte[] family = CellUtil.cloneFamily(cell);
         byte[] shadowCellQualifier;
-        if (conflictDetectionLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+        if (conflictDetectionLevel == ROW) {
             shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER);
         } else {
             shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
@@ -284,8 +285,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             // commit phase of the client probably failed, so we heal the shadow
             // cell with the right commit timestamp for avoiding further reads to
             // hit the storage
-            //TODO YONIGO - update commitcache
             healShadowCell(cell, tentativeCommitTimestamp.getValue(), conflictLevel);
+            commitCache.put(cell.getTimestamp(), tentativeCommitTimestamp.getValue());
             return Optional.of(tentativeCommitTimestamp.getValue());
         case CACHE:
         case SHADOW_CELL:
@@ -316,22 +317,57 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return tryToLocateCellCommitTimestamp(transaction.getEpoch(), kv,
                 commitCache, transaction.isLowLatency(), transaction.getConflictDetectionLevel());
     }
-    
-    private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
 
-        Map<Long, Long> commitCache = new HashMap<>();
 
+    // In case of ROW conflict detection, the call to filterCellsForSnapshot may contain a cell that its sc didnt arrive
+    // because its stacked under a more recent shadow cell. This will cause a get from commit table so we do this get from sc before.
+    // TODO YONIGO - do we really need this? is access to SC faster than commit table?
+    private void getMissedShadowCell(List<Cell> rawCells, Map<Long, Long> commitCache) throws IOException {
+        if (rawCells.size() == 0)
+            return;
+
+        Map<String, Long> familyShahowCells = new HashMap<>();
         for (Cell cell : rawCells) {
+            if (CellUtils.isShadowCell(cell)) {
+                String key = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                familyShahowCells.put(key, cell.getTimestamp());
+            }
+        }
+
+        Get get = new Get(CellUtil.cloneRow(rawCells.get(0)));
+        for (Cell cell : rawCells) {
+            if (!CellUtils.isShadowCell(cell)) {
+                String key = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                Long ts = familyShahowCells.get(key);
+                if (ts != null && cell.getTimestamp() < ts) {
+                    get.addColumn(CellUtil.cloneFamily(cell),CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+                    get.setTimeStamp(cell.getTimestamp());
+                }
+            }
+        }
+        Result result = tableAccessWrapper.get(get);
+
+
+        for (Cell cell : result.listCells()) {
             if (CellUtils.isShadowCell(cell)) {
                 commitCache.put(cell.getTimestamp(), Bytes.toLong(CellUtil.cloneValue(cell)));
             }
         }
 
+    }
+
+    private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
+        Map<Long, Long> commitCache = new HashMap<>();
+        for (Cell cell : rawCells) {
+            if (CellUtils.isShadowCell(cell)) {
+                commitCache.put(cell.getTimestamp(), Bytes.toLong(CellUtil.cloneValue(cell)));
+            }
+        }
         return commitCache;
     }
 
-    //TODO YONIGO - explain why we must generate the whole chache and not be lazy/
-    // We must find the first commit timestamp (if exists) of any familydelete
+
+    // We must find the first commit timestamp (if exists) of any family delete
     private void buildFamilyDeletionCache(HBaseTransaction transaction, List<Cell> rawCells, Map<String, Long> familyDeletionCache, Map<Long, Long> commitCache, Map<String,byte[]> attributeMap) throws IOException {
         for (Cell cell : rawCells) {
             if (CellUtils.isFamilyDeleteCell(cell)) {
@@ -363,9 +399,12 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                         }
 
                         cmtCache = buildCommitCache(resultCells);
+                        if (transaction.getConflictDetectionLevel() == ROW) {
+                            getMissedShadowCell(rawCells, cmtCache);
+                        }
+
                         for (Cell c : resultCells) {
                             if (CellUtils.isFamilyDeleteCell(c)) {
-                                //TODO YONIGO - call again to get sc
                                     commitTimeStamp = getTSIfInSnapshot(c, transaction, cmtCache);
                                     if (commitTimeStamp.isPresent()) {
                                         familyDeletionCache.put(key, commitTimeStamp.get());
@@ -423,7 +462,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             throws IOException {
         Get pendingGet = new Get(CellUtil.cloneRow(cell));
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
-        if (cfLevel == HBaseTransactionManager.ConflictDetectionLevel.ROW) {
+        if (cfLevel == ROW) {
             pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
         }else {
             pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
@@ -435,6 +474,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
         return pendingGet;
     }
+
 
     /**
      * Filters the raw results returned from HBase and returns only those belonging to the current snapshot, as defined
@@ -461,6 +501,9 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         Map<Long, Long> commitCache = buildCommitCache(rawCells);
+        if (transaction.getConflictDetectionLevel() == ROW) {
+            getMissedShadowCell(rawCells, commitCache);
+        }
         buildFamilyDeletionCache(transaction, rawCells, familyDeletionCache, commitCache, attributeMap);
 
         ImmutableList<Collection<Cell>> filteredCells;
@@ -510,7 +553,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
         if (!pendingGetsList.isEmpty()) {
             Result[] pendingGetsResults = tableAccessWrapper.get(pendingGetsList);
-            //TODO YONIGO - go over results and do additional call to get sc.
             for (Result pendingGetResult : pendingGetsResults) {
                 if (!pendingGetResult.isEmpty()) {
                     keyValuesInSnapshot.addAll(

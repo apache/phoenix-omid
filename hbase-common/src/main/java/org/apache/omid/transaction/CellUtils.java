@@ -110,7 +110,6 @@ public final class CellUtils {
                                         byte[] qualifier,
                                         long version,
                                         CellGetter cellGetter) throws IOException {
-        //TODO YONIGO - should get cdLevel
         return hasCell(row, family, addShadowCellSuffixPrefix(qualifier),
                 version, cellGetter);
     }
