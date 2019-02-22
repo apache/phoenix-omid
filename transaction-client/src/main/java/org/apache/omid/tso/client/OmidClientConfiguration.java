@@ -32,8 +32,6 @@ public class OmidClientConfiguration {
 
     public enum PostCommitMode {SYNC, ASYNC}
 
-    public enum ConflictDetectionLevel {CELL, ROW}
-
     // Basic connection related params
 
     private ConnType connectionType = ConnType.DIRECT;
@@ -53,7 +51,7 @@ public class OmidClientConfiguration {
     // Transaction Manager related params
 
     private PostCommitMode postCommitMode = PostCommitMode.SYNC;
-    private ConflictDetectionLevel conflictAnalysisLevel = ConflictDetectionLevel.CELL;
+
 
     // ----------------------------------------------------------------------------------------------------------------
     // Instantiation
@@ -175,15 +173,5 @@ public class OmidClientConfiguration {
     @Named("omid.tm.postCommitMode")
     public void setPostCommitMode(PostCommitMode postCommitMode) {
         this.postCommitMode = postCommitMode;
-    }
-
-    public ConflictDetectionLevel getConflictAnalysisLevel() {
-        return conflictAnalysisLevel;
-    }
-
-    @Inject(optional = true)
-    @Named("omid.tm.conflictAnalysisLevel")
-    public void setConflictAnalysisLevel(ConflictDetectionLevel conflictAnalysisLevel) {
-        this.conflictAnalysisLevel = conflictAnalysisLevel;
     }
 }

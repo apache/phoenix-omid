@@ -32,7 +32,7 @@ import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tso.client.CellId;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+
 import org.apache.omid.tso.client.TSOClient;
 import org.apache.omid.tso.client.TSOProtocol;
 import org.slf4j.Logger;
@@ -46,6 +46,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public class HBaseTransactionManager extends AbstractTransactionManager implements HBaseTransactionClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransactionManager.class);
+
+
+    public enum ConflictDetectionLevel {CELL, ROW}
+
+    private final ConflictDetectionLevel conflictLevel;
 
     private static class HBaseTransactionFactory implements TransactionFactory<HBaseCellId> {
 
@@ -84,6 +89,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         private Optional<CommitTable.Client> commitTableClient = Optional.absent();
         private Optional<CommitTable.Writer> commitTableWriter = Optional.absent();
         private Optional<PostCommitActions> postCommitter = Optional.absent();
+        private ConflictDetectionLevel conflictDetectionLevel = ConflictDetectionLevel.CELL;
 
         public Builder(HBaseOmidClientConfiguration hbaseOmidClientConf) {
             this.hbaseOmidClientConf = hbaseOmidClientConf;
@@ -109,6 +115,11 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             return this;
         }
 
+        Builder conflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
+            this.conflictDetectionLevel = conflictDetectionLevel;
+            return this;
+        }
+
         public HBaseTransactionManager build() throws IOException, InterruptedException {
 
             CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient()).get();
@@ -121,7 +132,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                                tsoClient,
                                                commitTableClient,
                                                commitTableWriter,
-                                               new HBaseTransactionFactory());
+                                               new HBaseTransactionFactory(),
+                                               conflictDetectionLevel);
         }
 
         private Optional<TSOProtocol> buildTSOClient() throws IOException, InterruptedException {
@@ -175,7 +187,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                     TSOProtocol tsoClient,
                                     CommitTable.Client commitTableClient,
                                     CommitTable.Writer commitTableWriter,
-                                    HBaseTransactionFactory hBaseTransactionFactory) {
+                                    HBaseTransactionFactory hBaseTransactionFactory,
+                                    ConflictDetectionLevel conflictLevel) {
 
         super(hBaseOmidClientConfiguration.getMetrics(),
                 postCommitter,
@@ -183,6 +196,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                 commitTableClient,
                 commitTableWriter,
                 hBaseTransactionFactory);
+        this.conflictLevel = conflictLevel;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -243,12 +257,9 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
     }
 
-    public void setConflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
-        tsoClient.setConflictDetectionLevel(conflictDetectionLevel);
-    }
 
     public ConflictDetectionLevel getConflictDetectionLevel() {
-        return tsoClient.getConflictDetectionLevel();
+        return conflictLevel;
     }
 
     static class CommitTimestampLocatorImpl implements CommitTimestampLocator {

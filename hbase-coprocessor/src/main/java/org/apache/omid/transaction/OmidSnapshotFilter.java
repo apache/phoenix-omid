@@ -113,8 +113,11 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
         if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
         boolean isLowLatency = Bytes.toBoolean(get.getAttribute(CellUtils.LL_ATTRIBUTE));
+        boolean isRowCD = Bytes.toBoolean(get.getAttribute(CellUtils.ROW_LEVEL_CONFLICTS_ATTRIBUTE));
+        HBaseTransactionManager.ConflictDetectionLevel cdLevel = isRowCD? HBaseTransactionManager.ConflictDetectionLevel.ROW:
+                HBaseTransactionManager.ConflictDetectionLevel.CELL;
         HBaseTransaction hbaseTransaction = getHBaseTransaction(get.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE),
-                isLowLatency);
+                isLowLatency, cdLevel);
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
         snapshotFilterMap.put(get, snapshotFilter);
 
@@ -154,7 +157,10 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
             return;
         }
         boolean isLowLatency = Bytes.toBoolean(scan.getAttribute(CellUtils.LL_ATTRIBUTE));
-        HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction, isLowLatency);
+        boolean isRowCD = Bytes.toBoolean(scan.getAttribute(CellUtils.ROW_LEVEL_CONFLICTS_ATTRIBUTE));
+        HBaseTransactionManager.ConflictDetectionLevel cdLevel = isRowCD? HBaseTransactionManager.ConflictDetectionLevel.ROW:
+                HBaseTransactionManager.ConflictDetectionLevel.CELL;
+        HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction, isLowLatency,cdLevel);
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
 
         scan.setMaxVersions();
@@ -164,7 +170,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return;
     }
 
-    private HBaseTransaction getHBaseTransaction(byte[] byteTransaction, boolean isLowLatency)
+    private HBaseTransaction getHBaseTransaction(byte[] byteTransaction, boolean isLowLatency, HBaseTransactionManager.ConflictDetectionLevel cdLevel)
             throws InvalidProtocolBufferException {
         TSOProto.Transaction transaction = TSOProto.Transaction.parseFrom(byteTransaction);
         long id = transaction.getTimestamp();
@@ -172,7 +178,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         long epoch = transaction.getEpoch();
         VisibilityLevel visibilityLevel = VisibilityLevel.fromInteger(transaction.getVisibilityLevel());
 
-        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), null,
+        return new HBaseTransaction(id, readTs, visibilityLevel, epoch, new HashSet<HBaseCellId>(), new HashSet<HBaseCellId>(), cdLevel,
                 isLowLatency);
 
     }

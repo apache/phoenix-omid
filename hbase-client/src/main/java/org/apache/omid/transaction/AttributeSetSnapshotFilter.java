@@ -47,6 +47,8 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
         get.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, getBuilder(transaction).build().toByteArray());
         get.setAttribute(CellUtils.CLIENT_GET_ATTRIBUTE, Bytes.toBytes(true));
         get.setAttribute(CellUtils.LL_ATTRIBUTE, Bytes.toBytes(transaction.isLowLatency()));
+        get.setAttribute(CellUtils.ROW_LEVEL_CONFLICTS_ATTRIBUTE,
+                Bytes.toBytes(transaction.getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW));
 
         return table.get(get);
     }
@@ -55,6 +57,8 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
     public ResultScanner getScanner(Scan scan, HBaseTransaction transaction) throws IOException {
         scan.setAttribute(CellUtils.TRANSACTION_ATTRIBUTE, getBuilder(transaction).build().toByteArray());
         scan.setAttribute(CellUtils.LL_ATTRIBUTE, Bytes.toBytes(transaction.isLowLatency()));
+        scan.setAttribute(CellUtils.ROW_LEVEL_CONFLICTS_ATTRIBUTE,
+                Bytes.toBytes(transaction.getConflictDetectionLevel() == HBaseTransactionManager.ConflictDetectionLevel.ROW));
         return table.getScanner(scan);
     }
 }

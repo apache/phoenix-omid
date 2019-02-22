@@ -22,6 +22,8 @@ import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -137,14 +139,24 @@ public abstract class OmidTestBase {
     }
 
     protected void createTestTable() throws IOException {
+        createTable(TEST_TABLE);
+    }
+
+    protected void createTable(String tableName) throws IOException {
+        List<String> families = new ArrayList<>();
+        families.add(TEST_FAMILY2);
+        families.add(TEST_FAMILY);
+        createTable(tableName, families);
+    }
+
+    protected void createTable(String tableName, List<String> families) throws IOException {
         HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(TEST_TABLE));
-        HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-        HColumnDescriptor datafam2 = new HColumnDescriptor(TEST_FAMILY2);
-        datafam.setMaxVersions(Integer.MAX_VALUE);
-        datafam2.setMaxVersions(Integer.MAX_VALUE);
-        test_table_desc.addFamily(datafam);
-        test_table_desc.addFamily(datafam2);
+        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(tableName));
+        for (String family: families) {
+            HColumnDescriptor datafam = new HColumnDescriptor(family);
+            datafam.setMaxVersions(Integer.MAX_VALUE);
+            test_table_desc.addFamily(datafam);
+        }
         admin.createTable(test_table_desc);
     }
 
@@ -171,6 +183,37 @@ public abstract class OmidTestBase {
     protected TransactionManager newTransactionManager(ITestContext context) throws Exception {
         return newTransactionManager(context, getClient(context));
     }
+
+    protected TransactionManager newTransactionManager(ITestContext context, HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        return newTransactionManager(context, getClient(context), cfLevel);
+    }
+
+    protected TransactionManager newTransactionManager(ITestContext context, TSOClient tsoClient,
+                                                       HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(cfLevel)
+                .tsoClient(tsoClient).build();
+    }
+
+    protected TransactionManager newTransactionManager(ITestContext context,
+                                                       PostCommitActions postCommitActions,
+                                                       HBaseTransactionManager.ConflictDetectionLevel cfLevel) throws Exception {
+        HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
+        clientConf.setConnectionString("localhost:1234");
+        clientConf.setHBaseConfiguration(hbaseConf);
+        return HBaseTransactionManager.builder(clientConf)
+                .postCommitter(postCommitActions)
+                .commitTableClient(getCommitTable(context).getClient())
+                .commitTableWriter(getCommitTable(context).getWriter())
+                .conflictDetectionLevel(cfLevel)
+                .tsoClient(getClient(context)).build();
+    }
+
 
     protected TransactionManager newTransactionManager(ITestContext context, PostCommitActions postCommitActions) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
@@ -221,6 +264,8 @@ public abstract class OmidTestBase {
         try {
             LOG.info("tearing Down");
             Admin admin = hBaseUtils.getHBaseAdmin();
+            HTableDescriptor[] tables = admin.listTables();
+
             deleteTable(admin, TableName.valueOf(TEST_TABLE));
             createTestTable();
             if (hBaseCommitTableConfig != null) {

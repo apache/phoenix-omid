@@ -26,7 +26,7 @@ import org.apache.omid.TestUtils;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+
 import org.apache.omid.tso.util.DummyCellIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,116 +88,116 @@ public class TestTSOClientRowAndCellLevelConflict {
         TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 1000);
     }
 
-    @Test(timeOut = 30_000)
-    public void testRowLevelConflictAnalysisConflict() throws Exception {
-
-        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.ROW);
-
-        TSOClient client = TSOClient.newInstance(tsoClientConf);
-
-        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
-        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeeeL);
-
-        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
-        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
-        
-        long ts1 = client.getNewStartTimestamp().get();
-        long ts2 = client.getNewStartTimestamp().get();
-        
-        client.commit(ts1, testWriteSet1).get();
-
-        try {
-            client.commit(ts2, testWriteSet2).get();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof AbortException, "Transaction should be aborted");
-            return;
-        }
-
-        assertTrue(false, "Transaction should be aborted");
-    }
-
-    @Test(timeOut = 30_000)
-    public void testRowLevelConflictAnalysisCommit() throws Exception {
-
-        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.ROW);
-
-        TSOClient client = TSOClient.newInstance(tsoClientConf);
-
-        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
-        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeefL);
-
-        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
-        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
-        
-        long ts1 = client.getNewStartTimestamp().get();
-        long ts2 = client.getNewStartTimestamp().get();
-        
-        client.commit(ts1, testWriteSet1).get();
-
-        try {
-            client.commit(ts2, testWriteSet2).get();
-        } catch (ExecutionException e) {
-            assertFalse(e.getCause() instanceof AbortException, "Transaction should be committed");
-            return;
-        }
-
-        assertTrue(true, "Transaction should be committed");
-    }
-
-    @Test(timeOut = 30_000)
-    public void testCellLevelConflictAnalysisConflict() throws Exception {
-
-        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.CELL);
-
-        TSOClient client = TSOClient.newInstance(tsoClientConf);
-
-        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
-        CellId c2 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
-
-        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
-        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
-        
-        long ts1 = client.getNewStartTimestamp().get();
-        long ts2 = client.getNewStartTimestamp().get();
-        
-        client.commit(ts1, testWriteSet1).get();
-
-        try {
-            client.commit(ts2, testWriteSet2).get();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof AbortException, "Transaction should be aborted");
-            return;
-        }
-
-        assertTrue(false, "Transaction should be aborted");
-    }
-
-    @Test(timeOut = 30_000)
-    public void testCellLevelConflictAnalysisCommit() throws Exception {
-
-        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.CELL);
-
-        TSOClient client = TSOClient.newInstance(tsoClientConf);
-
-        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
-        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeefL);
-
-        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
-        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
-        
-        long ts1 = client.getNewStartTimestamp().get();
-        long ts2 = client.getNewStartTimestamp().get();
-        
-        client.commit(ts1, testWriteSet1).get();
-
-        try {
-            client.commit(ts2, testWriteSet2).get();
-        } catch (ExecutionException e) {
-            assertFalse(e.getCause() instanceof AbortException, "Transaction should be committed");
-            return;
-        }
-
-        assertTrue(true, "Transaction should be committed");
-    }
+//    @Test(timeOut = 30_000)
+//    public void testRowLevelConflictAnalysisConflict() throws Exception {
+//
+//        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.ROW);
+//
+//        TSOClient client = TSOClient.newInstance(tsoClientConf);
+//
+//        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
+//        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeeeL);
+//
+//        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
+//        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
+//
+//        long ts1 = client.getNewStartTimestamp().get();
+//        long ts2 = client.getNewStartTimestamp().get();
+//
+//        client.commit(ts1, testWriteSet1).get();
+//
+//        try {
+//            client.commit(ts2, testWriteSet2).get();
+//        } catch (ExecutionException e) {
+//            assertTrue(e.getCause() instanceof AbortException, "Transaction should be aborted");
+//            return;
+//        }
+//
+//        assertTrue(false, "Transaction should be aborted");
+//    }
+//
+//    @Test(timeOut = 30_000)
+//    public void testRowLevelConflictAnalysisCommit() throws Exception {
+//
+//        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.ROW);
+//
+//        TSOClient client = TSOClient.newInstance(tsoClientConf);
+//
+//        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
+//        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeefL);
+//
+//        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
+//        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
+//
+//        long ts1 = client.getNewStartTimestamp().get();
+//        long ts2 = client.getNewStartTimestamp().get();
+//
+//        client.commit(ts1, testWriteSet1).get();
+//
+//        try {
+//            client.commit(ts2, testWriteSet2).get();
+//        } catch (ExecutionException e) {
+//            assertFalse(e.getCause() instanceof AbortException, "Transaction should be committed");
+//            return;
+//        }
+//
+//        assertTrue(true, "Transaction should be committed");
+//    }
+//
+//    @Test(timeOut = 30_000)
+//    public void testCellLevelConflictAnalysisConflict() throws Exception {
+//
+//        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.CELL);
+//
+//        TSOClient client = TSOClient.newInstance(tsoClientConf);
+//
+//        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
+//        CellId c2 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
+//
+//        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
+//        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
+//
+//        long ts1 = client.getNewStartTimestamp().get();
+//        long ts2 = client.getNewStartTimestamp().get();
+//
+//        client.commit(ts1, testWriteSet1).get();
+//
+//        try {
+//            client.commit(ts2, testWriteSet2).get();
+//        } catch (ExecutionException e) {
+//            assertTrue(e.getCause() instanceof AbortException, "Transaction should be aborted");
+//            return;
+//        }
+//
+//        assertTrue(false, "Transaction should be aborted");
+//    }
+//
+//    @Test(timeOut = 30_000)
+//    public void testCellLevelConflictAnalysisCommit() throws Exception {
+//
+//        tsoClientConf.setConflictAnalysisLevel(ConflictDetectionLevel.CELL);
+//
+//        TSOClient client = TSOClient.newInstance(tsoClientConf);
+//
+//        CellId c1 = new DummyCellIdImpl(0xdeadbeefL, 0xdeadbeeeL);
+//        CellId c2 = new DummyCellIdImpl(0xfeedcafeL, 0xdeadbeefL);
+//
+//        Set<CellId> testWriteSet1 = Sets.newHashSet(c1);
+//        Set<CellId> testWriteSet2 = Sets.newHashSet(c2);
+//
+//        long ts1 = client.getNewStartTimestamp().get();
+//        long ts2 = client.getNewStartTimestamp().get();
+//
+//        client.commit(ts1, testWriteSet1).get();
+//
+//        try {
+//            client.commit(ts2, testWriteSet2).get();
+//        } catch (ExecutionException e) {
+//            assertFalse(e.getCause() instanceof AbortException, "Transaction should be committed");
+//            return;
+//        }
+//
+//        assertTrue(true, "Transaction should be committed");
+//    }
     
 }

@@ -82,9 +82,9 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         table.put(t3, put);
         tm.commit(t3);
 
-        HBaseCellId hBaseCellId1 = new HBaseCellId(table, row1, family, qualifier, t1.getStartTimestamp());
-        HBaseCellId hBaseCellId2 = new HBaseCellId(table, row2, family, qualifier, t2.getStartTimestamp());
-        HBaseCellId hBaseCellId3 = new HBaseCellId(table, row2, family, qualifier, t3.getStartTimestamp());
+        HBaseCellId hBaseCellId1 = HBaseCellId.valueOf(t1, table, row1, family, qualifier, t1.getStartTimestamp());
+        HBaseCellId hBaseCellId2 = HBaseCellId.valueOf(t2, table, row2, family, qualifier, t2.getStartTimestamp());
+        HBaseCellId hBaseCellId3 = HBaseCellId.valueOf(t3, table, row2, family, qualifier, t3.getStartTimestamp());
 
         assertTrue(snapshotFilter.isCommitted(hBaseCellId1, 0, false), "row1 should be committed");
         assertFalse(snapshotFilter.isCommitted(hBaseCellId2, 0, false), "row2 should not be committed for kv2");
@@ -121,7 +121,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         assertFalse(CellUtils.hasShadowCell(row1, family, qualifier, t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
                     "Shadow cell should not be there");
 
-        HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, t1.getStartTimestamp());
+        HBaseCellId hBaseCellId = HBaseCellId.valueOf(t1, table, row1, family, qualifier, t1.getStartTimestamp());
 
         HBaseTransactionClient hbaseTm = (HBaseTransactionClient) newTransactionManager(context);
         assertTrue(snapshotFilter.isCommitted(hBaseCellId, 0, false), "row1 should be committed");
@@ -195,7 +195,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
         try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
 
             // Test first we can not found a non-existent cell ts
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, NON_EXISTING_CELL_TS);
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tm.getConflictDetectionLevel(), table, row1, family, qualifier, NON_EXISTING_CELL_TS);
             // Set an empty cache to allow to bypass the checking
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -236,7 +236,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                 tm.getCommitTableClient());
         TTable table = new TTable(htable, snapshotFilter, false);
 
-        HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, CELL_ST);
+        HBaseCellId hBaseCellId = HBaseCellId.valueOf(tm.getConflictDetectionLevel(), table, row1, family, qualifier, CELL_ST);
         Map<Long, Long> fakeCache = Maps.newHashMap();
         fakeCache.put(CELL_ST, CELL_CT);
 
@@ -280,7 +280,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             }
 
             // Test the locator finds the appropriate data in the commit table
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier,
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tx1, table, row1, family, qualifier,
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -314,7 +314,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             // Upon commit, the commit data should be in the shadow cells
 
             // Test the locator finds the appropriate data in the shadow cells
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier,
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tx1, table, row1, family, qualifier,
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -355,7 +355,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             // Upon commit, the commit data should be in the shadow cells
 
             // Test a transaction in the previous epoch gets an InvalidCommitTimestamp class
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier,
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tx1, table, row1, family, qualifier,
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -404,7 +404,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             }
 
             // Test the locator finds the appropriate data in the commit table
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier,
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tx1, table, row1, family, qualifier,
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -444,7 +444,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             // Upon commit, the commit data should be in the shadow cells
 
             // Test the locator finds the appropriate data in the shadow cells
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier,
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(tx1, table, row1, family, qualifier,
                     tx1.getStartTimestamp());
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
@@ -475,7 +475,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
                 tm.getCommitTableClient());
 
         try (TTable table = spy(new TTable(htable, snapshotFilter, false))) {
-            HBaseCellId hBaseCellId = new HBaseCellId(table, row1, family, qualifier, CELL_TS);
+            HBaseCellId hBaseCellId = HBaseCellId.valueOf(((HBaseTransactionManager)tm).getConflictDetectionLevel(), table, row1, family, qualifier, CELL_TS);
             CommitTimestampLocator ctLocator = new CommitTimestampLocatorImpl(hBaseCellId,
                     Maps.<Long, Long>newHashMap());
             CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(CELL_TS, tm.tsoClient.getEpoch(),
@@ -484,6 +484,9 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             assertEquals(ct.getValue(), -1L);
             assertTrue(ct.getLocation().compareTo(NOT_PRESENT) == 0);
         }
-
     }
+
+
+
+
 }

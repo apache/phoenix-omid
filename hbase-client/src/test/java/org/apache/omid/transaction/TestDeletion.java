@@ -30,8 +30,9 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -61,13 +62,13 @@ public class TestDeletion extends OmidTestBase {
 
     }
 
-    @Test(timeOut = 10_000)
+
+    @Test(timeOut = 60_000)
     public void runTestDeleteFamilyRow(ITestContext context) throws Exception {
 
-        TransactionManager tm = newTransactionManager(context);
+        TransactionManager tm = newTransactionManager(context, HBaseTransactionManager.ConflictDetectionLevel.ROW);
         TTable tt = new TTable(connection, TEST_TABLE);
 
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -81,6 +82,7 @@ public class TestDeletion extends OmidTestBase {
         Delete d = new Delete(modrow);
         d.addFamily(famA);
         tt.delete(t2, d);
+
 
         Transaction tscan = tm.begin();
         ResultScanner rs = tt.getScanner(tscan, new Scan());
@@ -109,9 +111,6 @@ public class TestDeletion extends OmidTestBase {
         count = countColsInRows(rs, famColA);
         countFamColA = count.get(famColA);
         assertEquals(countFamColA, null);
-
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
-
     }
 
     @Test(timeOut = 10_000)
@@ -205,10 +204,8 @@ public class TestDeletion extends OmidTestBase {
     @Test(timeOut = 10_000)
     public void runTestDeleteFamilyRowLevelCA(ITestContext context) throws Exception {
 
-        TransactionManager tm = newTransactionManager(context);
+        TransactionManager tm = newTransactionManager(context, HBaseTransactionManager.ConflictDetectionLevel.ROW);
         TTable tt = new TTable(connection, TEST_TABLE);
-
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -242,16 +239,13 @@ public class TestDeletion extends OmidTestBase {
         assertEquals((int) count.get(famColA), (rowsWritten - 1), "ColA count should be equal to rowsWritten - 1");
         assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
 
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
     }
 
     @Test(timeOut = 10_000)
     public void runTestDeleteFamilyAborts(ITestContext context) throws Exception {
 
-        TransactionManager tm = newTransactionManager(context);
+        TransactionManager tm = newTransactionManager(context, HBaseTransactionManager.ConflictDetectionLevel.ROW);
         TTable tt = new TTable(connection, TEST_TABLE);
-
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.ROW);
 
         Transaction t1 = tm.begin();
         LOG.info("Transaction created " + t1);
@@ -283,7 +277,6 @@ public class TestDeletion extends OmidTestBase {
         assertEquals((int) count.get(famColA), rowsWritten, "ColA count should be equal to rowsWritten");
         assertEquals((int) count.get(famColB), rowsWritten, "ColB count should be equal to rowsWritten");
 
-        ((HBaseTransactionManager) tm).setConflictDetectionLevel(ConflictDetectionLevel.CELL);
     }
 
     @Test(timeOut = 10_000)

@@ -38,6 +38,3 @@ executorThreads: 3
 # before returning to the control to the client (SYNC) or in parallel (ASYNC)
 postCommitMode: !!org.apache.omid.tso.client.OmidClientConfiguration$PostCommitMode SYNC
 
-# Conflict analysis level
-# Can either be cell level or row level. Default is cell level
-conflictDetectionLevel: !!org.apache.omid.tso.client.OmidClientConfiguration$ConflictDetectionLevel CELL

@@ -93,8 +93,4 @@ public interface TSOProtocol {
      * @return
      */
     boolean isLowLatency();
-
-    void setConflictDetectionLevel(OmidClientConfiguration.ConflictDetectionLevel conflictDetectionLevel);
-
-    OmidClientConfiguration.ConflictDetectionLevel getConflictDetectionLevel();
 }

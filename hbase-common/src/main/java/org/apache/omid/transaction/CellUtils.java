@@ -55,9 +55,13 @@ public final class CellUtils {
     static byte[] LEGACY_DELETE_TOMBSTONE = Bytes.toBytes("__OMID_TOMBSTONE__");
     public static final byte[] FAMILY_DELETE_QUALIFIER = HConstants.EMPTY_BYTE_ARRAY;
     public static final String TRANSACTION_ATTRIBUTE = "__OMID_TRANSACTION__";
+
+    // Used as the shared qualifier the shadow cell will be attached to. in case of
+    public static final byte[] SHARED_FAMILY_QUALIFIER = "\u0090".getBytes(Charsets.UTF_8);
     /**/
     public static final String CLIENT_GET_ATTRIBUTE = "__OMID_CLIENT_GET__";
     public static final String LL_ATTRIBUTE = "__OMID_LL__";
+    public static final String ROW_LEVEL_CONFLICTS_ATTRIBUTE = "__OMID_ROWCF__";
 
     /**
      * Utility interface to get rid of the dependency on HBase server package

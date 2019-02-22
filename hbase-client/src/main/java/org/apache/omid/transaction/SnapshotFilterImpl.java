@@ -21,6 +21,7 @@ import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.C
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.COMMIT_TABLE;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.NOT_PRESENT;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
+import static org.apache.omid.transaction.HBaseTransactionManager.ConflictDetectionLevel.ROW;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -116,12 +117,19 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return false;
     }
 
-    private void healShadowCell(Cell cell, long commitTimestamp) {
+    private void healShadowCell(Cell cell, long commitTimestamp,
+                                HBaseTransactionManager.ConflictDetectionLevel conflictDetectionLevel) {
         Put put = new Put(CellUtil.cloneRow(cell));
         byte[] family = CellUtil.cloneFamily(cell);
-        byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                                                                   cell.getQualifierOffset(),
-                                                                   cell.getQualifierLength());
+        byte[] shadowCellQualifier;
+        if (conflictDetectionLevel == ROW) {
+            shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER);
+        } else {
+            shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                    cell.getQualifierOffset(),
+                    cell.getQualifierLength());
+        }
+
         put.addColumn(family, shadowCellQualifier, cell.getTimestamp(), Bytes.toBytes(commitTimestamp));
         try {
             tableAccessWrapper.put(put);
@@ -244,10 +252,11 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     }
 
-    public Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
-                                                         Cell cell,
-                                                         Map<Long, Long> commitCache,
-                                                         boolean isLowLatency)
+    private Optional<Long> tryToLocateCellCommitTimestamp(long epoch,
+                                                          Cell cell,
+                                                          Map<Long, Long> commitCache,
+                                                          boolean isLowLatency,
+                                                          HBaseTransactionManager.ConflictDetectionLevel conflictLevel)
                     throws IOException {
 
         CommitTimestamp tentativeCommitTimestamp =
@@ -255,7 +264,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                         cell.getTimestamp(),
                         epoch,
                         new CommitTimestampLocatorImpl(
-                                new HBaseCellId(null,
+                                HBaseCellId.valueOf(conflictLevel,null,
                                         CellUtil.cloneRow(cell),
                                         CellUtil.cloneFamily(cell),
                                         CellUtil.cloneQualifier(cell),
@@ -276,7 +285,8 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             // commit phase of the client probably failed, so we heal the shadow
             // cell with the right commit timestamp for avoiding further reads to
             // hit the storage
-            healShadowCell(cell, tentativeCommitTimestamp.getValue());
+            healShadowCell(cell, tentativeCommitTimestamp.getValue(), conflictLevel);
+            commitCache.put(cell.getTimestamp(), tentativeCommitTimestamp.getValue());
             return Optional.of(tentativeCommitTimestamp.getValue());
         case CACHE:
         case SHADOW_CELL:
@@ -305,23 +315,59 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         return tryToLocateCellCommitTimestamp(transaction.getEpoch(), kv,
-                commitCache, transaction.isLowLatency());
+                commitCache, transaction.isLowLatency(), transaction.getConflictDetectionLevel());
     }
-    
-    private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
 
-        Map<Long, Long> commitCache = new HashMap<>();
 
+    // In case of ROW conflict detection, the call to filterCellsForSnapshot may contain a cell that its sc didnt arrive
+    // because its stacked under a more recent shadow cell. This will cause a get from commit table so we do this get from sc before.
+    // TODO YONIGO - do we really need this? is access to SC faster than commit table?
+    private void getMissedShadowCell(List<Cell> rawCells, Map<Long, Long> commitCache) throws IOException {
+        if (rawCells.size() == 0)
+            return;
+
+        Map<String, Long> familyShahowCells = new HashMap<>();
         for (Cell cell : rawCells) {
+            if (CellUtils.isShadowCell(cell)) {
+                String key = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                familyShahowCells.put(key, cell.getTimestamp());
+            }
+        }
+
+        Get get = new Get(CellUtil.cloneRow(rawCells.get(0)));
+        for (Cell cell : rawCells) {
+            if (!CellUtils.isShadowCell(cell)) {
+                String key = Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength());
+                Long ts = familyShahowCells.get(key);
+                if (ts != null && cell.getTimestamp() < ts) {
+                    get.addColumn(CellUtil.cloneFamily(cell),CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+                    get.setTimeStamp(cell.getTimestamp());
+                }
+            }
+        }
+        Result result = tableAccessWrapper.get(get);
+
+
+        for (Cell cell : result.listCells()) {
             if (CellUtils.isShadowCell(cell)) {
                 commitCache.put(cell.getTimestamp(), Bytes.toLong(CellUtil.cloneValue(cell)));
             }
         }
 
+    }
+
+    private Map<Long, Long> buildCommitCache(List<Cell> rawCells) {
+        Map<Long, Long> commitCache = new HashMap<>();
+        for (Cell cell : rawCells) {
+            if (CellUtils.isShadowCell(cell)) {
+                commitCache.put(cell.getTimestamp(), Bytes.toLong(CellUtil.cloneValue(cell)));
+            }
+        }
         return commitCache;
     }
 
 
+    // We must find the first commit timestamp (if exists) of any family delete
     private void buildFamilyDeletionCache(HBaseTransaction transaction, List<Cell> rawCells, Map<String, Long> familyDeletionCache, Map<Long, Long> commitCache, Map<String,byte[]> attributeMap) throws IOException {
         for (Cell cell : rawCells) {
             if (CellUtils.isFamilyDeleteCell(cell)) {
@@ -344,15 +390,19 @@ public class SnapshotFilterImpl implements SnapshotFilter {
                     boolean foundCommittedFamilyDeletion = false;
                     while (!foundCommittedFamilyDeletion) {
 
-                        Get g = createPendingGet(lastCell, 3);
+                        Get g = createPendingGet(lastCell, 3, transaction.getConflictDetectionLevel());
 
                         Result result = tableAccessWrapper.get(g);
                         List<Cell> resultCells = result.listCells();
-                        if (resultCells == null) {
+                        if (!hasFamilyDelete(resultCells)) {
                             break;
                         }
 
                         cmtCache = buildCommitCache(resultCells);
+                        if (transaction.getConflictDetectionLevel() == ROW) {
+                            getMissedShadowCell(rawCells, cmtCache);
+                        }
+
                         for (Cell c : resultCells) {
                             if (CellUtils.isFamilyDeleteCell(c)) {
                                     commitTimeStamp = getTSIfInSnapshot(c, transaction, cmtCache);
@@ -370,6 +420,17 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
     }
 
+    private boolean hasFamilyDelete(List<Cell> resultCells) {
+        if (resultCells == null) {
+            return false;
+        }
+        for (Cell cell: resultCells) {
+            if (CellUtils.isFamilyDeleteCell(cell)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public Optional<Long> getTSIfInTransaction(Cell kv, HBaseTransaction transaction) {
         long startTimestamp = transaction.getStartTimestamp();
@@ -397,18 +458,23 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return Optional.absent();
     }
 
-    private Get createPendingGet(Cell cell, int versionCount) throws IOException {
-
+    private Get createPendingGet(Cell cell, int versionCount, HBaseTransactionManager.ConflictDetectionLevel cfLevel)
+            throws IOException {
         Get pendingGet = new Get(CellUtil.cloneRow(cell));
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell));
-        pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                                                                                       cell.getQualifierOffset(),
-                                                                                       cell.getQualifierLength()));
+        if (cfLevel == ROW) {
+            pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(CellUtils.SHARED_FAMILY_QUALIFIER));
+        }else {
+            pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                    cell.getQualifierOffset(),
+                    cell.getQualifierLength()));
+        }
         pendingGet.setMaxVersions(versionCount);
         pendingGet.setTimeRange(0, cell.getTimestamp());
 
         return pendingGet;
     }
+
 
     /**
      * Filters the raw results returned from HBase and returns only those belonging to the current snapshot, as defined
@@ -435,6 +501,9 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         }
 
         Map<Long, Long> commitCache = buildCommitCache(rawCells);
+        if (transaction.getConflictDetectionLevel() == ROW) {
+            getMissedShadowCell(rawCells, commitCache);
+        }
         buildFamilyDeletionCache(transaction, rawCells, familyDeletionCache, commitCache, attributeMap);
 
         ImmutableList<Collection<Cell>> filteredCells;
@@ -474,7 +543,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             }
             if (!snapshotValueFound) {
                 assert (oldestCell != null);
-                Get pendingGet = createPendingGet(oldestCell, numberOfVersionsToFetch);
+                Get pendingGet = createPendingGet(oldestCell, numberOfVersionsToFetch, transaction.getConflictDetectionLevel());
                 for (Map.Entry<String,byte[]> entry : attributeMap.entrySet()) {
                     pendingGet.setAttribute(entry.getKey(), entry.getValue());
                 }
