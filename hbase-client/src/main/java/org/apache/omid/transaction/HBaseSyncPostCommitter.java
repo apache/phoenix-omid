@@ -20,9 +20,16 @@ package org.apache.omid.transaction;
 import static org.apache.omid.metrics.MetricsUtils.name;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
@@ -43,6 +50,8 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
     private final Timer commitTableUpdateTimer;
     private final Timer shadowCellsUpdateTimer;
+    private static final int MAX_BATCH_SIZE=1000;
+
 
     public HBaseSyncPostCommitter(MetricsRegistry metrics, CommitTable.Client commitTableClient) {
         this.metrics = metrics;
@@ -52,18 +61,30 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
         this.shadowCellsUpdateTimer = metrics.timer(name("omid", "tm", "hbase", "shadowCellsUpdate", "latency"));
     }
 
-    private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture) {
+    private void flushMutations(Table table, List<Mutation> mutations) throws IOException, InterruptedException {
+        table.batch(mutations, new Object[mutations.size()]);
+    }
+
+    private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture,
+                               Map<Table,List<Mutation>> mutations) throws IOException, InterruptedException {
         Put put = new Put(cell.getRow());
         put.addColumn(cell.getFamily(),
                 CellUtils.addShadowCellSuffixPrefix(cell.getQualifier(), 0, cell.getQualifier().length),
                 cell.getTimestamp(),
                 Bytes.toBytes(tx.getCommitTimestamp()));
-        try {
-            cell.getTable().getHTable().put(put);
-        } catch (IOException e) {
-            LOG.warn("{}: Error inserting shadow cell {}", tx, cell, e);
-            updateSCFuture.setException(
-                    new TransactionManagerException(tx + ": Error inserting shadow cell " + cell, e));
+
+        Table table = cell.getTable().getHTable();
+        List<Mutation> tableMutations = mutations.get(table);
+        if (tableMutations == null) {
+            ArrayList<Mutation> newList = new ArrayList<>();
+            newList.add(put);
+            mutations.put(table, newList);
+        } else {
+            tableMutations.add(put);
+            if (tableMutations.size() > MAX_BATCH_SIZE) {
+                flushMutations(table, tableMutations);
+                mutations.remove(table);
+            }
         }
     }
 
@@ -76,25 +97,26 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
         shadowCellsUpdateTimer.start();
         try {
-
+            Map<Table,List<Mutation>> mutations = new HashMap<>();
             // Add shadow cells
             for (HBaseCellId cell : tx.getWriteSet()) {
-                addShadowCell(cell, tx, updateSCFuture);
+                addShadowCell(cell, tx, updateSCFuture, mutations);
             }
 
             for (HBaseCellId cell : tx.getConflictFreeWriteSet()) {
-                addShadowCell(cell, tx, updateSCFuture);
+                addShadowCell(cell, tx, updateSCFuture, mutations);
             }
 
-            // Flush affected tables before returning to avoid loss of shadow cells updates when autoflush is disabled
-            try {
-                tx.flushTables();
-                updateSCFuture.set(null);
-            } catch (IOException e) {
-                LOG.warn("{}: Error while flushing writes", tx, e);
-                updateSCFuture.setException(new TransactionManagerException(tx + ": Error while flushing writes", e));
+            for (Map.Entry<Table,List<Mutation>> entry: mutations.entrySet()) {
+                flushMutations(entry.getKey(), entry.getValue());
             }
 
+            //Only if all is well we set to null and delete commit entry from commit table
+            updateSCFuture.set(null);
+        } catch (IOException | InterruptedException e) {
+            LOG.warn("{}: Error inserting shadow cells", tx, e);
+            updateSCFuture.setException(
+                    new TransactionManagerException(tx + ": Error inserting shadow cells ", e));
         } finally {
             shadowCellsUpdateTimer.stop();
         }

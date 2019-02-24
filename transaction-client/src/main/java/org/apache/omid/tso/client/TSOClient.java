@@ -99,10 +99,10 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     private boolean lowLatency;
 
     // Use to extract unique table identifiers from the modified cells list.
-    private final Set<Long> tableIDs;
+
     // Conflict detection level of the entire system. Can either be Row or Cell level.
     private ConflictDetectionLevel conflictDetectionLevel;
-    private Set<Long> rowLevelWriteSet;
+
 
     // ----------------------------------------------------------------------------------------------------------------
     // Construction
@@ -173,10 +173,10 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         bootstrap.setOption("connectTimeoutMillis", 100);
         lowLatency = false;
 
-        this.tableIDs = new HashSet<Long>();
+
 
         conflictDetectionLevel = omidConf.getConflictAnalysisLevel();
-        rowLevelWriteSet = new HashSet<Long>();
+
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -212,7 +212,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         TSOProto.Request.Builder builder = TSOProto.Request.newBuilder();
         TSOProto.CommitRequest.Builder commitbuilder = TSOProto.CommitRequest.newBuilder();
         commitbuilder.setStartTimestamp(transactionId);
-
+        HashSet<Long> rowLevelWriteSet = new HashSet<Long>();
+        HashSet<Long> tableIDs = new HashSet<Long>();
         rowLevelWriteSet.clear();
         for (CellId cell : cells) {
             long id;

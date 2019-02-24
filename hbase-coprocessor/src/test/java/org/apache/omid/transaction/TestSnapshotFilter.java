@@ -891,7 +891,7 @@ public class TestSnapshotFilter {
 
     @Test (timeOut = 60_000)
     public void testFilterCommitCacheInSnapshot() throws Throwable {
-        String TEST_TABLE = "testScanWithFilter";
+        String TEST_TABLE = "testFilterCommitCacheInSnapshot";
         byte[] rowName = Bytes.toBytes("row1");
         byte[] famName = Bytes.toBytes(TEST_FAMILY);
 
@@ -934,7 +934,7 @@ public class TestSnapshotFilter {
 
     @Test (timeOut = 60_000)
     public void testFilterCommitCacheNotInSnapshot() throws Throwable {
-        String TEST_TABLE = "testScanWithFilter";
+        String TEST_TABLE = "testFilterCommitCacheNotInSnapshot";
         byte[] rowName = Bytes.toBytes("row1");
         byte[] famName = Bytes.toBytes(TEST_FAMILY);
 

@@ -301,6 +301,33 @@ public class TestShadowCells extends OmidTestBase {
     }
 
     @Test(timeOut = 60_000)
+    public void testTransactionPostCommitUpdateSCBatch(ITestContext context)
+            throws Exception {
+
+        TransactionManager tm = newTransactionManager(context);
+
+        TTable table = new TTable(connection, TEST_TABLE);
+
+        HBaseTransaction t1 = (HBaseTransaction) tm.begin();
+
+        // Test shadow cells are created properly
+        Put put = new Put(row);
+        for (int i = 0; i < 1002; ++i) {
+            put.addColumn(family, Bytes.toBytes(String.valueOf("X") + i), data1);
+        }
+        table.put(t1, put);
+
+        tm.commit(t1);
+
+        // After commit test that shadow cells are there
+        for (int i = 0; i < 1002; ++i) {
+            assertTrue(hasShadowCell(row, family, Bytes.toBytes(String.valueOf("X") + i), t1.getStartTimestamp(), new TTableCellGetterAdapter(table)),
+                    "Shadow cell should be there");
+        }
+    }
+
+
+    @Test(timeOut = 60_000)
     public void testRaceConditionBetweenReaderAndWriterThreads(final ITestContext context) throws Exception {
         final CountDownLatch readAfterCommit = new CountDownLatch(1);
         final CountDownLatch postCommitBegin = new CountDownLatch(1);
