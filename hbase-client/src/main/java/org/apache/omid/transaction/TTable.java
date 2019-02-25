@@ -181,6 +181,8 @@ public class TTable implements Closeable {
 
         throwExceptionIfOpSetsTimerange(get);
 
+        flushCommits();
+
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
         final long readTimestamp = transaction.getReadTimestamp();
@@ -466,7 +468,7 @@ public class TTable implements Closeable {
     public ResultScanner getScanner(Transaction tx, Scan scan) throws IOException {
 
         throwExceptionIfOpSetsTimerange(scan);
-
+        flushCommits();
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
         Scan tsscan = new Scan(scan);
@@ -670,8 +672,9 @@ public class TTable implements Closeable {
         return table;
     }
 
-    public void setAutoFlush(boolean autoFlush) {
+    public void setAutoFlush(boolean autoFlush) throws IOException {
         this.autoFlush = autoFlush;
+        flushCommits();
     }
 
     public boolean isAutoFlush() {
@@ -680,7 +683,9 @@ public class TTable implements Closeable {
 
     public void flushCommits() throws IOException {
         try {
-            table.batch(this.mutations, new Object[mutations.size()]);
+            if (this.mutations.size() > 0) {
+                table.batch(this.mutations, new Object[mutations.size()]);
+            }
         } catch (InterruptedException e) {
             Thread.interrupted();
             throw new RuntimeException(e);

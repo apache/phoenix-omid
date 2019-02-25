@@ -52,6 +52,10 @@ public class TestAutoFlush extends OmidTestBase {
         Result result = table.getHTable().get(get);
         assertEquals(result.size(), 0, "Writes are already in DB");
 
+        //data should be readable within same transaction
+        result = table.get(t,get);
+        assertEquals(result.size(), 1, "Writes should be read by same transaction");
+
         tm.commit(t);
 
         // After commit, both the cell and shadow cell should be there.
