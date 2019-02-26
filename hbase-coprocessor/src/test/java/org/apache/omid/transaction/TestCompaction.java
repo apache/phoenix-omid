@@ -200,7 +200,7 @@ public class TestCompaction {
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(),commitTableClient));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(),commitTableClient, connection));
         return HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
@@ -241,7 +241,7 @@ public class TestCompaction {
         SettableFuture<Long> f = SettableFuture.create();
         f.set(fakeAssignedLowWatermark);
         doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
+        omidCompactor.commitTableClient = commitTableClient;
         LOG.info("Compacting table {}", TEST_TABLE);
         admin.majorCompact(TableName.valueOf(TEST_TABLE));
 
@@ -292,7 +292,7 @@ public class TestCompaction {
         SettableFuture<Long> f = SettableFuture.create();
         f.set(Long.MAX_VALUE);
         doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
+        omidCompactor.commitTableClient = commitTableClient;
 
         LOG.info("Flushing table {}", TEST_TABLE);
         admin.flush(TableName.valueOf(TEST_TABLE));
@@ -361,7 +361,7 @@ public class TestCompaction {
         SettableFuture<Long> f = SettableFuture.create();
         f.set(neverendingTxBelowLowWatermark.getStartTimestamp());
         doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
+        omidCompactor.commitTableClient = commitTableClient;
         LOG.info("Compacting table {}", TEST_TABLE);
         admin.majorCompact(TableName.valueOf(TEST_TABLE));
 
@@ -422,8 +422,7 @@ public class TestCompaction {
         SettableFuture<Long> f = SettableFuture.create();
         f.setException(new IOException("Unable to read"));
         doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
-
+        omidCompactor.commitTableClient = commitTableClient;
         LOG.info("Compacting table {}", TEST_TABLE);
         admin.majorCompact(TableName.valueOf(TEST_TABLE)); // Should trigger the error when accessing CommitTable funct.
 
@@ -1167,7 +1166,7 @@ public class TestCompaction {
         SettableFuture<Long> f = SettableFuture.create();
         f.set(lwm);
         doReturn(f).when(commitTableClient).readLowWatermark();
-        omidCompactor.commitTableClientQueue.add(commitTableClient);
+        omidCompactor.commitTableClient = commitTableClient;
     }
 
     private void compactEverything(String tableName) throws Exception {

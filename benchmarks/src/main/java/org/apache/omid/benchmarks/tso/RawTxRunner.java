@@ -175,12 +175,11 @@ class RawTxRunner implements Runnable {
             if (!wasSuccess) {
                 callbackExec.shutdownNow();
             }
-            commitTableClient.close();
             tsoClient.close().get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             // ignore
-        } catch (ExecutionException | IOException e) {
+        } catch (ExecutionException e) {
             // ignore
         } finally {
             LOG.info("TxRunner {} finished", txRunnerId);

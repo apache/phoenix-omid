@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
@@ -46,6 +47,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public class HBaseTransactionManager extends AbstractTransactionManager implements HBaseTransactionClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransactionManager.class);
+    private final Connection connection;
 
     private static class HBaseTransactionFactory implements TransactionFactory<HBaseCellId> {
 
@@ -111,9 +113,11 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
 
         public HBaseTransactionManager build() throws IOException, InterruptedException {
 
-            CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient()).get();
-            CommitTable.Writer commitTableWriter = this.commitTableWriter.or(buildCommitTableWriter()).get();
-            PostCommitActions postCommitter = this.postCommitter.or(buildPostCommitter(commitTableClient)).get();
+            Connection connection = ConnectionFactory.createConnection(hbaseOmidClientConf.getHBaseConfiguration());
+
+            CommitTable.Client commitTableClient = this.commitTableClient.or(buildCommitTableClient(connection)).get();
+            CommitTable.Writer commitTableWriter = this.commitTableWriter.or(buildCommitTableWriter(connection)).get();
+            PostCommitActions postCommitter = this.postCommitter.or(buildPostCommitter(commitTableClient, connection)).get();
             TSOProtocol tsoClient = this.tsoClient.or(buildTSOClient()).get();
 
             return new HBaseTransactionManager(hbaseOmidClientConf,
@@ -121,7 +125,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                                tsoClient,
                                                commitTableClient,
                                                commitTableWriter,
-                                               new HBaseTransactionFactory());
+                                               new HBaseTransactionFactory(),
+                                               connection);
         }
 
         private Optional<TSOProtocol> buildTSOClient() throws IOException, InterruptedException {
@@ -129,25 +134,25 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
         }
 
 
-        private Optional<CommitTable.Client> buildCommitTableClient() throws IOException {
+        private Optional<CommitTable.Client> buildCommitTableClient(Connection connection) throws IOException {
             HBaseCommitTableConfig commitTableConf = new HBaseCommitTableConfig();
             commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
-            CommitTable commitTable = new HBaseCommitTable(ConnectionFactory.createConnection(hbaseOmidClientConf.getHBaseConfiguration()), commitTableConf);
+            CommitTable commitTable = new HBaseCommitTable(connection, commitTableConf);
             return Optional.of(commitTable.getClient());
         }
 
-        private Optional<CommitTable.Writer> buildCommitTableWriter() throws IOException {
+        private Optional<CommitTable.Writer> buildCommitTableWriter(Connection connection) throws IOException {
             HBaseCommitTableConfig commitTableConf = new HBaseCommitTableConfig();
             commitTableConf.setTableName(hbaseOmidClientConf.getCommitTableName());
-            CommitTable commitTable = new HBaseCommitTable(hbaseOmidClientConf.getHBaseConfiguration(), commitTableConf);
+            CommitTable commitTable = new HBaseCommitTable(connection, commitTableConf);
             return Optional.of(commitTable.getWriter());
         }
 
-        private Optional<PostCommitActions> buildPostCommitter(CommitTable.Client commitTableClient ) {
+        private Optional<PostCommitActions> buildPostCommitter(CommitTable.Client commitTableClient, Connection connection) {
 
             PostCommitActions postCommitter;
             PostCommitActions syncPostCommitter = new HBaseSyncPostCommitter(hbaseOmidClientConf.getMetrics(),
-                                                                             commitTableClient);
+                                                                             commitTableClient, connection);
             switch(hbaseOmidClientConf.getPostCommitMode()) {
                 case ASYNC:
                     ListeningExecutorService postCommitExecutor =
@@ -175,7 +180,7 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                                     TSOProtocol tsoClient,
                                     CommitTable.Client commitTableClient,
                                     CommitTable.Writer commitTableWriter,
-                                    HBaseTransactionFactory hBaseTransactionFactory) {
+                                    HBaseTransactionFactory hBaseTransactionFactory, Connection connection) {
 
         super(hBaseOmidClientConfiguration.getMetrics(),
                 postCommitter,
@@ -183,11 +188,16 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
                 commitTableClient,
                 commitTableWriter,
                 hBaseTransactionFactory);
+        this.connection = connection;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
     // AbstractTransactionManager overwritten methods
     // ----------------------------------------------------------------------------------------------------------------
+    @Override
+    public void closeResources() throws IOException {
+        connection.close();
+    }
 
     @Override
     public void preCommit(AbstractTransaction<? extends CellId> transaction) throws TransactionManagerException {

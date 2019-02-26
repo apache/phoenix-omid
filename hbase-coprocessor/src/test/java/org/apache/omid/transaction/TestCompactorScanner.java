@@ -64,8 +64,7 @@ public class TestCompactorScanner {
         ObserverContext<RegionCoprocessorEnvironment> ctx = mock(ObserverContext.class);
         InternalScanner internalScanner = mock(InternalScanner.class);
         CommitTable.Client ctClient = mock(CommitTable.Client.class);
-        @SuppressWarnings("unchecked")
-        Queue<Client> queue = mock(Queue.class);
+
         RegionCoprocessorEnvironment rce = mock(RegionCoprocessorEnvironment.class);
         HRegion hRegion = mock(HRegion.class);
         HRegionInfo hRegionInfo = mock(HRegionInfo.class);
@@ -82,7 +81,6 @@ public class TestCompactorScanner {
         try (CompactorScanner scanner = spy(new CompactorScanner(ctx,
                 internalScanner,
                 ctClient,
-                queue,
                 false,
                 retainOption))) {
 

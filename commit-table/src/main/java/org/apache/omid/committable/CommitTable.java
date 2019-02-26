@@ -31,7 +31,7 @@ public interface CommitTable {
 
     Client getClient() throws IOException;
 
-    interface Writer extends Closeable {
+    interface Writer{
 
         void addCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException;
 
@@ -53,7 +53,7 @@ public interface CommitTable {
         boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException;
     }
 
-    interface Client extends Closeable {
+    interface Client {
 
         /**
          * Checks whether a transaction commit data is inside the commit table The function also checks whether the

@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
@@ -51,29 +53,34 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
     private final Timer commitTableUpdateTimer;
     private final Timer shadowCellsUpdateTimer;
     private static final int MAX_BATCH_SIZE=1000;
+    private final Connection connection;
 
-
-    public HBaseSyncPostCommitter(MetricsRegistry metrics, CommitTable.Client commitTableClient) {
+    public HBaseSyncPostCommitter(MetricsRegistry metrics, CommitTable.Client commitTableClient,
+                                  Connection connection) {
         this.metrics = metrics;
         this.commitTableClient = commitTableClient;
 
         this.commitTableUpdateTimer = metrics.timer(name("omid", "tm", "hbase", "commitTableUpdate", "latency"));
         this.shadowCellsUpdateTimer = metrics.timer(name("omid", "tm", "hbase", "shadowCellsUpdate", "latency"));
+        this.connection = connection;
     }
 
-    private void flushMutations(Table table, List<Mutation> mutations) throws IOException, InterruptedException {
-        table.batch(mutations, new Object[mutations.size()]);
+    private void flushMutations(TableName tableName, List<Mutation> mutations) throws IOException, InterruptedException {
+        try (Table table = connection.getTable(tableName)){
+            table.batch(mutations, new Object[mutations.size()]);
+        }
+
     }
 
     private void addShadowCell(HBaseCellId cell, HBaseTransaction tx, SettableFuture<Void> updateSCFuture,
-                               Map<Table,List<Mutation>> mutations) throws IOException, InterruptedException {
+                               Map<TableName,List<Mutation>> mutations) throws IOException, InterruptedException {
         Put put = new Put(cell.getRow());
         put.addColumn(cell.getFamily(),
                 CellUtils.addShadowCellSuffixPrefix(cell.getQualifier(), 0, cell.getQualifier().length),
                 cell.getTimestamp(),
                 Bytes.toBytes(tx.getCommitTimestamp()));
 
-        Table table = cell.getTable().getHTable();
+        TableName table = cell.getTable().getHTable().getName();
         List<Mutation> tableMutations = mutations.get(table);
         if (tableMutations == null) {
             ArrayList<Mutation> newList = new ArrayList<>();
@@ -97,7 +104,7 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
         shadowCellsUpdateTimer.start();
         try {
-            Map<Table,List<Mutation>> mutations = new HashMap<>();
+            Map<TableName,List<Mutation>> mutations = new HashMap<>();
             // Add shadow cells
             for (HBaseCellId cell : tx.getWriteSet()) {
                 addShadowCell(cell, tx, updateSCFuture, mutations);
@@ -107,7 +114,7 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
                 addShadowCell(cell, tx, updateSCFuture, mutations);
             }
 
-            for (Map.Entry<Table,List<Mutation>> entry: mutations.entrySet()) {
+            for (Map.Entry<TableName,List<Mutation>> entry: mutations.entrySet()) {
                 flushMutations(entry.getKey(), entry.getValue());
             }
 

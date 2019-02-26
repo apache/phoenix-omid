@@ -35,36 +35,34 @@ public class NullCommitTableTest {
 
         CommitTable commitTable = new NullCommitTable();
 
-        try (CommitTable.Client commitTableClient = commitTable.getClient();
-             CommitTable.Writer commitTableWriter = commitTable.getWriter()) {
+        CommitTable.Client commitTableClient = commitTable.getClient();
+        CommitTable.Writer commitTableWriter = commitTable.getWriter();
 
-            // Test client
-            try {
-                commitTableClient.readLowWatermark().get();
-            } catch (UnsupportedOperationException e) {
-                // expected
-            }
-
-            try {
-                commitTableClient.getCommitTimestamp(TEST_ST).get();
-            } catch (UnsupportedOperationException e) {
-                // expected
-            }
-
-            try {
-                commitTableClient.tryInvalidateTransaction(TEST_ST).get();
-            } catch (UnsupportedOperationException e) {
-                // expected
-            }
-
-            assertNull(commitTableClient.deleteCommitEntry(TEST_ST).get());
-
-            // Test writer
-            commitTableWriter.updateLowWatermark(TEST_LWM);
-            commitTableWriter.addCommittedTransaction(TEST_ST, TEST_CT);
-            commitTableWriter.clearWriteBuffer();
-            commitTableWriter.flush();
+        // Test client
+        try {
+            commitTableClient.readLowWatermark().get();
+        } catch (UnsupportedOperationException e) {
+            // expected
         }
-    }
 
+        try {
+            commitTableClient.getCommitTimestamp(TEST_ST).get();
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        try {
+            commitTableClient.tryInvalidateTransaction(TEST_ST).get();
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+
+        assertNull(commitTableClient.deleteCommitEntry(TEST_ST).get());
+
+        // Test writer
+        commitTableWriter.updateLowWatermark(TEST_LWM);
+        commitTableWriter.addCommittedTransaction(TEST_ST, TEST_CT);
+        commitTableWriter.clearWriteBuffer();
+        commitTableWriter.flush();
+    }
 }

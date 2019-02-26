@@ -57,4 +57,8 @@ public class AttributeSetSnapshotFilter implements SnapshotFilter {
         scan.setAttribute(CellUtils.LL_ATTRIBUTE, Bytes.toBytes(transaction.isLowLatency()));
         return table.getScanner(scan);
     }
+
+    public void close() throws IOException {
+        table.close();
+    }
 }

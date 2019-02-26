@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 
 
-public interface SnapshotFilter {
+public interface SnapshotFilter extends AutoCloseable{
     
     Result get(Get get, HBaseTransaction transaction) throws IOException;
 

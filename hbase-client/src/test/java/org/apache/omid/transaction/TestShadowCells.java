@@ -141,7 +141,7 @@ public class TestShadowCells extends OmidTestBase {
         hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
-                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
@@ -189,7 +189,7 @@ public class TestShadowCells extends OmidTestBase {
         hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
-                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableWriter(getCommitTable(context).getWriter())
@@ -250,7 +250,7 @@ public class TestShadowCells extends OmidTestBase {
         hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
-                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         AbstractTransactionManager tm = spy((AbstractTransactionManager) HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)
@@ -335,7 +335,7 @@ public class TestShadowCells extends OmidTestBase {
 
         final AtomicBoolean readFailed = new AtomicBoolean(false);
         PostCommitActions syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), getCommitTable(context).getClient()));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), getCommitTable(context).getClient(), connection));
         AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager(context, syncPostCommitter);
 
         doAnswer(new Answer<ListenableFuture<Void>>() {

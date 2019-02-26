@@ -95,13 +95,13 @@ public class HBaseCommitTable implements CommitTable {
     private class HBaseWriter implements Writer {
 
         private static final long INITIAL_LWM_VALUE = -1L;
-        final Table table;
+
         // Our own buffer for operations
         final List<Put> writeBuffer = new LinkedList<>();
         volatile long lowWatermarkToStore = INITIAL_LWM_VALUE;
 
-        HBaseWriter() throws IOException {
-            table = hbaseConnection.getTable(TableName.valueOf(tableName));
+        HBaseWriter() {
+
         }
 
         @Override
@@ -120,7 +120,8 @@ public class HBaseCommitTable implements CommitTable {
 
         @Override
         public void flush() throws IOException {
-            try {
+
+            try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 addLowWatermarkToStoreToWriteBuffer();
                 table.put(writeBuffer);
                 writeBuffer.clear();
@@ -137,18 +138,15 @@ public class HBaseCommitTable implements CommitTable {
 
         @Override
         public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
-            assert (startTimestamp < commitTimestamp);
-            byte[] transactionRow = startTimestampToKey(startTimestamp);
-            Put put = new Put(transactionRow, startTimestamp);
-            byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
-            put.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
-            return table.checkAndPut(transactionRow, commitTableFamily, INVALID_TX_QUALIFIER, null, put);
-        }
+            try (Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
+                assert (startTimestamp < commitTimestamp);
+                byte[] transactionRow = startTimestampToKey(startTimestamp);
+                Put put = new Put(transactionRow, startTimestamp);
+                byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
+                put.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
+                return table.checkAndPut(transactionRow, commitTableFamily, INVALID_TX_QUALIFIER, null, put);
+            }
 
-        @Override
-        public void close() throws IOException {
-            clearWriteBuffer();
-            table.close();
         }
 
         private void addLowWatermarkToStoreToWriteBuffer() {
@@ -164,17 +162,15 @@ public class HBaseCommitTable implements CommitTable {
 
     class HBaseClient implements Client{
 
-        final Table table;
+        HBaseClient(){
 
-        HBaseClient() throws IOException {
-            table = hbaseConnection.getTable(TableName.valueOf(tableName));
         }
 
         @Override
         public ListenableFuture<Optional<CommitTimestamp>> getCommitTimestamp(long startTimestamp) {
 
             SettableFuture<Optional<CommitTimestamp>> f = SettableFuture.create();
-            try {
+            try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 Get get = new Get(startTimestampToKey(startTimestamp));
                 get.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER);
                 get.addColumn(commitTableFamily, INVALID_TX_QUALIFIER);
@@ -206,7 +202,7 @@ public class HBaseCommitTable implements CommitTable {
         @Override
         public ListenableFuture<Long> readLowWatermark() {
             SettableFuture<Long> f = SettableFuture.create();
-            try {
+            try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 Get get = new Get(LOW_WATERMARK_ROW);
                 get.addColumn(lowWatermarkFamily, LOW_WATERMARK_QUALIFIER);
                 Result result = table.get(get);
@@ -238,7 +234,7 @@ public class HBaseCommitTable implements CommitTable {
 
             Delete delete = new Delete(key, startTimestamp);
 
-            try {
+            try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 table.delete(delete);
             } catch (IOException e) {
                 SettableFuture<Void> f = SettableFuture.create();
@@ -253,7 +249,7 @@ public class HBaseCommitTable implements CommitTable {
         @Override
         public ListenableFuture<Boolean> tryInvalidateTransaction(long startTimestamp) {
             SettableFuture<Boolean> f = SettableFuture.create();
-            try {
+            try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 byte[] row = startTimestampToKey(startTimestamp);
                 Put invalidationPut = new Put(row, startTimestamp);
                 invalidationPut.addColumn(commitTableFamily, INVALID_TX_QUALIFIER, Bytes.toBytes(1));
@@ -270,11 +266,6 @@ public class HBaseCommitTable implements CommitTable {
                 f.setException(ioe);
             }
             return f;
-        }
-
-        @Override
-        public synchronized void close() throws IOException {
-            table.close();
         }
 
         private boolean containsATimestamp(Result result) {

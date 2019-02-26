@@ -78,7 +78,7 @@ public class TestFilters extends OmidTestBase {
 
         TTable table = new TTable(connection, TEST_TABLE);
         PostCommitActions syncPostCommitter = spy(
-                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .commitTableClient(commitTableClient)
                 .commitTableWriter(getCommitTable(context).getWriter())
@@ -127,7 +127,7 @@ public class TestFilters extends OmidTestBase {
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         TTable table = new TTable(connection, TEST_TABLE);
         PostCommitActions syncPostCommitter = spy(
-                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         AbstractTransactionManager tm = HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .commitTableClient(commitTableClient)
                 .commitTableWriter(getCommitTable(context).getWriter())

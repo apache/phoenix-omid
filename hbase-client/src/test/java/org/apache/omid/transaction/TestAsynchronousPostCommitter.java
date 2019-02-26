@@ -67,7 +67,7 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
         CommitTable.Client commitTableClient = getCommitTable(context).getClient();
 
         PostCommitActions syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         ListeningExecutorService postCommitExecutor =
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat("postCommit-%d").build()));
@@ -185,7 +185,7 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
         CommitTable.Client commitTableClient = getCommitTable(context).getClient();
 
         PostCommitActions syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         ListeningExecutorService postCommitExecutor =
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat("postCommit-%d").build()));
@@ -264,7 +264,7 @@ public class TestAsynchronousPostCommitter extends OmidTestBase {
         CommitTable.Client commitTableClient = getCommitTable(context).getClient();
 
         PostCommitActions syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
         ListeningExecutorService postCommitExecutor =
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat("postCommit-%d").build()));

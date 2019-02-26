@@ -63,10 +63,6 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     private TableAccessWrapper tableAccessWrapper;
 
-    public void closeCommitTableClient() throws IOException {
-        commitTableClient.close();
-    }
-
     private CommitTable.Client commitTableClient;
 
     public TableAccessWrapper getTableAccessWrapper() {
@@ -596,6 +592,11 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         return Multimaps.index(Iterables.filter(rawCells, shadowCellFilter), cellToColumnWrapper)
                 .asMap().values()
                 .asList();
+    }
+
+    @Override
+    public void close() throws Exception {
+        tableAccessWrapper.close();
     }
 
 

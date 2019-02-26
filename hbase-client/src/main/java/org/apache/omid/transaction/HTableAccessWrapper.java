@@ -60,4 +60,9 @@ public class HTableAccessWrapper implements TableAccessWrapper {
         return readTable.getScanner(scan);
     }
 
+    @Override
+    public void close() throws Exception {
+        writeTable.close();
+        readTable.close();
+    }
 }

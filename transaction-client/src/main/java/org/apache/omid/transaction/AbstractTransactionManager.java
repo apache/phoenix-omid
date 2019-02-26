@@ -314,15 +314,16 @@ public abstract class AbstractTransactionManager implements TransactionManager {
      */
     public void postRollback(AbstractTransaction<? extends CellId> transaction) throws TransactionManagerException {}
 
+
+    abstract void closeResources() throws IOException;
+
     /**
      * @see java.io.Closeable#close()
      */
     @Override
     public final void close() throws IOException {
-
         tsoClient.close();
-        commitTableClient.close();
-
+        closeResources();
     }
 
     // ----------------------------------------------------------------------------------------------------------------

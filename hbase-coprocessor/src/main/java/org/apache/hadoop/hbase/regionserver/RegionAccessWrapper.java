@@ -63,4 +63,8 @@ public class RegionAccessWrapper implements TableAccessWrapper {
         return null;
     }
 
+    @Override
+    public void close() throws Exception {
+
+    }
 }

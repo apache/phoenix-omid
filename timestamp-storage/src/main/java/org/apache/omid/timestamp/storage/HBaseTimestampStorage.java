@@ -51,11 +51,12 @@ public class HBaseTimestampStorage implements TimestampStorage {
 
     private final Table table;
     private final byte[] cfName;
+    private final Connection connection;
 
     @Inject
     public HBaseTimestampStorage(Configuration hbaseConfig, HBaseTimestampStorageConfig config) throws IOException {
-        Connection conn = ConnectionFactory.createConnection(hbaseConfig);
-        this.table = conn.getTable(TableName.valueOf(config.getTableName()));
+        connection = ConnectionFactory.createConnection(hbaseConfig);
+        this.table = connection.getTable(TableName.valueOf(config.getTableName()));
         this.cfName = config.getFamilyName().getBytes(UTF_8);
     }
 
@@ -91,4 +92,10 @@ public class HBaseTimestampStorage implements TimestampStorage {
 
     }
 
+
+    public void close() throws IOException {
+        //TODO this is never called
+        table.close();
+        connection.close();
+    }
 }

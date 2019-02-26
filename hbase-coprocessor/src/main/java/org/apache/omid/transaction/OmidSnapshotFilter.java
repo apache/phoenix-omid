@@ -19,6 +19,7 @@ package org.apache.omid.transaction;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Scan;
 
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
@@ -66,7 +67,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     private Queue<SnapshotFilterImpl> snapshotFilterQueue = new ConcurrentLinkedQueue<>();
     private Map<Object, SnapshotFilterImpl> snapshotFilterMap = new ConcurrentHashMap<>();
     private CommitTable.Client inMemoryCommitTable = null;
-    private CommitTable commitTable;
+    private CommitTable.Client commitTableClient;
+    private Connection connection;
 
     public OmidSnapshotFilter(CommitTable.Client commitTableClient) {
         LOG.info("Compactor coprocessor initialized");
@@ -86,14 +88,15 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
+        connection = RegionConnectionFactory
+                .getConnection(RegionConnectionFactory.ConnectionType.READ_CONNECTION, (RegionCoprocessorEnvironment) env);
+        commitTableClient = new HBaseCommitTable(connection, commitTableConf).getClient();
         LOG.info("Snapshot filter started");
-        commitTable = new HBaseCommitTable(RegionConnectionFactory
-                .getConnection(RegionConnectionFactory.ConnectionType.READ_CONNECTION, (RegionCoprocessorEnvironment) env),
-                commitTableConf);
     }
 
     @Override
     public void stop(CoprocessorEnvironment e) throws IOException {
+        LOG.info("stopping Snapshot filter");
         LOG.info("Snapshot filter stopped");
     }
 
@@ -181,7 +184,6 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         if (inMemoryCommitTable != null) {
             return inMemoryCommitTable;
         }
-        CommitTable.Client commitTableClient = commitTable.getClient();
         return commitTableClient;
     }
 

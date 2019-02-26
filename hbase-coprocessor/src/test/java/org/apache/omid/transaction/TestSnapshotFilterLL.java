@@ -185,7 +185,7 @@ public class TestSnapshotFilterLL {
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         CommitTable.Client commitTableClient = commitTable.getClient();
         syncPostCommitter =
-                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(),commitTableClient));
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(),commitTableClient, connection));
         return HBaseTransactionManager.builder(hbaseOmidClientConf)
                 .postCommitter(syncPostCommitter)
                 .commitTableClient(commitTableClient)

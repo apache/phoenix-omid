@@ -29,7 +29,7 @@ import java.util.List;
 
 
 //This interface is used to wrap the HTableInterface and Region object when doing client and server side filtering accordingly.
-public interface TableAccessWrapper {
+public interface TableAccessWrapper extends AutoCloseable{
 
     Result[] get(List<Get> get) throws IOException;
     Result get(Get get) throws IOException;

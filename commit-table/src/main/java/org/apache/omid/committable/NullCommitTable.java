@@ -59,11 +59,6 @@ public class NullCommitTable implements CommitTable {
         public void flush() throws IOException {
             // noop
         }
-
-        @Override
-        public void close() {
-        }
-
     }
 
     public static class Client implements CommitTable.Client {
@@ -89,8 +84,5 @@ public class NullCommitTable implements CommitTable {
             throw new UnsupportedOperationException();
         }
 
-        @Override
-        public void close() {
-        }
     }
 }

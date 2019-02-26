@@ -85,16 +85,16 @@ public class CompactorUtil {
         HBaseLogin.loginIfNeeded(cmdline.loginFlags);
 
         Configuration conf = HBaseConfiguration.create();
-        Connection conn = ConnectionFactory.createConnection(conf);
-
-        if (cmdline.enable) {
-            enableOmidCompaction(conn, TableName.valueOf(cmdline.table),
-                    Bytes.toBytes(cmdline.columnFamily));
-        } else if (cmdline.disable) {
-            disableOmidCompaction(conn, TableName.valueOf(cmdline.table),
-                    Bytes.toBytes(cmdline.columnFamily));
-        } else {
-            System.err.println("Must specify enable or disable");
+        try (Connection conn = ConnectionFactory.createConnection(conf)) {
+            if (cmdline.enable) {
+                enableOmidCompaction(conn, TableName.valueOf(cmdline.table),
+                        Bytes.toBytes(cmdline.columnFamily));
+            } else if (cmdline.disable) {
+                disableOmidCompaction(conn, TableName.valueOf(cmdline.table),
+                        Bytes.toBytes(cmdline.columnFamily));
+            } else {
+                System.err.println("Must specify enable or disable");
+            }
         }
     }
 }

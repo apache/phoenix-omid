@@ -163,6 +163,12 @@ public class TTable implements Closeable {
     @Override
     public void close() throws IOException {
         table.close();
+        try {
+            snapshotFilter.close();
+        } catch (Exception e) {
+            LOG.warn("Failed to close TTable resources.");
+            e.printStackTrace();
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

@@ -20,6 +20,7 @@ package org.apache.omid.transaction;
 import com.google.common.annotations.VisibleForTesting;
 
 
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -64,8 +65,9 @@ public class OmidCompactor extends BaseRegionObserver {
 
     private HBaseCommitTableConfig commitTableConf = null;
     private RegionCoprocessorEnvironment env = null;
+
     @VisibleForTesting
-    Queue<CommitTable.Client> commitTableClientQueue = new ConcurrentLinkedQueue<>();
+    CommitTable.Client commitTableClient;
 
     // When compacting, if a cell which has been marked by HBase as Delete or
     // Delete Family (that is, non-transactionally deleted), we allow the user
@@ -73,7 +75,8 @@ public class OmidCompactor extends BaseRegionObserver {
     // If retained, the deleted cell will appear after a minor compaction, but
     // will be deleted anyways after a major one
     private boolean retainNonTransactionallyDeletedCells;
-    private CommitTable commitTable;
+
+    private Connection connection;
 
     public OmidCompactor() {
         this(false);
@@ -92,10 +95,10 @@ public class OmidCompactor extends BaseRegionObserver {
         if (commitTableName != null) {
             commitTableConf.setTableName(commitTableName);
         }
-        commitTable = new HBaseCommitTable(RegionConnectionFactory
-                .getConnection(RegionConnectionFactory.ConnectionType.COMPACTION_CONNECTION,
-                        (RegionCoprocessorEnvironment) env)
-                , commitTableConf);
+
+        connection = RegionConnectionFactory
+                .getConnection(RegionConnectionFactory.ConnectionType.COMPACTION_CONNECTION, (RegionCoprocessorEnvironment) env);
+        commitTableClient = new HBaseCommitTable(connection, commitTableConf).getClient();
         retainNonTransactionallyDeletedCells =
                 env.getConfiguration().getBoolean(HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_KEY,
                         HBASE_RETAIN_NON_TRANSACTIONALLY_DELETED_CELLS_DEFAULT);
@@ -105,11 +108,6 @@ public class OmidCompactor extends BaseRegionObserver {
     @Override
     public void stop(CoprocessorEnvironment e) throws IOException {
         LOG.info("Stopping compactor coprocessor");
-        if (commitTableClientQueue != null) {
-            for (CommitTable.Client commitTableClient : commitTableClientQueue) {
-                commitTableClient.close();
-            }
-        }
         LOG.info("Compactor coprocessor stopped");
     }
 
@@ -135,15 +133,10 @@ public class OmidCompactor extends BaseRegionObserver {
             if (!omidCompactable) {
                 return scanner;
             } else {
-                CommitTable.Client commitTableClient = commitTableClientQueue.poll();
-                if (commitTableClient == null) {
-                    commitTableClient = initAndGetCommitTableClient();
-                }
                 boolean isMajorCompaction = request.isMajor();
                 return new CompactorScanner(env,
                         scanner,
                         commitTableClient,
-                        commitTableClientQueue,
                         isMajorCompaction,
                         retainNonTransactionallyDeletedCells);
             }
@@ -153,12 +146,4 @@ public class OmidCompactor extends BaseRegionObserver {
             throw new DoNotRetryIOException(e);
         }
     }
-
-    private CommitTable.Client initAndGetCommitTableClient() throws IOException {
-        LOG.info("Trying to get the commit table client");
-        CommitTable.Client commitTableClient = commitTable.getClient();
-        LOG.info("Commit table client obtained {}", commitTableClient.getClass().getCanonicalName());
-        return commitTableClient;
-    }
-
 }

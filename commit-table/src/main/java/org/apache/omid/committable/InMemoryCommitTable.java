@@ -72,10 +72,6 @@ public class InMemoryCommitTable implements CommitTable {
             // required to make sure the entry was not invalidated.
             return (table.putIfAbsent(startTimestamp, commitTimestamp) == null);
         }
-
-        @Override
-        public void close() {
-        }
     }
 
     public class Client implements CommitTable.Client {
@@ -137,10 +133,6 @@ public class InMemoryCommitTable implements CommitTable {
             // of the method or was added right before we tried to invalidate.
             f.set(false);
             return f;
-        }
-
-        @Override
-        public void close() {
         }
     }
 
