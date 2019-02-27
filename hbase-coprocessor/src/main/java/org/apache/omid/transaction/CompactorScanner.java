@@ -82,7 +82,6 @@ public class CompactorScanner implements InternalScanner {
 
     @Override
     public boolean next(List<Cell> results) throws IOException {
-        //TODO YONIGO - why-1 we get exceptions
         return next(results, -1);
     }
 
@@ -166,7 +165,7 @@ public class CompactorScanner implements InternalScanner {
         }
 
         // Chomp current row worth values up to the limit
-        if (currentRowWorthValues.size() <= limit) {
+        if (currentRowWorthValues.size() <= limit || limit == -1) {
             result.addAll(currentRowWorthValues);
             currentRowWorthValues.clear();
         } else {

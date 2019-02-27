@@ -207,6 +207,67 @@ public class TestCompaction {
                 .build();
     }
 
+
+    @Test
+    public void testShadowCellsAboveLWMSurviveCompaction() throws Exception {
+        String TEST_TABLE = "testShadowCellsAboveLWMSurviveCompaction";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable txTable = new TTable(connection, TEST_TABLE);
+
+        byte[] rowId = Bytes.toBytes("row");
+
+        // Create 3 transactions modifying the same cell in a particular row
+        HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
+        Put put1 = new Put(rowId);
+        put1.addColumn(fam, qual, Bytes.toBytes("testValue 1"));
+        txTable.put(tx1, put1);
+        tm.commit(tx1);
+
+        HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
+        Put put2 = new Put(rowId);
+        put2.addColumn(fam, qual, Bytes.toBytes("testValue 2"));
+        txTable.put(tx2, put2);
+        tm.commit(tx2);
+
+        HBaseTransaction tx3 = (HBaseTransaction) tm.begin();
+        Put put3 = new Put(rowId);
+        put3.addColumn(fam, qual, Bytes.toBytes("testValue 3"));
+        txTable.put(tx3, put3);
+        tm.commit(tx3);
+
+        // Before compaction, the three timestamped values for the cell should be there
+        TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
+                "Put cell of Tx1 should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell of Tx1 should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx2.getStartTimestamp(), getter),
+                "Put cell of Tx2 cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx2.getStartTimestamp(), getter),
+                "Put shadow cell of Tx2 should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx3.getStartTimestamp(), getter),
+                "Put cell of Tx3 cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx3.getStartTimestamp(), getter),
+                "Put shadow cell of Tx3 should be there");
+
+        // Compact
+        compactWithLWM(0, TEST_TABLE);
+
+        // After compaction, the three timestamped values for the cell should be there
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
+                "Put cell of Tx1 should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell of Tx1 should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx2.getStartTimestamp(), getter),
+                "Put cell of Tx2 cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx2.getStartTimestamp(), getter),
+                "Put shadow cell of Tx2 should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam, qual, tx3.getStartTimestamp(), getter),
+                "Put cell of Tx3 cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam, qual, tx3.getStartTimestamp(), getter),
+                "Put shadow cell of Tx3 should be there");
+    }
+
     @Test(timeOut = 60_000)
     public void testStandardTXsWithShadowCellsAndWithSTBelowAndAboveLWMArePresevedAfterCompaction() throws Throwable {
         String TEST_TABLE = "testStandardTXsWithShadowCellsAndWithSTBelowAndAboveLWMArePresevedAfterCompaction";
