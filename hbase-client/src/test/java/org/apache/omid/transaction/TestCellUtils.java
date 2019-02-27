@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.HBaseShims;
+import org.apache.omid.tso.client.CellId;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -225,6 +226,58 @@ public class TestCellUtils {
         originalQualifierLength =
                 CellUtils.qualifierLengthFromShadowCellQualifier(qualifier, 0, qualifier.length);
         assertEquals(originalQualifierLength, qualifier.length);
+    }
+
+
+    @Test(timeOut = 10_000)
+    public void testmapCellsToShadowCellsCellOrder() {
+        // Create the required data
+        final byte[] validShadowCellQualifier =
+                com.google.common.primitives.Bytes.concat(SHADOW_CELL_PREFIX, qualifier, SHADOW_CELL_SUFFIX);
+
+        final byte[] qualifier2 = Bytes.toBytes("test-qual2");
+        final byte[] validShadowCellQualifier2 =
+                com.google.common.primitives.Bytes.concat(SHADOW_CELL_PREFIX, qualifier2, SHADOW_CELL_SUFFIX);
+
+        final byte[] qualifier3 = Bytes.toBytes("test-qual3");
+        final byte[] validShadowCellQualifier3 =
+                com.google.common.primitives.Bytes.concat(SHADOW_CELL_PREFIX, qualifier3, SHADOW_CELL_SUFFIX);
+
+        final byte[] qualifier4 = Bytes.toBytes("test-qual4");
+        final byte[] qualifier5 = Bytes.toBytes("test-qual5");
+        final byte[] validShadowCellQualifier5 =
+                com.google.common.primitives.Bytes.concat(SHADOW_CELL_PREFIX, qualifier5, SHADOW_CELL_SUFFIX);
+
+
+        Cell cell1 = new KeyValue(row, family, qualifier, 1, Bytes.toBytes("value")); // Default type is Put
+        Cell shadowCell1 = new KeyValue(row, family, validShadowCellQualifier, 1, Bytes.toBytes("sc-value"));
+
+        Cell cell2 = new KeyValue(row, family, qualifier2, 1, Bytes.toBytes("value2"));
+        Cell shadowCell2 = new KeyValue(row, family, validShadowCellQualifier2, 1, Bytes.toBytes("sc-value2"));
+
+        Cell cell3 = new KeyValue(row, family, qualifier3, 1, Bytes.toBytes("value3"));
+        Cell shadowCell3 = new KeyValue(row, family, validShadowCellQualifier3, 1, Bytes.toBytes("sc-value2"));
+
+        Cell cell4 = new KeyValue(row, family, qualifier4, 1, Bytes.toBytes("value4"));
+
+        Cell shadowCell5 = new KeyValue(row, family, validShadowCellQualifier5, 1, Bytes.toBytes("sc-value2"));
+
+        List<Cell> scanList = new ArrayList<>();
+        scanList.add(shadowCell5);
+        scanList.add(cell3);
+        scanList.add(cell1);
+        scanList.add(shadowCell1);
+        scanList.add(shadowCell2);
+        scanList.add(cell4);
+        scanList.add(cell2);
+        scanList.add(shadowCell3);
+        scanList.add(shadowCell5);
+
+        SortedMap<Cell, Optional<Cell>> cellsToShadowCells = CellUtils.mapCellsToShadowCells(scanList);
+        assertEquals(cellsToShadowCells.get(cell1).get(), shadowCell1);
+        assertEquals(cellsToShadowCells.get(cell2).get(), shadowCell2);
+        assertEquals(cellsToShadowCells.get(cell3).get(), shadowCell3);
+        assertFalse(cellsToShadowCells.get(cell4).isPresent());
     }
 
 }

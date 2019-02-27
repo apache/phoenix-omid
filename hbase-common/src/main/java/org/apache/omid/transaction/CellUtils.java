@@ -184,6 +184,24 @@ public final class CellUtils {
         return qualLength;
     }
 
+
+    /**
+     * Returns the qualifier length removing the shadow cell suffix and prefix. In case that que suffix is not found,
+     * just returns the length of the qualifier passed.
+     * @param qualifier the qualifier to remove the suffix from
+     * @param qualOffset the offset where the qualifier starts
+     * @param qualLength the qualifier length
+     * @return the qualifier length without the suffix
+     */
+    public static int qualifierOffsetFromShadowCellQualifier(byte[] qualifier, int qualOffset, int qualLength) {
+
+        if (startsWith(qualifier, qualOffset, qualLength, SHADOW_CELL_PREFIX)) {
+            return qualOffset + SHADOW_CELL_PREFIX.length;
+        }
+        return qualOffset;
+    }
+
+
     /**
      * Complement to matchingQualifier() methods in HBase's CellUtil.class
      * @param left the cell to compare the qualifier
@@ -307,6 +325,7 @@ public final class CellUtils {
                 = new TreeMap<Cell, Optional<Cell>>(HBaseShims.cellComparatorInstance());
 
         Map<CellId, Cell> cellIdToCellMap = new HashMap<CellId, Cell>();
+        Map<CellId, Cell> cellIdToSCCellMap = new HashMap<CellId, Cell>();
         for (Cell cell : cells) {
             if (!isShadowCell(cell)) {
                 CellId key = new CellId(cell, false);
@@ -319,24 +338,31 @@ public final class CellUtils {
                     } else {
                         if (cell.getSequenceId() > storedCell.getSequenceId()) { // Swap values
                             Optional<Cell> previousValue = cellToShadowCellMap.remove(storedCell);
-                            Preconditions.checkNotNull(previousValue, "Should contain an Optional<Cell> value");
                             cellIdToCellMap.put(key, cell);
-                            cellToShadowCellMap.put(cell, previousValue);
+                            if (previousValue != null) {
+                                cellToShadowCellMap.put(cell, previousValue);
+                            }
                         } else {
                             LOG.warn("Cell {} with an earlier MVCC found. Ignoring...", cell);
                         }
                     }
                 } else {
                     cellIdToCellMap.put(key, cell);
-                    cellToShadowCellMap.put(cell, Optional.<Cell>absent());
+                    Cell sc = cellIdToSCCellMap.get(key);
+                    if (sc != null) {
+                        cellToShadowCellMap.put(cell, Optional.of(sc));
+                    } else {
+                        cellToShadowCellMap.put(cell, Optional.<Cell>absent());
+                    }
                 }
             } else {
                 CellId key = new CellId(cell, true);
-                if (cellIdToCellMap.containsKey(key)) {
+                Cell savedCell = cellIdToCellMap.get(key);
+                if (savedCell != null) {
                     Cell originalCell = cellIdToCellMap.get(key);
                     cellToShadowCellMap.put(originalCell, Optional.of(cell));
                 } else {
-                    LOG.trace("Map does not contain key {}", key);
+                    cellIdToSCCellMap.put(key, cell);
                 }
             }
         }
@@ -386,23 +412,29 @@ public final class CellUtils {
             }
 
             // Qualifier comparison
+            int qualifierLength = cell.getQualifierLength();
+            int qualifierOffset = cell.getQualifierOffset();
+            int otherQualifierLength = otherCell.getQualifierLength();
+            int otherQualifierOffset = otherCell.getQualifierOffset();
+
             if (isShadowCell()) {
-                int qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
+                qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
-                int qualifierOffset = cell.getQualifierOffset();
-                if (startsWith(cell.getQualifierArray(), cell.getQualifierOffset(),
-                        cell.getQualifierLength(), SHADOW_CELL_PREFIX)) {
-                    qualifierOffset = qualifierOffset + SHADOW_CELL_PREFIX.length;
-                }
-                if (!matchingQualifier(otherCell,
-                        cell.getQualifierArray(), qualifierOffset, qualifierLength)) {
-                    return false;
-                }
-            } else {
-                if (!CellUtil.matchingQualifier(otherCell, cell)) {
-                    return false;
-                }
+                qualifierOffset = qualifierOffsetFromShadowCellQualifier(cell.getQualifierArray(), cell.getQualifierOffset(),
+                        cell.getQualifierLength());
+            }
+            if (otherCellId.isShadowCell()) {
+                otherQualifierLength = qualifierLengthFromShadowCellQualifier(otherCell.getQualifierArray(),
+                        otherCell.getQualifierOffset(),
+                        otherCell.getQualifierLength());
+                otherQualifierOffset = qualifierOffsetFromShadowCellQualifier(otherCell.getQualifierArray(), otherCell.getQualifierOffset(),
+                        otherCell.getQualifierLength());
+            }
+
+            if (!Bytes.equals(cell.getQualifierArray(), qualifierOffset, qualifierLength,
+                    otherCell.getQualifierArray(), otherQualifierOffset, otherQualifierLength)) {
+                return false;
             }
 
             // Timestamp comparison
@@ -426,6 +458,8 @@ public final class CellUtils {
                     qualifierOffset = qualifierOffset + SHADOW_CELL_PREFIX.length;
                 }
             }
+            String a = Bytes.toString(cell.getQualifierArray(), qualifierOffset, qualifierLength);
+
             hasher.putBytes(cell.getQualifierArray(),qualifierOffset , qualifierLength);
             hasher.putLong(cell.getTimestamp());
             return hasher.hash().asInt();
@@ -443,8 +477,8 @@ public final class CellUtils {
                 int qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
-                helper.add("qualifier whithout shadow cell suffix",
-                        Bytes.toString(cell.getQualifierArray(), cell.getQualifierOffset() + 1, qualifierLength));
+                byte[] b = removeShadowCellSuffixPrefix(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
+                helper.add("qualifier whithout shadow cell suffix", Bytes.toString(b));
             }
             helper.add("ts", cell.getTimestamp());
             return helper.toString();
