@@ -338,10 +338,9 @@ public final class CellUtils {
                     } else {
                         if (cell.getSequenceId() > storedCell.getSequenceId()) { // Swap values
                             Optional<Cell> previousValue = cellToShadowCellMap.remove(storedCell);
+                            Preconditions.checkNotNull(previousValue, "Should contain an Optional<Cell> value");
                             cellIdToCellMap.put(key, cell);
-                            if (previousValue != null) {
-                                cellToShadowCellMap.put(cell, previousValue);
-                            }
+                            cellToShadowCellMap.put(cell, previousValue);
                         } else {
                             LOG.warn("Cell {} with an earlier MVCC found. Ignoring...", cell);
                         }
@@ -359,7 +358,7 @@ public final class CellUtils {
                 CellId key = new CellId(cell, true);
                 Cell savedCell = cellIdToCellMap.get(key);
                 if (savedCell != null) {
-                    Cell originalCell = cellIdToCellMap.get(key);
+                    Cell originalCell = savedCell;
                     cellToShadowCellMap.put(originalCell, Optional.of(cell));
                 } else {
                     cellIdToSCCellMap.put(key, cell);
@@ -458,7 +457,6 @@ public final class CellUtils {
                     qualifierOffset = qualifierOffset + SHADOW_CELL_PREFIX.length;
                 }
             }
-            String a = Bytes.toString(cell.getQualifierArray(), qualifierOffset, qualifierLength);
 
             hasher.putBytes(cell.getQualifierArray(),qualifierOffset , qualifierLength);
             hasher.putLong(cell.getTimestamp());
@@ -477,8 +475,8 @@ public final class CellUtils {
                 int qualifierLength = qualifierLengthFromShadowCellQualifier(cell.getQualifierArray(),
                         cell.getQualifierOffset(),
                         cell.getQualifierLength());
-                byte[] b = removeShadowCellSuffixPrefix(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
-                helper.add("qualifier whithout shadow cell suffix", Bytes.toString(b));
+                byte[] cellWithoutSc = removeShadowCellSuffixPrefix(cell.getQualifierArray(), cell.getQualifierOffset(), cell.getQualifierLength());
+                helper.add("qualifier whithout shadow cell suffix", Bytes.toString(cellWithoutSc));
             }
             helper.add("ts", cell.getTimestamp());
             return helper.toString();
