@@ -179,7 +179,6 @@ public class TransactionVisibilityFilterBase extends OmidFilterBase {
 
     @Override
     public void reset() throws IOException {
-        commitCache.clear();
         familyDeletionCache.clear();
         if (userFilter != null) {
             userFilter.reset();
