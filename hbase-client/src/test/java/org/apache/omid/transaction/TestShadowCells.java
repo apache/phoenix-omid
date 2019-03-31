@@ -312,7 +312,7 @@ public class TestShadowCells extends OmidTestBase {
 
         // Test shadow cells are created properly
         Put put = new Put(row);
-        for (int i = 0; i < 1002; ++i) {
+        for (int i = 0; i < HBaseSyncPostCommitter.MAX_BATCH_SIZE*2 + 2; ++i) {
             put.addColumn(family, Bytes.toBytes(String.valueOf("X") + i), data1);
         }
         table.put(t1, put);

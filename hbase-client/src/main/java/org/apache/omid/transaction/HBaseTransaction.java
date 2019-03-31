@@ -18,16 +18,23 @@
 package org.apache.omid.transaction;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseTransaction.class);
-
+    static final int MAX_DELETE_BATCH_SIZE = 1000;
+    
     public HBaseTransaction(long transactionId, long epoch, Set<HBaseCellId> writeSet,
                             Set<HBaseCellId> conflictFreeWriteSet, AbstractTransactionManager tm, boolean isLowLatency) {
         super(transactionId, epoch, writeSet, conflictFreeWriteSet, tm, isLowLatency);
@@ -45,28 +52,51 @@ public class HBaseTransaction extends AbstractTransaction<HBaseCellId> {
         super(transactionId, readTimestamp, visibilityLevel, epoch, writeSet, conflictFreeWriteSet, tm, isLowLatency);
     }
 
-    private void deleteCell(HBaseCellId cell) {
+
+    private void flushMutations(Table table, List<Mutation> mutations) throws IOException, InterruptedException {
+        table.batch(mutations, new Object[mutations.size()]);
+    }
+
+    private void deleteCell(HBaseCellId cell, Map<Table,List<Mutation>> mutations) throws IOException, InterruptedException {
+
         Delete delete = new Delete(cell.getRow());
         delete.addColumn(cell.getFamily(), cell.getQualifier(), cell.getTimestamp());
-        try {
-            cell.getTable().getHTable().delete(delete);
-        } catch (IOException e) {
-            LOG.warn("Failed cleanup cell {} for Tx {}. This issue has been ignored", cell, getTransactionId(), e);
+
+        Table table = cell.getTable().getHTable();
+        List<Mutation> tableMutations = mutations.get(table);
+        if (tableMutations == null) {
+            ArrayList<Mutation> newList = new ArrayList<>();
+            newList.add(delete);
+            mutations.put(table, newList);
+        } else {
+            tableMutations.add(delete);
+            if (tableMutations.size() > MAX_DELETE_BATCH_SIZE) {
+                flushMutations(table, tableMutations);
+                mutations.remove(table);
+            }
         }
     }
+
     @Override
     public void cleanup() {
-        for (final HBaseCellId cell : getWriteSet()) {
-            deleteCell(cell);
-        }
 
-        for (final HBaseCellId cell : getConflictFreeWriteSet()) {
-            deleteCell(cell);
-        }
+        Map<Table,List<Mutation>> mutations = new HashMap<>();
+
         try {
-            flushTables();
-        } catch (IOException e) {
-            LOG.warn("Failed flushing tables for Tx {}", getTransactionId(), e);
+            for (final HBaseCellId cell : getWriteSet()) {
+                deleteCell(cell, mutations);
+            }
+
+            for (final HBaseCellId cell : getConflictFreeWriteSet()) {
+                deleteCell(cell, mutations);
+            }
+
+            for (Map.Entry<Table,List<Mutation>> entry: mutations.entrySet()) {
+                flushMutations(entry.getKey(), entry.getValue());
+            }
+
+        } catch (InterruptedException | IOException e) {
+            LOG.warn("Failed cleanup for Tx {}. This issue has been ignored", getTransactionId(), e);
         }
     }
 

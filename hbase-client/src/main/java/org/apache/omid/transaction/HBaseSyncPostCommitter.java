@@ -52,7 +52,7 @@ public class HBaseSyncPostCommitter implements PostCommitActions {
 
     private final Timer commitTableUpdateTimer;
     private final Timer shadowCellsUpdateTimer;
-    private static final int MAX_BATCH_SIZE=1000;
+    static final int MAX_BATCH_SIZE=1000;
     private final Connection connection;
 
     public HBaseSyncPostCommitter(MetricsRegistry metrics, CommitTable.Client commitTableClient,

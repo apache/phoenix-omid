@@ -33,11 +33,14 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
+
+import java.io.IOException;
 
 @Test(groups = "sharedHBase")
 public class TestTransactionConflict extends OmidTestBase {
@@ -277,6 +280,106 @@ public class TestTransactionConflict extends OmidTestBase {
         assertEquals(count, rowcount, "Wrong count");
 
     }
+
+    private int countRows(Table table) throws IOException {
+        Scan scan = new Scan();
+        ResultScanner scanner = table.getScanner(scan);
+        Result r = scanner.next();
+        int rowCount = 0;
+        while (r != null) {
+            r = scanner.next();
+            rowCount++;
+        }
+        return rowCount;
+    }
+
+    @Test(timeOut = 60_000)
+    public void testBatchedCleanup(ITestContext context) throws Exception {
+
+        String table2 = "testBatchedCleanupTABLE2";
+        TableName table2Name = TableName.valueOf(table2);
+
+        try (Connection conn = ConnectionFactory.createConnection(hbaseConf);
+             Admin admin = conn.getAdmin()) {
+            TableName htable2 = TableName.valueOf(table2);
+
+            if (!admin.tableExists(htable2)) {
+                HTableDescriptor desc = new HTableDescriptor(table2Name);
+                HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
+                datafam.setMaxVersions(Integer.MAX_VALUE);
+                desc.addFamily(datafam);
+
+                admin.createTable(desc);
+            }
+
+            if (admin.isTableDisabled(htable2)) {
+                admin.enableTable(htable2);
+            }
+        }
+
+        TransactionManager tm = newTransactionManager(context);
+        TTable tt = new TTable(connection, TEST_TABLE);
+        TTable tt2 = new TTable(connection, table2);
+
+        Transaction t1 = tm.begin();
+        LOG.info("Transaction created " + t1);
+
+        Transaction t2 = tm.begin();
+        LOG.info("Transaction created" + t2);
+
+        byte[] row = Bytes.toBytes("test-simple");
+        byte[] fam = Bytes.toBytes(TEST_FAMILY);
+        byte[] col = Bytes.toBytes("testdata");
+        byte[] data1 = Bytes.toBytes("testWrite-1");
+        byte[] data2 = Bytes.toBytes("testWrite-2");
+
+        Put p = new Put(row);
+        p.addColumn(fam, col, data1);
+        tt.put(t1, p);
+
+        Get g = new Get(row).setMaxVersions();
+        g.addColumn(fam, col);
+        Result r = tt.getHTable().get(g);
+        assertEquals(r.size(), 1, "Unexpected size for read.");
+        assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
+                "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
+
+        int rowcount = HBaseTransaction.MAX_DELETE_BATCH_SIZE*2 + 2;
+
+        // Add this row to cause conflict
+        Put p2 = new Put(row);
+        p2.addColumn(fam, col, data2);
+        tt.put(t2, p2);
+
+        //Add more rows to hit batch
+        for (int i = 0; i < rowcount; i++) {
+            byte[] newRow = Bytes.toBytes("test-del" + i);
+            Put put = new Put(newRow);
+            put.addColumn(fam, col, data2);
+            tt.put(t2, put);
+            tt2.put(t2, put);
+        }
+
+        // validate rows are really written
+        assertEquals(countRows(tt.getHTable()), rowcount + 1, "Unexpected size for read.");
+        assertEquals(countRows(tt2.getHTable()), rowcount, "Unexpected size for read.");
+
+        tm.commit(t1);
+
+        boolean aborted = false;
+        try {
+            tm.commit(t2);
+            fail("Transaction commited successfully");
+        } catch (RollbackException e) {
+            aborted = true;
+        }
+        assertTrue(aborted, "Transaction didn't raise exception");
+
+        // validate rows are cleaned
+        assertEquals(countRows(tt.getHTable()), 1, "Unexpected size for read.");
+        assertEquals(countRows(tt2.getHTable()), 0, "Unexpected size for read.");
+    }
+
 
     @Test(timeOut = 10_000)
     public void testMultipleCellChangesOnSameRow(ITestContext context) throws Exception {
