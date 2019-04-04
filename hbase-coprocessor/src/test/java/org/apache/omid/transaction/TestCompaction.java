@@ -66,6 +66,7 @@ import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
+import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -1084,6 +1085,248 @@ public class TestCompaction {
         assertFalse(CellUtils.hasShadowCell(rowId, fam, qual, tx2.getStartTimestamp(), getter),
                     "Delete shadow cell shouldn't be there");
     }
+
+
+    //Cell level conflict detection
+    @Test(timeOut = 60_000)
+    public void testFamiliyDeleteTombstonesAreCleanedUpCellCF() throws Exception {
+        String TEST_TABLE = "testFamiliyDeleteTombstonesAreCleanedUpCellCF";
+        byte[] fam2 = Bytes.toBytes("2");
+        byte[] fam3 = Bytes.toBytes("3");
+        byte[] fam4 = Bytes.toBytes("4");
+        createTableIfNotExists(TEST_TABLE, fam2, fam3, fam4);
+        TTable txTable = new TTable(connection, TEST_TABLE);
+
+        HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
+        byte[] rowId = Bytes.toBytes("case2");
+        byte[] qual2 = Bytes.toBytes("qual2");
+
+        Put p = new Put(rowId);
+        p.addColumn(fam2, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam2, qual2 , Bytes.toBytes("testValue"));
+
+        p.addColumn(fam3, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam3, qual2 , Bytes.toBytes("testValue"));
+
+        p.addColumn(fam4, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam4, qual2 , Bytes.toBytes("testValue"));
+
+
+        txTable.put(tx1, p);
+
+        byte[] rowId2 = Bytes.toBytes("case22");
+        Put p2 = new Put(rowId2);
+        p2.addColumn(fam3, qual, Bytes.toBytes("testValue2"));
+        txTable.put(tx1, p2);
+
+        tm.commit(tx1);
+
+        HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
+        Delete d = new Delete(rowId);
+        d.addFamily(fam3);
+        txTable.delete(tx2, d);
+        tm.commit(tx2);
+
+        HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
+
+        TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+        assertTrue(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete shadow cell should be there");
+
+        //Do major compaction
+        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+        assertFalse(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell shouldn't be there");
+        assertFalse(CellUtils.hasCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell shouldn't be there");
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+
+        assertFalse(CellUtils.hasCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete shadow cell shouldn't be there");
+    }
+
+
+    //Row level conflict detection
+    @Test(timeOut = 60_000)
+    public void testFamiliyDeleteTombstonesAreCleanedUpRowCF() throws Exception {
+        String TEST_TABLE = "testFamiliyDeleteTombstonesAreCleanedUpRowCF";
+        ((HBaseTransactionManager) tm).setConflictDetectionLevel(OmidClientConfiguration.ConflictDetectionLevel.ROW);
+
+        byte[] fam2 = Bytes.toBytes("2");
+        byte[] fam3 = Bytes.toBytes("3");
+        byte[] fam4 = Bytes.toBytes("4");
+        createTableIfNotExists(TEST_TABLE, fam2, fam3, fam4);
+        TTable txTable = new TTable(connection, TEST_TABLE);
+
+        HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
+        byte[] rowId = Bytes.toBytes("case2");
+        byte[] qual2 = Bytes.toBytes("qual2");
+
+        Put p = new Put(rowId);
+        p.addColumn(fam2, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam2, qual2 , Bytes.toBytes("testValue"));
+
+        p.addColumn(fam3, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam3, qual2 , Bytes.toBytes("testValue"));
+
+        p.addColumn(fam4, qual, Bytes.toBytes("testValue"));
+        p.addColumn(fam4, qual2 , Bytes.toBytes("testValue"));
+
+
+        txTable.put(tx1, p);
+
+        byte[] rowId2 = Bytes.toBytes("case22");
+        Put p2 = new Put(rowId2);
+        p2.addColumn(fam3, qual, Bytes.toBytes("testValue2"));
+        txTable.put(tx1, p2);
+
+        tm.commit(tx1);
+
+        HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
+        Delete d = new Delete(rowId);
+        d.addFamily(fam3);
+        txTable.delete(tx2, d);
+        tm.commit(tx2);
+
+        HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
+
+        TTableCellGetterAdapter getter = new TTableCellGetterAdapter(txTable);
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+        assertTrue(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete shadow cell should be there");
+
+        //Do major compaction
+        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam2, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+        assertFalse(CellUtils.hasCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell shouldn't be there");
+        assertFalse(CellUtils.hasCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell shouldn't be there");
+
+
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+        assertTrue(CellUtils.hasCell(rowId, fam4, qual, tx1.getStartTimestamp(), getter),
+                "Put cell should be there");
+        assertTrue(CellUtils.hasShadowCell(rowId, fam4, qual2, tx1.getStartTimestamp(), getter),
+                "Put shadow cell should be there");
+
+
+
+        assertFalse(CellUtils.hasCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete cell shouldn't be there");
+        assertFalse(CellUtils.hasShadowCell(rowId, fam3, CellUtils.FAMILY_DELETE_QUALIFIER, tx2.getStartTimestamp(), getter),
+                "Delete shadow cell shouldn't be there");
+    }
+
+
 
     /**
      * Test that when compaction runs, tombstones are cleaned up case3: 1 put (ts < lwm) then tombstone (ts < lwm) not

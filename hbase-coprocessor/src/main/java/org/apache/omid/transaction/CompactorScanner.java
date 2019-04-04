@@ -130,6 +130,7 @@ public class CompactorScanner implements InternalScanner {
                 // an older version of the cell may become visible again. So,
                 // we have to remove tombstones only in major compactions.
                 if (isMajorCompaction) {
+                    // Strong assumption that family delete cells arrive first before any other column
                     if (CellUtils.isTombstone(cell)) {
                         if (shadowCellOp.isPresent()) {
                             skipToNextColumn(cell, iter);
@@ -273,9 +274,10 @@ public class CompactorScanner implements InternalScanner {
     }
 
     private void skipToNextColumn(Cell cell, PeekingIterator<Map.Entry<Cell, Optional<Cell>>> iter) {
+        boolean isFamilyDelete = CellUtils.isFamilyDeleteCell(cell);
         while (iter.hasNext()
                 && CellUtil.matchingFamily(iter.peek().getKey(), cell)
-                && CellUtil.matchingQualifier(iter.peek().getKey(), cell)) {
+                && (CellUtil.matchingQualifier(iter.peek().getKey(), cell) || isFamilyDelete)) {
             iter.next();
         }
     }

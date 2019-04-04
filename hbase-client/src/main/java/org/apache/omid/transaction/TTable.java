@@ -238,7 +238,7 @@ public class TTable implements Closeable {
                             tx.getWriteTimestamp()));
                 }
                 deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
-                        HConstants.EMPTY_BYTE_ARRAY);
+                        CellUtils.DELETE_TOMBSTONE);
                 addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                                                 tx.getWriteTimestamp()));
             }
@@ -250,7 +250,7 @@ public class TTable implements Closeable {
 
         for (byte[] family : fset) {
             deleteP.addColumn(family, CellUtils.FAMILY_DELETE_QUALIFIER, tx.getWriteTimestamp(),
-                    HConstants.EMPTY_BYTE_ARRAY);
+                    CellUtils.DELETE_TOMBSTONE);
             addWriteSetElement(tx, new HBaseCellId(this, deleteP.getRow(), family, CellUtils.FAMILY_DELETE_QUALIFIER,
                     tx.getWriteTimestamp()));
 

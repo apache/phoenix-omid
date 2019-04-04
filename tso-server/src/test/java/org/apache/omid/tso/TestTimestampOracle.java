@@ -63,7 +63,7 @@ public class TestTimestampOracle {
         MockitoAnnotations.initMocks(this);
     }
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 60_000)
     public void testMonotonicTimestampGrowth() throws Exception {
 
         // Intialize component under test
