@@ -168,7 +168,7 @@ public class HBaseCommitTable implements CommitTable {
 
         @Override
         public ListenableFuture<Optional<CommitTimestamp>> getCommitTimestamp(long startTimestamp) {
-
+            startTimestamp = removeCheckpointBits(startTimestamp);
             SettableFuture<Optional<CommitTimestamp>> f = SettableFuture.create();
             try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 Get get = new Get(startTimestampToKey(startTimestamp));
@@ -222,6 +222,7 @@ public class HBaseCommitTable implements CommitTable {
         // This function is only used to delete a CT entry and should be renamed
         @Override
         public ListenableFuture<Void> deleteCommitEntry(long startTimestamp) {
+            startTimestamp = removeCheckpointBits(startTimestamp);
             byte[] key;
             try {
                 key = startTimestampToKey(startTimestamp);
@@ -248,6 +249,7 @@ public class HBaseCommitTable implements CommitTable {
 
         @Override
         public ListenableFuture<Boolean> tryInvalidateTransaction(long startTimestamp) {
+            startTimestamp = removeCheckpointBits(startTimestamp);
             SettableFuture<Boolean> f = SettableFuture.create();
             try(Table table = hbaseConnection.getTable(TableName.valueOf(tableName))) {
                 byte[] row = startTimestampToKey(startTimestamp);
@@ -318,6 +320,9 @@ public class HBaseCommitTable implements CommitTable {
     // ----------------------------------------------------------------------------------------------------------------
     // Helper methods
     // ----------------------------------------------------------------------------------------------------------------
+    static long removeCheckpointBits(long startTimestamp) {
+        return startTimestamp - (startTimestamp % CommitTable.MAX_CHECKPOINTS_PER_TXN);
+    }
 
     private byte[] startTimestampToKey(long startTimestamp) throws IOException {
         return keygen.startTimestampToKey(startTimestamp);

@@ -287,7 +287,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
             CommitTimestamp ct = snapshotFilter.locateCellCommitTimestamp(tx1.getStartTimestamp(), tm.tsoClient.getEpoch(),
                     ctLocator, false);
             assertTrue(ct.isValid());
-            long expectedCommitTS = tx1.getStartTimestamp() + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+            long expectedCommitTS = tx1.getStartTimestamp() + CommitTable.MAX_CHECKPOINTS_PER_TXN;
             assertEquals(ct.getValue(), expectedCommitTS);
             assertTrue(ct.getLocation().compareTo(COMMIT_TABLE) == 0);
         }
@@ -331,7 +331,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
     @Test(timeOut = 30_000)
     public void testCellFromTransactionInPreviousEpochGetsInvalidComitTimestamp(ITestContext context) throws Exception {
 
-        final long CURRENT_EPOCH_FAKE = 1000L * AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        final long CURRENT_EPOCH_FAKE = 1000L * CommitTable.MAX_CHECKPOINTS_PER_TXN;
 
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
         AbstractTransactionManager tm = spy((AbstractTransactionManager) newTransactionManager(context, commitTableClient));

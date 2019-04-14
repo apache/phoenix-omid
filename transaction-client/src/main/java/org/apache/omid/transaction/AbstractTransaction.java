@@ -19,6 +19,7 @@ package org.apache.omid.transaction;
 
 import com.google.common.base.Optional;
 
+import org.apache.omid.committable.CommitTable;
 import org.apache.omid.tso.client.CellId;
 
 import java.util.ArrayList;
@@ -182,8 +183,8 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
         setVisibilityLevel(VisibilityLevel.SNAPSHOT_EXCLUDE_CURRENT);
         this.readTimestamp = this.writeTimestamp++;
 
-        if (this.writeTimestamp % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN == 0) {
-            throw new TransactionException("Error: number of checkpoing cannot exceed " + (AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1));
+        if (this.writeTimestamp % CommitTable.MAX_CHECKPOINTS_PER_TXN == 0) {
+            throw new TransactionException("Error: number of checkpoing cannot exceed " + (CommitTable.MAX_CHECKPOINTS_PER_TXN - 1));
         }
     }
 

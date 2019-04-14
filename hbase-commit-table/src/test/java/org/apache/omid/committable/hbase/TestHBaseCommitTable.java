@@ -143,11 +143,11 @@ public class TestHBaseCommitTable {
         assertEquals(rowCount(TABLE_NAME, commitTableFamily), 0, "Rows should be 0!");
 
         // Test the successful creation of 1000 txs in the table
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1000; i+=CommitTable.MAX_CHECKPOINTS_PER_TXN) {
             writer.addCommittedTransaction(i, i + 1);
         }
         writer.flush();
-        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 1000, "Rows should be 1000!");
+        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 1000/CommitTable.MAX_CHECKPOINTS_PER_TXN, "Rows should be 1000!");
 
         // Test the we get the right commit timestamps for each previously inserted tx
         for (long i = 0; i < 1000; i++) {
@@ -155,13 +155,14 @@ public class TestHBaseCommitTable {
             assertTrue(commitTimestamp.isPresent());
             assertTrue(commitTimestamp.get().isValid());
             long ct = commitTimestamp.get().getValue();
-            assertEquals(ct, (i + 1), "Commit timestamp should be " + (i + 1));
+            long expected = i - (i % CommitTable.MAX_CHECKPOINTS_PER_TXN) + 1;
+            assertEquals(ct, expected, "Commit timestamp should be " + expected);
         }
-        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 1000, "Rows should be 1000!");
+        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 1000/CommitTable.MAX_CHECKPOINTS_PER_TXN, "Rows should be 1000!");
 
         // Test the successful deletion of the 1000 txs
         Future<Void> f;
-        for (long i = 0; i < 1000; i++) {
+        for (long i = 0; i < 1000; i+=CommitTable.MAX_CHECKPOINTS_PER_TXN) {
             f = client.deleteCommitEntry(i);
             f.get();
         }
@@ -193,14 +194,59 @@ public class TestHBaseCommitTable {
 
     }
 
+
+    @Test(timeOut = 30_000)
+    public void testCheckpoints() throws Throwable {
+        HBaseCommitTableConfig config = new HBaseCommitTableConfig();
+        config.setTableName(TEST_TABLE);
+        HBaseCommitTable commitTable = new HBaseCommitTable(connection, config);
+
+        Writer writer = commitTable.getWriter();
+        Client client = commitTable.getClient();
+
+        // Test that the first time the table is empty
+        assertEquals(rowCount(TABLE_NAME, commitTableFamily), 0, "Rows should be 0!");
+
+        long st = 0;
+        long ct = 1;
+
+        // Add a single commit that may represent many checkpoints
+        writer.addCommittedTransaction(st, ct);
+        writer.flush();
+
+        for (int i=0; i<CommitTable.MAX_CHECKPOINTS_PER_TXN;++i) {
+            Optional<CommitTimestamp> commitTimestamp = client.getCommitTimestamp(i).get();
+            assertTrue(commitTimestamp.isPresent());
+            assertTrue(commitTimestamp.get().isValid());
+            assertEquals(ct, commitTimestamp.get().getValue());
+        }
+
+        // try invalidate based on start timestamp from a checkpoint
+        assertFalse(client.tryInvalidateTransaction(st + 1).get());
+
+        long st2 = 100;
+        long ct2 = 101;
+
+        // now invalidate a not committed transaction and then commit
+        assertTrue(client.tryInvalidateTransaction(st2 + 1).get());
+        assertFalse(writer.atomicAddCommittedTransaction(st2, ct2));
+
+        //test delete
+        client.deleteCommitEntry(st2 + 1).get();
+        //now committing should work
+        assertTrue(writer.atomicAddCommittedTransaction(st2, ct2));
+    }
+
+
+
     @Test(timeOut = 30_000)
     public void testTransactionInvalidation() throws Throwable {
 
         // Prepare test
-        final int TX1_ST = 1;
-        final int TX1_CT = 2;
-        final int TX2_ST = 11;
-        final int TX2_CT = 12;
+        final int TX1_ST = 0;
+        final int TX1_CT = TX1_ST + 1;
+        final int TX2_ST = 0 + CommitTable.MAX_CHECKPOINTS_PER_TXN;
+        final int TX2_CT = TX2_ST + 1;
 
         HBaseCommitTableConfig config = new HBaseCommitTableConfig();
         config.setTableName(TEST_TABLE);

@@ -514,7 +514,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
 
     public boolean isCommitted(HBaseCellId hBaseCellId, long epoch, boolean isLowLatency) throws TransactionException {
         try {
-            long timestamp = hBaseCellId.getTimestamp() - (hBaseCellId.getTimestamp() % AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+            long timestamp = hBaseCellId.getTimestamp();
             CommitTimestamp tentativeCommitTimestamp =
                     locateCellCommitTimestamp(timestamp,
                             epoch,

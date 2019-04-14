@@ -20,12 +20,12 @@ package org.apache.omid.committable;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.io.Closeable;
 import java.io.IOException;
 
 public interface CommitTable {
 
     long INVALID_TRANSACTION_MARKER = -1L;
+    int MAX_CHECKPOINTS_PER_TXN = 50;
 
     Writer getWriter() throws IOException;
 

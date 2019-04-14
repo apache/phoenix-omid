@@ -25,7 +25,6 @@ import com.google.inject.Module;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.proto.TSOProto;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.apache.omid.tso.PausableTimestampOracle;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
@@ -359,7 +358,7 @@ public class TestTSOClientRequestAndResponseBehaviours {
         else {
             assertFalse(response.getCommitResponse().getAborted(), "Transaction should be committed");
             assertEquals(response.getCommitResponse().getCommitTimestamp(),
-                    tx1ST + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+                    tx1ST + CommitTable.MAX_CHECKPOINTS_PER_TXN);
         }
     }
 

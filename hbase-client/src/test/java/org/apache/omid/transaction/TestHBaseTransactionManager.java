@@ -31,6 +31,7 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
 import org.apache.omid.tso.client.TSOClient;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
@@ -52,7 +53,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
 
         TSOClient tsoClient = spy(getClient(context));
 
-        long fakeEpoch = tsoClient.getNewStartTimestamp().get() + (FAKE_EPOCH_INCREMENT * AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN);
+        long fakeEpoch = tsoClient.getNewStartTimestamp().get() + (FAKE_EPOCH_INCREMENT * CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Modify the epoch before testing the begin method
         doReturn(fakeEpoch).when(tsoClient).getEpoch();

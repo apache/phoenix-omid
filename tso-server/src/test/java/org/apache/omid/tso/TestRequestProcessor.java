@@ -20,9 +20,9 @@ package org.apache.omid.tso;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 
+import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.jboss.netty.channel.Channel;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
@@ -105,7 +105,7 @@ public class TestRequestProcessor {
         for (int i = 0; i < 100; i++) {
             requestProc.timestampRequest(null, new MonitoringContextImpl(metrics));
             verify(persist, timeout(100).times(1)).addTimestampToBatch(eq(firstTS), any(Channel.class), any(MonitoringContext.class));
-            firstTS += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+            firstTS += CommitTable.MAX_CHECKPOINTS_PER_TXN;
         }
 
     }
@@ -120,8 +120,8 @@ public class TestRequestProcessor {
         long firstTS = TScapture.getValue();
 
         List<Long> writeSet = Lists.newArrayList(1L, 20L, 203L);
-        requestProc.commitRequest(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
-        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN), any(Channel.class), any(MonitoringContext.class));
+        requestProc.commitRequest(firstTS - CommitTable.MAX_CHECKPOINTS_PER_TXN, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
+        verify(persist, timeout(100).times(1)).addAbortToBatch(eq(firstTS - CommitTable.MAX_CHECKPOINTS_PER_TXN), any(Channel.class), any(MonitoringContext.class));
 
         requestProc.commitRequest(firstTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> commitTScapture = ArgumentCaptor.forClass(Long.class);
@@ -186,8 +186,8 @@ public class TestRequestProcessor {
     public void testLowWatermarkIsStoredOnlyWhenACacheElementIsEvicted() throws Exception {
 
         final int ANY_START_TS = 1;
-        final long FIRST_COMMIT_TS_EVICTED = AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
-        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        final long FIRST_COMMIT_TS_EVICTED = CommitTable.MAX_CHECKPOINTS_PER_TXN;
+        final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + CommitTable.MAX_CHECKPOINTS_PER_TXN;
 
         // Fill the cache to provoke a cache eviction
         for (long i = 0; i < CONFLICT_MAP_SIZE + CONFLICT_MAP_ASSOCIATIVITY; i++) {

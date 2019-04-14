@@ -17,19 +17,36 @@
  */
 package org.apache.omid.transaction;
 
+import static org.apache.omid.transaction.CellUtils.hasCell;
+import static org.apache.omid.transaction.CellUtils.hasShadowCell;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.committable.CommitTable;
+import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
 import org.junit.Assert;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
@@ -343,7 +360,7 @@ public class TestCheckpoint extends OmidTestBase {
 
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
-        for (int i=0; i < AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN - 1; ++i) {
+        for (int i = 0; i < CommitTable.MAX_CHECKPOINTS_PER_TXN - 1; ++i) {
             hbaseTx1.checkpoint();
         }
 
@@ -354,5 +371,94 @@ public class TestCheckpoint extends OmidTestBase {
             // expected
         }
 
+    }
+
+
+    @Test(timeOut = 60_000)
+    public void testInMemoryCommitTableCheckpoints(ITestContext context) throws Exception {
+
+        final byte[] row = Bytes.toBytes("test-sc");
+        final byte[] family = Bytes.toBytes(TEST_FAMILY);
+        final byte[] qualifier = Bytes.toBytes("testdata");
+        final byte[] qualifier2 = Bytes.toBytes("testdata2");
+        final byte[] data1 = Bytes.toBytes("testWrite-");
+
+        final CountDownLatch beforeCTRemove = new CountDownLatch(1);
+        final CountDownLatch afterCommit = new CountDownLatch(1);
+        final CountDownLatch writerDone = new CountDownLatch(1);
+
+        final AtomicLong startTimestamp = new AtomicLong(0);
+        final AtomicLong commitTimestamp = new AtomicLong(0);
+        PostCommitActions syncPostCommitter =
+                spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), getCommitTable(context).getClient(), connection));
+        final AbstractTransactionManager tm = (AbstractTransactionManager) newTransactionManager(context, syncPostCommitter);
+
+        Table htable = connection.getTable(TableName.valueOf(TEST_TABLE));
+        SnapshotFilterImpl snapshotFilter = new SnapshotFilterImpl(new HTableAccessWrapper(htable, htable),
+                tm.getCommitTableClient());
+        final TTable table = new TTable(htable,snapshotFilter);
+
+
+        doAnswer(new Answer<ListenableFuture<Void>>() {
+            @Override
+            public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
+                afterCommit.countDown();
+                beforeCTRemove.await();
+                ListenableFuture<Void> result = (ListenableFuture<Void>) invocation.callRealMethod();
+                return result;
+            }
+        }).when(syncPostCommitter).removeCommitTableEntry(any(HBaseTransaction.class));
+
+
+        Thread writeThread = new Thread("WriteThread"){
+            @Override
+            public void run() {
+                try {
+
+                    HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
+                    Put put = new Put(row);
+                    put.addColumn(family, qualifier, data1);
+
+                    startTimestamp.set(tx1.getStartTimestamp());
+                    table.put(tx1, put);
+                    tx1.checkpoint();
+
+                    Put put2 = new Put(row);
+                    put2.addColumn(family, qualifier2, data1);
+                    table.put(tx1, put2);
+
+                    tm.commit(tx1);
+
+                    commitTimestamp.set(tx1.getCommitTimestamp());
+                    writerDone.countDown();
+                } catch (IOException | RollbackException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        writeThread.start();
+
+        afterCommit.await();
+
+        Optional<CommitTable.CommitTimestamp> ct1 = tm.getCommitTableClient().getCommitTimestamp(startTimestamp.get()).get();
+        Optional<CommitTable.CommitTimestamp> ct2 = tm.getCommitTableClient().getCommitTimestamp(startTimestamp.get() + 1).get();
+
+        beforeCTRemove.countDown();
+
+        writerDone.await();
+
+        assertEquals(commitTimestamp.get(), ct1.get().getValue());
+        assertEquals(commitTimestamp.get(), ct2.get().getValue());
+
+
+        assertTrue(hasCell(row, family, qualifier, startTimestamp.get(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        assertTrue(hasCell(row, family, qualifier2, startTimestamp.get()+1, new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        assertTrue(hasShadowCell(row, family, qualifier, startTimestamp.get(), new TTableCellGetterAdapter(table)),
+                "Cell should be there");
+        assertTrue(hasShadowCell(row, family, qualifier2, startTimestamp.get()+1, new TTableCellGetterAdapter(table)),
+                "Cell should be there");
     }
 }

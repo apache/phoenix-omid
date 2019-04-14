@@ -67,6 +67,7 @@ public class InMemoryCommitTable implements CommitTable {
 
         @Override
         public boolean atomicAddCommittedTransaction(long startTimestamp, long commitTimestamp) throws IOException {
+            startTimestamp = removeCheckpointBits(startTimestamp);
             // In this implementation, we use only one location that represents
             // both the value and the invalidation. Therefore, putIfAbsent is
             // required to make sure the entry was not invalidated.
@@ -77,6 +78,7 @@ public class InMemoryCommitTable implements CommitTable {
     public class Client implements CommitTable.Client {
         @Override
         public ListenableFuture<Optional<CommitTimestamp>> getCommitTimestamp(long startTimestamp) {
+            startTimestamp = removeCheckpointBits(startTimestamp);
             SettableFuture<Optional<CommitTimestamp>> f = SettableFuture.create();
             Long result = table.get(startTimestamp);
             if (result == null) {
@@ -100,6 +102,7 @@ public class InMemoryCommitTable implements CommitTable {
 
         @Override
         public ListenableFuture<Void> deleteCommitEntry(long startTimestamp) {
+            startTimestamp = removeCheckpointBits(startTimestamp);
             SettableFuture<Void> f = SettableFuture.create();
             table.remove(startTimestamp);
             f.set(null);
@@ -108,7 +111,7 @@ public class InMemoryCommitTable implements CommitTable {
 
         @Override
         public ListenableFuture<Boolean> tryInvalidateTransaction(long startTimestamp) {
-
+            startTimestamp = removeCheckpointBits(startTimestamp);
             SettableFuture<Boolean> f = SettableFuture.create();
             Long old = table.get(startTimestamp);
 
@@ -140,4 +143,7 @@ public class InMemoryCommitTable implements CommitTable {
         return table.size();
     }
 
+    static long removeCheckpointBits(long startTimestamp) {
+        return startTimestamp - (startTimestamp % CommitTable.MAX_CHECKPOINTS_PER_TXN);
+    }
 }

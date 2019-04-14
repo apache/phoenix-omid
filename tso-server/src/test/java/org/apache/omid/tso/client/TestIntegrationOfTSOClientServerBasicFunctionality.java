@@ -24,7 +24,6 @@ import com.google.inject.Module;
 
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
-import org.apache.omid.transaction.AbstractTransactionManager;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
@@ -125,20 +124,20 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         referenceTimestamp = startTsTx1;
 
         long startTsTx2 = tsoClient.getNewStartTimestamp().get();
-        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
         assertEquals(startTsTx2, referenceTimestamp, "Should grow monotonically");
         assertTrue(startTsTx2 > startTsTx1, "Two timestamps obtained consecutively should grow");
 
         long commitTsTx2 = tsoClient.commit(startTsTx2, Sets.newHashSet(c1)).get();
-        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
         assertEquals(commitTsTx2, referenceTimestamp, "Should grow monotonically");
 
         long commitTsTx1 = tsoClient.commit(startTsTx1, Sets.newHashSet(c2)).get();
-        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
         assertEquals(commitTsTx1, referenceTimestamp, "Should grow monotonically");
 
         long startTsTx3 = tsoClient.getNewStartTimestamp().get();
-        referenceTimestamp += AbstractTransactionManager.MAX_CHECKPOINTS_PER_TXN;
+        referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
         assertEquals(startTsTx3, referenceTimestamp, "Should grow monotonically");
     }
 
