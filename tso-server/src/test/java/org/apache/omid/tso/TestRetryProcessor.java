@@ -99,7 +99,7 @@ public class TestRetryProcessor {
 
         verify(replyProc, timeout(100).times(1)).sendCommitResponse(firstTSCapture.capture(),
                                                                     secondTSCapture.capture(),
-                                                                    any(Channel.class), any(MonitoringContextImpl.class));
+                                                                    any(Channel.class), any(MonitoringContextImpl.class), any(Optional.class));
 
         long startTS = firstTSCapture.getValue();
         long commitTS = secondTSCapture.getValue();

@@ -566,14 +566,14 @@ public class TestSnapshotFilter {
         Put put1 = new Put(rowName1);
         put1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, put1);
-        
+
         tm.commit(tx1);
 
         Transaction tx2 = tm.begin();
         Put put2 = new Put(rowName1);
         put2.addColumn(famName1, colName1, dataValue1);
         tt.put(tx2, put2);
-        
+
         Transaction tx3 = tm.begin();
 
         Get get = new Get(rowName1);

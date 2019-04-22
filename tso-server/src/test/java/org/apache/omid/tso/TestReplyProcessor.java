@@ -17,6 +17,8 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.SettableFuture;
 import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
@@ -35,12 +37,7 @@ import com.lmax.disruptor.BlockingWaitStrategy;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -65,6 +62,7 @@ public class TestReplyProcessor {
     private static final long FIFTH_ST = 8L;
     private static final long FIFTH_CT = 9L;
     private static final long SIXTH_ST = 10L;
+    private static final long SIXTH_CT = 11L;
 
     @Mock
     private Panicker panicker;
@@ -78,6 +76,7 @@ public class TestReplyProcessor {
 
     // Component under test
     private ReplyProcessorImpl replyProcessor;
+    private LowWatermarkWriter lowWatermarkWriter;
 
     @BeforeMethod(alwaysRun = true, timeOut = 30_000)
     public void initMocksAndComponents() throws Exception {
@@ -92,8 +91,13 @@ public class TestReplyProcessor {
 
         batchPool = spy(new BatchPoolModule(tsoConfig).getBatchPool());
 
-        replyProcessor = spy(new ReplyProcessorImpl(new BlockingWaitStrategy(), metrics, panicker, batchPool));
 
+        lowWatermarkWriter = mock(LowWatermarkWriter.class);
+        SettableFuture<Void> f = SettableFuture.create();
+        f.set(null);
+        doReturn(f).when(lowWatermarkWriter).persistLowWatermark(any(Long.class));
+
+        replyProcessor = spy(new ReplyProcessorImpl(new BlockingWaitStrategy(), metrics, panicker, batchPool, lowWatermarkWriter));
     }
 
     @AfterMethod
@@ -104,7 +108,7 @@ public class TestReplyProcessor {
     public void testBadFormedPackageThrowsException() throws Exception {
 
         // We need an instance throwing exceptions for this test
-        replyProcessor = spy(new ReplyProcessorImpl(new BlockingWaitStrategy(), metrics, new RuntimeExceptionPanicker(), batchPool));
+        replyProcessor = spy(new ReplyProcessorImpl(new BlockingWaitStrategy(), metrics, new RuntimeExceptionPanicker(), batchPool, lowWatermarkWriter));
 
         // Prepare test batch
         Batch batch = batchPool.borrowObject();
@@ -189,7 +193,7 @@ public class TestReplyProcessor {
         // Prepare first a delayed batch (Batch #3)
         Batch thirdBatch = batchPool.borrowObject();
         thirdBatch.addTimestamp(FIRST_ST, mock(Channel.class), monCtx);
-        thirdBatch.addCommit(SECOND_ST, SECOND_CT, mock(Channel.class), monCtx);
+        thirdBatch.addCommit(SECOND_ST, SECOND_CT, mock(Channel.class), monCtx, Optional.<Long>absent());
         ReplyBatchEvent thirdBatchEvent = ReplyBatchEvent.EVENT_FACTORY.newInstance();
         ReplyBatchEvent.makeReplyBatch(thirdBatchEvent, thirdBatch, 2); // Set a higher sequence than the initial one
 
@@ -210,7 +214,7 @@ public class TestReplyProcessor {
         // Prepare another delayed batch (Batch #2)
         Batch secondBatch = batchPool.borrowObject();
         secondBatch.addTimestamp(THIRD_ST, mock(Channel.class), monCtx);
-        secondBatch.addCommit(FOURTH_ST, FOURTH_CT, mock(Channel.class), monCtx);
+        secondBatch.addCommit(FOURTH_ST, FOURTH_CT, mock(Channel.class), monCtx, Optional.<Long>absent());
         ReplyBatchEvent secondBatchEvent = ReplyBatchEvent.EVENT_FACTORY.newInstance();
         ReplyBatchEvent.makeReplyBatch(secondBatchEvent, secondBatch, 1); // Set another higher sequence
 
@@ -249,9 +253,41 @@ public class TestReplyProcessor {
         InOrder inOrderReplies = inOrder(replyProcessor, replyProcessor, replyProcessor, replyProcessor, replyProcessor);
         inOrderReplies.verify(replyProcessor, times(1)).sendAbortResponse(eq(FIFTH_ST), any(Channel.class), eq(monCtx));
         inOrderReplies.verify(replyProcessor, times(1)).sendTimestampResponse(eq(THIRD_ST), any(Channel.class), eq(monCtx));
-        inOrderReplies.verify(replyProcessor, times(1)).sendCommitResponse(eq(FOURTH_ST), eq(FOURTH_CT), any(Channel.class), eq(monCtx));
+        inOrderReplies.verify(replyProcessor, times(1)).sendCommitResponse(eq(FOURTH_ST), eq(FOURTH_CT), any(Channel.class), eq(monCtx), any(Optional.class));
         inOrderReplies.verify(replyProcessor, times(1)).sendTimestampResponse(eq(FIRST_ST), any(Channel.class), eq(monCtx));
-        inOrderReplies.verify(replyProcessor, times(1)).sendCommitResponse(eq(SECOND_ST), eq(SECOND_CT), any(Channel.class), eq(monCtx));
+        inOrderReplies.verify(replyProcessor, times(1)).sendCommitResponse(eq(SECOND_ST), eq(SECOND_CT), any(Channel.class), eq(monCtx), any(Optional.class));
+
+    }
+
+    @Test
+    public void testUpdateLowWaterMarkOnlyForMaxInBatch() throws Exception {
+
+        Batch thirdBatch = batchPool.borrowObject();
+        thirdBatch.addTimestamp(FIRST_ST, mock(Channel.class), monCtx);
+        thirdBatch.addCommit(SECOND_ST, SECOND_CT, mock(Channel.class), monCtx, Optional.of(100L));
+        thirdBatch.addCommit(THIRD_ST, THIRD_CT, mock(Channel.class), monCtx, Optional.of(50L));
+        thirdBatch.addCommit(FOURTH_ST, FOURTH_CT, mock(Channel.class), monCtx, Optional.<Long>absent());
+        thirdBatch.addCommit(FIFTH_ST, FIFTH_CT, mock(Channel.class), monCtx, Optional.of(100L));
+        thirdBatch.addCommit(SIXTH_ST, SIXTH_CT, mock(Channel.class), monCtx, Optional.of(150L));
+
+        ReplyBatchEvent thirdBatchEvent = ReplyBatchEvent.EVENT_FACTORY.newInstance();
+        ReplyBatchEvent.makeReplyBatch(thirdBatchEvent, thirdBatch, 0);
+
+        replyProcessor.onEvent(thirdBatchEvent, ANY_DISRUPTOR_SEQUENCE, false);
+
+        InOrder inOrderWatermarkWriter = inOrder(lowWatermarkWriter, lowWatermarkWriter, lowWatermarkWriter);
+
+        inOrderWatermarkWriter.verify(lowWatermarkWriter, times(1)).persistLowWatermark(eq(100L));
+        inOrderWatermarkWriter.verify(lowWatermarkWriter, times(1)).persistLowWatermark(eq(150L));
+
+        verify(lowWatermarkWriter, timeout(100).never()).persistLowWatermark(eq(50L));
+
+        InOrder inOrderCheckLWM = inOrder(replyProcessor, replyProcessor,replyProcessor,replyProcessor,replyProcessor);
+        inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.of(100L));
+        inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.of(50L));
+        inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.<Long>absent());
+        inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.of(100L));
+        inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.of(150L));
 
     }
 

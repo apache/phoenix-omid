@@ -19,6 +19,7 @@ package org.apache.omid.tso;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import com.lmax.disruptor.EventFactory;
@@ -110,10 +111,11 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
     }
 
     @Override
-    public void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
+    public void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx,
+                                 Optional<Long> newLowWatermark)
             throws Exception {
 
-        currentBatch.addCommit(startTimestamp, commitTimestamp, c, monCtx);
+        currentBatch.addCommit(startTimestamp, commitTimestamp, c, monCtx, newLowWatermark);
         if (currentBatch.isFull()) {
             triggerCurrentBatchFlush();
         }

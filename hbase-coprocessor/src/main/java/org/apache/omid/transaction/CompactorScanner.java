@@ -228,41 +228,89 @@ public class CompactorScanner implements InternalScanner {
         }
     }
 
-    private Optional<CommitTimestamp> queryCommitTimestamp(Cell cell) throws IOException {
-        Optional<CommitTimestamp> cachedValue = commitCache.get(cell.getTimestamp());
-        if (cachedValue != null) {
-            return cachedValue;
-        }
+
+    private Result getShadowCell(byte[] row, byte[] family, byte[] qualifier, long timestamp) throws IOException {
+        Get g = new Get(row);
+        g.addColumn(family, qualifier);
+        g.setTimeStamp(timestamp);
+        Result r = hRegion.get(g);
+        return r;
+    }
+
+
+    private Optional<CommitTimestamp> getCommitTimestampWithRaces(Cell cell) throws IOException {
         try {
+            byte[] family = CellUtil.cloneFamily(cell);
+            byte[] qualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
+                    cell.getQualifierOffset(),
+                    cell.getQualifierLength());
+            // 2) Then check the commit table
             Optional<CommitTimestamp> ct = commitTableClient.getCommitTimestamp(cell.getTimestamp()).get();
             if (ct.isPresent()) {
-                commitCache.put(cell.getTimestamp(), ct);
-                return Optional.of(ct.get());
-            } else {
-                Get g = new Get(CellUtil.cloneRow(cell));
-                byte[] family = CellUtil.cloneFamily(cell);
-                byte[] qualifier = CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
-                        cell.getQualifierOffset(),
-                        cell.getQualifierLength());
-                g.addColumn(family, qualifier);
-                g.setTimeStamp(cell.getTimestamp());
-                Result r = hRegion.get(g);
-                if (r.containsColumn(family, qualifier)) {
-                    Optional<CommitTimestamp> retval = Optional.of(new CommitTimestamp(SHADOW_CELL,
-                            Bytes.toLong(r.getValue(family, qualifier)), true));
-                    commitCache.put(cell.getTimestamp(), retval);
-                    return retval;
-
+                if (ct.get().isValid()) {
+                    return Optional.of(ct.get());
                 }
+                // If invalid still should check sc because maybe we got falsely invalidated by another compaction or ll client
             }
+
+            // 3) Read from shadow cell
+            Result r = getShadowCell(CellUtil.cloneRow(cell), family, qualifier, cell.getTimestamp());
+            if (r.containsColumn(CellUtil.cloneFamily(cell), qualifier)) {
+                Optional<CommitTimestamp> retval = Optional.of(new CommitTimestamp(SHADOW_CELL,
+                        Bytes.toLong(r.getValue(family, qualifier)), true));
+                return retval;
+            }
+
+            // [OMID-146] - we have to invalidate a transaction if it hasn't reached the commit table
+            // 4) invalidate the entry
+            Boolean invalidated = commitTableClient.tryInvalidateTransaction(cell.getTimestamp()).get();
+            if (invalidated) {
+                // If we are running lowLatency Omid, we could have managed to invalidate a ct entry,
+                // but the committing client already wrote to shadow cells:
+                Result r2 = getShadowCell(CellUtil.cloneRow(cell), family, qualifier, cell.getTimestamp());
+                if (r2.containsColumn(CellUtil.cloneFamily(cell), qualifier)) {
+                    Optional<CommitTimestamp> retval = Optional.of(new CommitTimestamp(SHADOW_CELL,
+                            Bytes.toLong(r2.getValue(family, qualifier)), true));
+                    commitTableClient.deleteCommitEntry(cell.getTimestamp());
+                    return retval;
+                }
+                return Optional.absent();
+            }
+
+            // 5) We did not manage to invalidate the transactions then check the commit table
+            Optional<CommitTimestamp> ct2 = commitTableClient.getCommitTimestamp(cell.getTimestamp()).get();
+            if (ct2.isPresent()) {
+                return Optional.of(ct2.get());
+            }
+
+            // 6) Read from shadow cell
+            Result r2 = getShadowCell(CellUtil.cloneRow(cell), family, qualifier, cell.getTimestamp());
+            if (r2.containsColumn(CellUtil.cloneFamily(cell), qualifier)) {
+                Optional<CommitTimestamp> retval = Optional.of(new CommitTimestamp(SHADOW_CELL,
+                        Bytes.toLong(r2.getValue(family, qualifier)), true));
+                return retval;
+            }
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while getting commit timestamp from commit table");
         } catch (ExecutionException e) {
             throw new IOException("Error getting commit timestamp from commit table", e);
         }
-        commitCache.put(cell.getTimestamp(), Optional.<CommitTimestamp>absent());
+
         return Optional.absent();
+    }
+
+    private Optional<CommitTimestamp> queryCommitTimestamp(Cell cell) throws IOException {
+
+        // 1) First check the cache
+        Optional<CommitTimestamp> cachedValue = commitCache.get(cell.getTimestamp());
+        if (cachedValue != null) {
+            return cachedValue;
+        }
+        Optional<CommitTimestamp> value = getCommitTimestampWithRaces(cell);
+        commitCache.put(cell.getTimestamp(), value);
+        return value;
     }
 
     private void retain(List<Cell> result, Cell cell, Optional<Cell> shadowCell) {

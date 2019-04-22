@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import org.apache.commons.pool2.PooledObject;
 import org.jboss.netty.channel.Channel;
 import org.mockito.Mock;
@@ -80,7 +81,7 @@ public class TestBatch {
             if (i % 4 == 0) {
                 batch.addTimestamp(ANY_ST, channel, monCtx);
             } else if (i % 4 == 1) {
-                batch.addCommit(ANY_ST, ANY_CT, channel, monCtx);
+                batch.addCommit(ANY_ST, ANY_CT, channel, monCtx, Optional.<Long>absent());
             } else if (i % 4 == 2) {
                 batch.addCommitRetry(ANY_ST, channel, monCtx);
             } else {
@@ -93,7 +94,7 @@ public class TestBatch {
 
         // Test an exception is thrown when batch is full and a new element is going to be added
         try {
-            batch.addCommit(ANY_ST, ANY_CT, channel, monCtx);
+            batch.addCommit(ANY_ST, ANY_CT, channel, monCtx, Optional.<Long>absent());
             fail("Should throw an IllegalStateException");
         } catch (IllegalStateException e) {
             assertEquals(e.getMessage(), "batch is full", "message returned doesn't match");
@@ -146,7 +147,7 @@ public class TestBatch {
 
         // Put some elements in the batch...
         batch.addTimestamp(ANY_ST, channel, monCtx);
-        batch.addCommit(ANY_ST, ANY_CT, channel, monCtx);
+        batch.addCommit(ANY_ST, ANY_CT, channel, monCtx, Optional.<Long>absent());
         batch.addCommitRetry(ANY_ST, channel, monCtx);
         batch.addAbort(ANY_ST, channel, monCtx);
         assertFalse(batch.isEmpty(), "Batch should contain elements");

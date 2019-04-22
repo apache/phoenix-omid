@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 
@@ -126,7 +127,7 @@ public class TestRequestProcessor {
         requestProc.commitRequest(firstTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> commitTScapture = ArgumentCaptor.forClass(Long.class);
 
-        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(firstTS), commitTScapture.capture(), any(Channel.class), any(MonitoringContext.class));
+        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(firstTS), commitTScapture.capture(), any(Channel.class), any(MonitoringContext.class), any(Optional.class));
         assertTrue(commitTScapture.getValue() > firstTS, "Commit TS must be greater than start TS");
 
         // test conflict
@@ -143,14 +144,14 @@ public class TestRequestProcessor {
         long thirdTS = TScapture.getValue();
 
         requestProc.commitRequest(thirdTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
-        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(thirdTS), anyLong(), any(Channel.class), any(MonitoringContextImpl.class));
+        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(thirdTS), anyLong(), any(Channel.class), any(MonitoringContextImpl.class), any(Optional.class));
         requestProc.commitRequest(secondTS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
         verify(persist, timeout(100).times(1)).addAbortToBatch(eq(secondTS), any(Channel.class), any(MonitoringContextImpl.class));
 
     }
 
     @Test(timeOut = 30_000)
-    public void testFence() throws Exception {
+    public void testFence() {
 
         requestProc.fenceRequest(666L, null, new MonitoringContextImpl(metrics));
         ArgumentCaptor<Long> firstTScapture = ArgumentCaptor.forClass(Long.class);
@@ -182,10 +183,9 @@ public class TestRequestProcessor {
 
     }
 
-    @Test(timeOut = 5_000)
-    public void testLowWatermarkIsStoredOnlyWhenACacheElementIsEvicted() throws Exception {
-
-        final int ANY_START_TS = 1;
+    @Test(timeOut=5_000)
+    public void testLowWaterIsForwardedWhenACacheElementIsEvicted() throws Exception {
+        final long ANY_START_TS = 1;
         final long FIRST_COMMIT_TS_EVICTED = CommitTable.MAX_CHECKPOINTS_PER_TXN;
         final long NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED = FIRST_COMMIT_TS_EVICTED + CommitTable.MAX_CHECKPOINTS_PER_TXN;
 
@@ -196,15 +196,15 @@ public class TestRequestProcessor {
             requestProc.commitRequest(ANY_START_TS, writeSet, new ArrayList<Long>(0), false, null, new MonitoringContextImpl(metrics));
         }
 
-        Thread.currentThread().sleep(3000); // Allow the Request processor to finish the request processing
+        Thread.sleep(3000); // Allow the Request processor to finish the request processing
 
         // Check that first time its called is on init
         verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(0L));
         // Then, check it is called when cache is full and the first element is evicted (should be a AbstractTransactionManager.NUM_OF_CHECKPOINTS)
-        verify(lowWatermarkWriter, timeout(100).times(1)).persistLowWatermark(eq(FIRST_COMMIT_TS_EVICTED));
+        verify(persist, timeout(100).times(1)).addCommitToBatch(eq(ANY_START_TS), anyLong(), any(Channel.class), any(MonitoringContextImpl.class), eq(Optional.of(FIRST_COMMIT_TS_EVICTED)));
         // Finally it should never be called with the next element
-        verify(lowWatermarkWriter, timeout(100).never()).persistLowWatermark(eq(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED));
+        verify(persist, timeout(100).never()).addCommitToBatch(eq(ANY_START_TS), anyLong(), any(Channel.class), any(MonitoringContextImpl.class), eq(Optional.of(NEXT_COMMIT_TS_THAT_SHOULD_BE_EVICTED)));
+
 
     }
-
 }

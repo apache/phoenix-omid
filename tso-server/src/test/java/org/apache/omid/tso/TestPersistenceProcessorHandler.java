@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
@@ -197,7 +198,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
         persistenceHandler.onEvent(batchEvent);
@@ -256,7 +257,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
@@ -286,7 +287,7 @@ public class TestPersistenceProcessorHandler {
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
         batch.addCommitRetry(FIRST_ST, null, mock(MonitoringContextImpl.class));
-        batch.addCommit(SECOND_ST, SECOND_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(SECOND_ST, SECOND_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -366,9 +367,9 @@ public class TestPersistenceProcessorHandler {
 
         batch.addTimestamp(FIRST_ST, null, mock(MonitoringContextImpl.class));
         batch.addCommitRetry(SECOND_ST, null, mock(MonitoringContextImpl.class));
-        batch.addCommit(THIRD_ST, THIRD_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(THIRD_ST, THIRD_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         batch.addAbort(FOURTH_ST, null, mock(MonitoringContextImpl.class));
-        batch.addCommit(FIFTH_ST, FIFTH_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIFTH_ST, FIFTH_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         batch.addCommitRetry(SIXTH_ST, null, mock(MonitoringContextImpl.class));
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
@@ -408,7 +409,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -450,7 +451,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         Batch batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         PersistBatchEvent batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 
@@ -485,7 +486,7 @@ public class TestPersistenceProcessorHandler {
 
         // Prepare test batch
         batch = new Batch(BATCH_ID, BATCH_SIZE);
-        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class));
+        batch.addCommit(FIRST_ST, FIRST_CT, null, mock(MonitoringContextImpl.class), Optional.<Long>absent());
         batchEvent = new PersistBatchEvent();
         PersistBatchEvent.makePersistBatch(batchEvent, BATCH_SEQUENCE, batch);
 

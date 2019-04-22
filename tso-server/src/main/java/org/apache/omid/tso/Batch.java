@@ -18,6 +18,7 @@
 package org.apache.omid.tso;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
@@ -113,13 +114,13 @@ public class Batch {
 
     }
 
-    void addCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext context) {
+    void addCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext context, Optional<Long> newLowWatermark) {
 
         Preconditions.checkState(!isFull(), "batch is full");
         int index = numEvents++;
         PersistEvent e = events[index];
         context.timerStart("persistence.processor.commit.latency");
-        e.makePersistCommit(startTimestamp, commitTimestamp, c, context);
+        e.makePersistCommit(startTimestamp, commitTimestamp, newLowWatermark, c, context);
 
     }
 
