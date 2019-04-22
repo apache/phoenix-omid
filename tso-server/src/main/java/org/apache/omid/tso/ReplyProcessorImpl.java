@@ -18,6 +18,7 @@
 package org.apache.omid.tso;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -69,9 +70,16 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
     private final Meter timestampMeter;
     private final Meter fenceMeter;
 
+    private final LowWatermarkWriter lowWatermarkWriter;
+    private long highestLowWaterMarkSeen;
+
     @Inject
     ReplyProcessorImpl(@Named("ReplyStrategy") WaitStrategy strategy,
-            MetricsRegistry metrics, Panicker panicker, ObjectPool<Batch> batchPool) {
+                       MetricsRegistry metrics,
+                       Panicker panicker,
+                       ObjectPool<Batch> batchPool,
+                       LowWatermarkWriter lowWatermarkWriter) {
+        this.lowWatermarkWriter = lowWatermarkWriter;
 
         // ------------------------------------------------------------------------------------------------------------
         // Disruptor initialization
@@ -105,6 +113,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
 
         LOG.info("ReplyProcessor initialized");
 
+        highestLowWaterMarkSeen = -1;
     }
 
     @VisibleForTesting
@@ -116,7 +125,11 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
 
             switch (event.getType()) {
                 case COMMIT:
-                    sendCommitResponse(event.getStartTimestamp(), event.getCommitTimestamp(), event.getChannel(), event.getMonCtx());
+                    sendCommitResponse(event.getStartTimestamp(),
+                            event.getCommitTimestamp(),
+                            event.getChannel(),
+                            event.getMonCtx(),
+                            event.getNewLowWatermark());
                     break;
                 case ABORT:
                     sendAbortResponse(event.getStartTimestamp(), event.getChannel(), event.getMonCtx());
@@ -136,7 +149,6 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
         }
 
         batchPool.returnObject(batch);
-
     }
 
     private void processWaitingEvents() throws Exception {
@@ -180,9 +192,18 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
 
     }
 
-    @Override
-    public void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) {
+    @VisibleForTesting
+    void updateLowWatermark(Optional<Long> newLowwatermark) {
+        if (newLowwatermark.isPresent() && newLowwatermark.get() > highestLowWaterMarkSeen) {
+            highestLowWaterMarkSeen = newLowwatermark.get();
+            lowWatermarkWriter.persistLowWatermark(highestLowWaterMarkSeen);
+        }
+    }
 
+    @Override
+    public void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx
+            , Optional<Long> newLowWatermark) {
+        updateLowWatermark(newLowWatermark);
         TSOProto.Response.Builder builder = TSOProto.Response.newBuilder();
         TSOProto.CommitResponse.Builder commitBuilder = TSOProto.CommitResponse.newBuilder();
         commitBuilder.setAborted(false)

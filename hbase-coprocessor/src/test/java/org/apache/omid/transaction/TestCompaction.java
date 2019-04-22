@@ -1462,6 +1462,33 @@ public class TestCompaction {
                    "Put shadow cell shouldn't be there");
     }
 
+    @Test(timeOut = 60_000)
+    public void testCommitTableNoInvalidation() throws Exception {
+        String TEST_TABLE = "testCommitTableInvalidation";
+        createTableIfNotExists(TEST_TABLE, Bytes.toBytes(TEST_FAMILY));
+        TTable txTable = new TTable(connection, TEST_TABLE);
+        byte[] rowId = Bytes.toBytes("row");
+
+        HBaseTransaction tx1 = (HBaseTransaction) tm.begin();
+        Put p = new Put(rowId);
+        p.addColumn(fam, qual, Bytes.toBytes("testValue"));
+        txTable.put(tx1, p);
+
+        HBaseTransaction lwmTx = (HBaseTransaction) tm.begin();
+        compactWithLWM(lwmTx.getStartTimestamp(), TEST_TABLE);
+
+        try {
+            //give compaction time to invalidate
+            Thread.sleep(1000);
+
+            tm.commit(tx1);
+
+        } catch (RollbackException e) {
+            fail(" Should have not been invalidated");
+        }
+    }
+
+
     private void setCompactorLWM(long lwm, String tableName) throws Exception {
         OmidCompactor omidCompactor = (OmidCompactor) hbaseCluster.getRegions(Bytes.toBytes(tableName)).get(0)
                 .getCoprocessorHost().findCoprocessor(OmidCompactor.class.getName());

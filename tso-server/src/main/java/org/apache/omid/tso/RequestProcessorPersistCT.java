@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.jboss.netty.channel.Channel;
@@ -42,8 +43,9 @@ public class RequestProcessorPersistCT extends AbstractRequestProcessor {
     }
 
     @Override
-    public void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
-        persistenceProcessor.addCommitToBatch(startTimestamp,commitTimestamp,c,monCtx);
+    public void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx,
+                              Optional<Long> lowWatermark) throws Exception {
+        persistenceProcessor.addCommitToBatch(startTimestamp,commitTimestamp,c,monCtx , lowWatermark);
     }
 
     @Override

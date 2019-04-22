@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
@@ -234,7 +235,7 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
             !hasConflictsWithCommittedTransactions(startTimestamp, writeSet)) {
 
             long commitTimestamp = timestampOracle.next();
-
+            Optional<Long> forwardNewWaterMark = Optional.absent();
             if (nonEmptyWriteSet) {
                 long newLowWatermark = lowWatermark;
 
@@ -246,11 +247,11 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
                 if (newLowWatermark != lowWatermark) {
                     LOG.trace("Setting new low Watermark to {}", newLowWatermark);
                     lowWatermark = newLowWatermark;
-                    lowWatermarkWriter.persistLowWatermark(newLowWatermark); // Async persist
+                    forwardNewWaterMark = Optional.of(lowWatermark);
                 }
             }
             event.getMonCtx().timerStop("request.processor.commit.latency");
-            forwardCommit(startTimestamp, commitTimestamp, c, event.getMonCtx());
+            forwardCommit(startTimestamp, commitTimestamp, c, event.getMonCtx(), forwardNewWaterMark);
 
         } else {
 
@@ -296,7 +297,7 @@ abstract class AbstractRequestProcessor implements EventHandler<AbstractRequestP
 
     }
 
-    protected abstract void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
+    protected abstract void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx, Optional<Long> lowWatermark) throws Exception;
     protected abstract void forwardCommitRetry(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
     protected abstract void forwardAbort(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;
     protected abstract void forwardTimestamp(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;

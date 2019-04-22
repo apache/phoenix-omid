@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import org.jboss.netty.channel.Channel;
 
 import java.io.IOException;
@@ -24,8 +25,8 @@ import java.io.IOException;
 public class PersitenceProcessorNullImpl implements PersistenceProcessor {
 
     @Override
-    public void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
-
+    public void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx, Optional<Long> lowWatermark) throws Exception {
+        System.out.println("a");
     }
 
     @Override
@@ -40,7 +41,7 @@ public class PersitenceProcessorNullImpl implements PersistenceProcessor {
 
     @Override
     public void addTimestampToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception {
-
+        System.out.println("a");
     }
 
     @Override

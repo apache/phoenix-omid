@@ -17,13 +17,14 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import org.jboss.netty.channel.Channel;
 
 import java.io.Closeable;
 
 interface PersistenceProcessor extends Closeable {
 
-    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx)
+    void addCommitToBatch(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx, Optional<Long> lowWatermark)
             throws Exception;
 
     void addCommitRetryToBatch(long startTimestamp, Channel c, MonitoringContext monCtx) throws Exception;

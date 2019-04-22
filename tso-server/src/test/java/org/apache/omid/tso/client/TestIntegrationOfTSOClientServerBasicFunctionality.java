@@ -18,12 +18,15 @@
 package org.apache.omid.tso.client;
 
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
+import org.apache.omid.tso.LowWatermarkWriter;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
@@ -39,6 +42,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -60,6 +65,7 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
     private TSOClient tsoClient;
     private TSOClient justAnotherTSOClient;
     private CommitTable.Client commitTableClient;
+    private LowWatermarkWriter lowWatermarkWriter;
 
     @BeforeClass
     public void setup() throws Exception {
@@ -71,6 +77,8 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         tsoConfig.setPort(tsoServerPortForTest);
         Module tsoServerMockModule = new TSOMockModule(tsoConfig);
         Injector injector = Guice.createInjector(tsoServerMockModule);
+
+        lowWatermarkWriter = injector.getInstance(LowWatermarkWriter.class);
 
         CommitTable commitTable = injector.getInstance(CommitTable.class);
         commitTableClient = commitTable.getClient();
@@ -286,6 +294,26 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
             commitTSTx1 = commitTableClient.getCommitTimestamp(startTsTx1Client1).get().get().getValue();
         assertTrue(commitTSTx1 > startTsTx2Client1, "Tx1 committed after Tx2 started");
         assertTrue(commitTSTx1 < startTsTx4Client2, "Tx1 committed before Tx4 started on the other TSO Client");
+    }
+
+    @Test(timeOut = 30_000)
+    public void testLowWaterMarksgetAdvanced() throws ExecutionException, InterruptedException {
+
+        long startTsTx1Client1 = tsoClient.getNewStartTimestamp().get();
+        HashSet<DummyCellIdImpl> ws = new HashSet<>();
+        for (int i=0; i< 1000*32; ++i) {
+            ws.add(new DummyCellIdImpl(i));
+        }
+
+        Long beforeCommitLWM = commitTableClient.readLowWatermark().get();
+
+        Long commitTSTx1 = tsoClient.commit(startTsTx1Client1, ws).get();
+
+        Thread.sleep(300);
+
+        Long afterCommitLWM = commitTableClient.readLowWatermark().get();
+
+        assert(afterCommitLWM > beforeCommitLWM);
     }
 
 }

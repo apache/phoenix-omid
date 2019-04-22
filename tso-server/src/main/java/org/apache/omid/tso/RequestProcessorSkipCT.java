@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.jboss.netty.channel.Channel;
@@ -56,10 +57,10 @@ public class RequestProcessorSkipCT extends AbstractRequestProcessor {
     }
 
     @Override
-    public void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) {
+    public void forwardCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx, Optional<Long> newLowWatermark) {
         commitSuicideIfNotMaster();
         monCtx.timerStart("reply.processor.commit.latency");
-        replyProcessor.sendCommitResponse(startTimestamp, commitTimestamp, c, monCtx);
+        replyProcessor.sendCommitResponse(startTimestamp, commitTimestamp, c, monCtx, newLowWatermark);
     }
 
     @Override

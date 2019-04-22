@@ -18,6 +18,7 @@
 package org.apache.omid.tso;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import org.jboss.netty.channel.Channel;
 
 public final class PersistEvent {
@@ -33,15 +34,16 @@ public final class PersistEvent {
 
     private long startTimestamp = 0L;
     private long commitTimestamp = 0L;
+    private Optional<Long> newLowWatermark;
 
-    void makePersistCommit(long startTimestamp, long commitTimestamp, Channel c, MonitoringContext monCtx) {
+    void makePersistCommit(long startTimestamp, long commitTimestamp, Optional<Long> newLowWatermark, Channel c, MonitoringContext monCtx) {
 
         this.type = Type.COMMIT;
         this.startTimestamp = startTimestamp;
         this.commitTimestamp = commitTimestamp;
         this.channel = c;
         this.monCtx = monCtx;
-
+        this.newLowWatermark = newLowWatermark;
     }
 
     void makeCommitRetry(long startTimestamp, Channel c, MonitoringContext monCtx) {
@@ -109,6 +111,10 @@ public final class PersistEvent {
 
         return commitTimestamp;
 
+    }
+
+    public Optional<Long> getNewLowWatermark() {
+        return newLowWatermark;
     }
 
     @Override

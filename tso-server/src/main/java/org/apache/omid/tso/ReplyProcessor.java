@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import com.google.common.base.Optional;
 import org.jboss.netty.channel.Channel;
 
 import java.io.Closeable;
@@ -36,15 +37,16 @@ interface ReplyProcessor extends Closeable {
 
     /**
      * Allows to send a commit response back to the client.
-     *
-     * @param startTimestamp
+     *  @param startTimestamp
      *            the start timestamp representing the tx identifier that is going to receive the commit response
      * @param commitTimestamp
      *            the commit timestamp
      * @param channel
-     *            the channel used to send the response back to the client
+ *            the channel used to send the response back to the client
+     * @param newLowWatermark
+     *
      */
-    void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel channel, MonitoringContext monCtx);
+    void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel channel, MonitoringContext monCtx, Optional<Long> newLowWatermark);
 
     /**
      * Allows to send an abort response back to the client.
