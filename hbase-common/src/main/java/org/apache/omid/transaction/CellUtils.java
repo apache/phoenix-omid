@@ -329,9 +329,9 @@ public final class CellUtils {
         for (Cell cell : cells) {
             if (!isShadowCell(cell)) {
                 CellId key = new CellId(cell, false);
-                if (cellIdToCellMap.containsKey(key)) {
-                    // Get the current cell and compare the values
-                    Cell storedCell = cellIdToCellMap.get(key);
+                // Get the current cell and compare the values
+                Cell storedCell = cellIdToCellMap.get(key);
+                if (storedCell != null) {
                     if (CellUtil.matchingValue(cell, storedCell)) {
                         // TODO: Should we check also here the MVCC and swap if its greater???
                         // Values are the same, ignore
