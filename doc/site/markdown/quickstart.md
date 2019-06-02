@@ -198,21 +198,64 @@ by HBase region servers. The coprocessor may then be enabled on a transactional 
 disable 'MY_TX_TABLE'
 ```
 
-**2) Add a coprocessor specification to the table via a "coprocessor" attribute. The coprocessor spec may (and usually will)
+**2) Put coprocessor jar in hbase lib dir and restart hbase**
+
+```
+cp hbase-coprocessor/target/omid-hbase-coprocessor-1.0.1.jar $HBASE_HOME/lib
+```
+
+**3) Add a coprocessor specification to the table via a "coprocessor" attribute. The coprocessor spec may (and usually will)
 also include the name of the Omid commit table**
 
 ```
-alter 'MY_TX_TABLE', METHOD => 'table_att', 'coprocessor'=>'<path_to_omid_coprocessor>/omid-hbase-coprocessor-<coprocessor_version>.jar|com.yahoo.omid.transaction.OmidCompactor|1001|omid.committable.tablename=OMID_COMMIT_TABLE'
+alter 'MY_TX_TABLE', METHOD => 'table_att', 'coprocessor'=>'|org.apache.omid.transaction.OmidCompactor|1001|omid.committable.tablename=OMID_COMMIT_TABLE'
 ```
 
-**3) Add an "OMID_ENABLED => true" flag to any column families which the co-processor should work on**
+**4) Add an "OMID_ENABLED => true" flag to any column families which the co-processor should work on**
 
 ```
 alter 'MY_TX_TABLE', { NAME => 'MY_CF', METADATA =>  {'OMID_ENABLED' => 'true'}}
+```
+
+**5) Re-enable the table**
+
+```
+enable 'MY_TX_TABLE'
+```
+
+## Server Side Filtering
+Omid can offload the snapshot filtering while get/scan operations to an Hbase coprocessor.
+To use this coprocessor follow these steps:
+
+**1) Disable the table**
+
+```
+disable 'MY_TX_TABLE'
+```
+
+**2) Put coprocessor jar in hbase lib dir and restart hbase**
+
+```
+cp hbase-coprocessor/target/omid-hbase-coprocessor-1.0.1.jar $HBASE_HOME/lib
+```
+
+**3) Add a coprocessor specification to the table via a "coprocessor" attribute. The coprocessor spec may (and usually will)
+also include the name of the Omid commit table**
+
+```
+alter 'MY_TX_TABLE', METHOD => 'table_att', 'coprocessor'=>'|org.apache.omid.transaction.OmidSnapshotFilter|1001|omid.committable.tablename=OMID_COMMIT_TABLE'
 ```
 
 **4) Re-enable the table**
 
 ```
 enable 'MY_TX_TABLE'
+```
+
+**5) In hbase-site.xml enable server side filtering. The omid client should have this in its classpath**
+```
+    <property>
+        <name>omid.server.side.filter</name>
+        <value>true</value>
+    </property>
 ```
