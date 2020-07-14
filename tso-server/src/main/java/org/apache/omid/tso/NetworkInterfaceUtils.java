@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.net.HostAndPort;
+import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

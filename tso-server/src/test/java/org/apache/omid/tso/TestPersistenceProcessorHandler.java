@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;

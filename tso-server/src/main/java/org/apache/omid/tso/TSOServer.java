@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.util.concurrent.AbstractIdleService;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Inject;

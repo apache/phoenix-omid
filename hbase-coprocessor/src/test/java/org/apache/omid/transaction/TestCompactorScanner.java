@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;

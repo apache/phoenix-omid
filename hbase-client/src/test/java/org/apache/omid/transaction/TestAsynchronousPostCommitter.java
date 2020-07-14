@@ -43,12 +43,12 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 @Test(groups = "sharedHBase")
 public class TestAsynchronousPostCommitter extends OmidTestBase {

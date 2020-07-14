@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
 import org.apache.hadoop.hbase.Cell;
 
 public class CellInfo {

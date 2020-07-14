@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.tso.ProgrammableTSOServer.Response.ResponseType;
 import org.jboss.netty.bootstrap.ServerBootstrap;

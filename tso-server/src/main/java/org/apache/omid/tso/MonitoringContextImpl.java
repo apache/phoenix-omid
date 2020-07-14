@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Throwables;
+import org.apache.phoenix.thirdparty.com.google.common.base.Stopwatch;
+import org.apache.phoenix.thirdparty.com.google.common.base.Throwables;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

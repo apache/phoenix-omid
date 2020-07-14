@@ -17,10 +17,10 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.base.Charsets;
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.AbstractFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.AbstractFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;

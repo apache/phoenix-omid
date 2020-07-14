@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;

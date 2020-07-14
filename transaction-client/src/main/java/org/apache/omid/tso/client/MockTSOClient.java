@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 
 import org.apache.omid.committable.CommitTable;
 

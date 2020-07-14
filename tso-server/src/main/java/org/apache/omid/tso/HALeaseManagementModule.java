@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import org.apache.curator.framework.CuratorFramework;

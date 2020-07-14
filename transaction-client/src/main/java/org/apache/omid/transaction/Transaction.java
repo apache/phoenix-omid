@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 
 /**
  * This interface defines the transaction state and behavior exposed to users.

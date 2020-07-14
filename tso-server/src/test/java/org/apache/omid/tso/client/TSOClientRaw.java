@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.proto.TSOProto.Response;
 import org.jboss.netty.bootstrap.ClientBootstrap;

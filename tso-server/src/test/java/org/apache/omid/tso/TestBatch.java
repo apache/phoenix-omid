@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.commons.pool2.PooledObject;
 import org.jboss.netty.channel.Channel;
 import org.mockito.Mock;

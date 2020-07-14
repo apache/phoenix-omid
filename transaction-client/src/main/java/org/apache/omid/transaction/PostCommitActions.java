@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.omid.tso.client.CellId;
 
 public interface PostCommitActions {

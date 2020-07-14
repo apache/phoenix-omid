@@ -39,10 +39,10 @@ import org.apache.omid.tso.client.TSOProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class HBaseTransactionManager extends AbstractTransactionManager implements HBaseTransactionClient {
 

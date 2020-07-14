@@ -52,7 +52,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
