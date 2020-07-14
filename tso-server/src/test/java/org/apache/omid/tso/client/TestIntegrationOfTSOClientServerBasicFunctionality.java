@@ -88,7 +88,8 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
         LOG.info("==================================================================================================");
 
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_SERVER_HOST, tsoServerPortForTest, 100);
 
         LOG.info("==================================================================================================");
@@ -119,7 +120,8 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
 
         tsoClient.close().get();
 
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, tsoServerPortForTest, 1000);
 

@@ -45,8 +45,7 @@ public class MonitoringContextImpl implements MonitoringContext{
     }
 
     public void timerStart(String name) {
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.start();
+        Stopwatch stopwatch = Stopwatch.createStarted();
         timers.put(name, stopwatch);
     }
 
@@ -61,7 +60,7 @@ public class MonitoringContextImpl implements MonitoringContext{
                     String.format("There is no %s timer in the %s monitoring context.", name, this));
         }
         activeStopwatch.stop();
-        elapsedTimeMsMap.put(name, activeStopwatch.elapsedTime(TimeUnit.NANOSECONDS));
+        elapsedTimeMsMap.put(name, activeStopwatch.elapsed(TimeUnit.NANOSECONDS));
         timers.remove(name);
     }
 

@@ -141,7 +141,7 @@ public class CodahaleMetricsProvider implements MetricsProvider, MetricsRegistry
         HostAndPort addr = HostAndPort.fromString(graphiteHost);
 
         final Graphite graphite = new Graphite(
-                new InetSocketAddress(addr.getHostText(), addr.getPort()));
+                new InetSocketAddress(addr.getHost(), addr.getPort()));
 
         return GraphiteReporter.forRegistry(metrics)
                 .prefixedWith(prefix)

@@ -37,8 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
 import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
-import org.apache.phoenix.thirdparty.com.google.common.base.Objects.ToStringHelper;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects.ToStringHelper;
 import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 import org.apache.phoenix.thirdparty.com.google.common.hash.Hasher;
@@ -465,7 +466,7 @@ public final class CellUtils {
 
         @Override
         public String toString() {
-            ToStringHelper helper = Objects.toStringHelper(this);
+            ToStringHelper helper = MoreObjects.toStringHelper(this);
             helper.add("row", Bytes.toStringBinary(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength()));
             helper.add("family", Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength()));
             helper.add("is shadow cell?", isShadowCell);

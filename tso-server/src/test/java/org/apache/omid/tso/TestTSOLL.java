@@ -79,7 +79,8 @@ public class TestTSOLL {
         LOG.info("==================================================================================================");
 
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 100);
 
         LOG.info("==================================================================================================");
@@ -101,7 +102,8 @@ public class TestTSOLL {
     public void afterMethod() throws Exception {
 
 
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 1000);
 

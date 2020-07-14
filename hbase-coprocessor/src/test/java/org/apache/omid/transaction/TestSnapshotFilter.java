@@ -180,7 +180,8 @@ public class TestSnapshotFilter {
 
     private void setupTSO() throws IOException, InterruptedException {
         tso = injector.getInstance(TSOServer.class);
-        tso.startAndWait();
+        tso.startAsync();
+        tso.awaitRunning();
         TestUtils.waitForSocketListening("localhost", 5679, 100);
         Thread.currentThread().setName("UnitTest(s) thread");
     }
@@ -192,7 +193,8 @@ public class TestSnapshotFilter {
     }
 
     private void teardownTSO() throws IOException, InterruptedException {
-        tso.stopAndWait();
+        tso.stopAsync();
+        tso.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", 5679, 1000);
     }
 

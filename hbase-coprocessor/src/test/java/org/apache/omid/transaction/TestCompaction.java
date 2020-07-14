@@ -173,7 +173,8 @@ public class TestCompaction {
 
     private void setupTSO() throws IOException, InterruptedException {
         tso = injector.getInstance(TSOServer.class);
-        tso.startAndWait();
+        tso.startAsync();
+        tso.awaitRunning();
         TestUtils.waitForSocketListening("localhost", 1234, 100);
         Thread.currentThread().setName("UnitTest(s) thread");
     }
@@ -185,7 +186,8 @@ public class TestCompaction {
     }
 
     private void teardownTSO() throws IOException, InterruptedException {
-        tso.stopAndWait();
+        tso.stopAsync();
+        tso.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", 1234, 1000);
     }
 

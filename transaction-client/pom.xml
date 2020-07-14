@@ -76,22 +76,24 @@
         <!-- end distributed comm -->
 
         <!-- utils -->
+        
+        <dependency>
+            <groupId>org.apache.phoenix</groupId>
+            <artifactId>phoenix-shaded-guava</artifactId>
+            <version>${phoenix.shaded.guava.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>commons-configuration</groupId>
             <artifactId>commons-configuration</artifactId>
             <version>${commons.conf.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.apache.phoenix</groupId>
             <artifactId>phoenix-shaded-guava</artifactId>
-            <version>5.1.0-SNAPSHOT</version>
+            <version>${phoenix.shaded.guava.version}</version>
         </dependency>
-<!--         <dependency> -->
-<!--             <groupId>com.google.guava</groupId> -->
-<!--             <artifactId>guava</artifactId> -->
-<!--             <version>${guava.version}</version> -->
-<!--         </dependency> -->
 
         <!-- end utils -->
 

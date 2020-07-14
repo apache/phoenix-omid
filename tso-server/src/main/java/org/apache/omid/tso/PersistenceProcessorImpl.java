@@ -18,7 +18,7 @@
 package org.apache.omid.tso;
 
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
-import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
 import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
@@ -206,7 +206,7 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
 
         @Override
         public String toString() {
-            return Objects.toStringHelper(this)
+            return MoreObjects.toStringHelper(this)
                     .add("batchSequence", batchSequence)
                     .add("batch", batch)
                     .toString();

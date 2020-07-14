@@ -104,12 +104,14 @@ class LeaseManager extends AbstractScheduledService implements LeaseManagement {
     public void startService() throws LeaseManagementException {
         createLeaseManagementZNode();
         createCurrentTSOZNode();
-        startAndWait();
+        startAsync();
+        awaitRunning();
     }
 
     @Override
     public void stopService() throws LeaseManagementException {
-        stopAndWait();
+        stopAsync();
+        awaitRunning();
     }
 
     @Override

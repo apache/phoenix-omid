@@ -74,6 +74,12 @@
         </dependency>
 
         <!-- end distributed comm -->
+        
+        <dependency>
+            <groupId>org.apache.phoenix</groupId>
+            <artifactId>phoenix-shaded-guava</artifactId>
+            <version>${phoenix.shaded.guava.version}</version>
+        </dependency>
 
         <!-- logging -->
 

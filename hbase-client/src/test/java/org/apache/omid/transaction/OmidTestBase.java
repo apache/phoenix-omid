@@ -95,7 +95,8 @@ public abstract class OmidTestBase {
         TSOServer tso = injector.getInstance(TSOServer.class);
         hBaseCommitTableConfig = injector.getInstance(HBaseCommitTableConfig.class);
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
-        tso.startAndWait();
+        tso.startAsync();
+        tso.awaitRunning();
         TestUtils.waitForSocketListening("localhost", 1234, 100);
         LOG.info("Finished loading TSO");
         context.setAttribute("tso", tso);
@@ -212,7 +213,8 @@ public abstract class OmidTestBase {
         }
 
         getClient(context).close().get();
-        getTSO(context).stopAndWait();
+        getTSO(context).stopAsync();
+        getTSO(context).awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", 1234, 1000);
     }
 

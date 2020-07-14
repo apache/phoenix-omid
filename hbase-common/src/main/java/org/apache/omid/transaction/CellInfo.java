@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
 import org.apache.hadoop.hbase.Cell;
 
 public class CellInfo {
@@ -49,7 +49,7 @@ public class CellInfo {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("ts", timestamp)
                 .add("cell", cell)
                 .add("shadow cell", shadowCell)

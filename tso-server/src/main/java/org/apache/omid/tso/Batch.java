@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
 import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 import org.apache.commons.pool2.BasePooledObjectFactory;
@@ -146,7 +146,7 @@ public class Batch {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("id", id)
                 .add("size", size)
                 .add("num events", numEvents)
