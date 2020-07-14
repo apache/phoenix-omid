@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Preconditions;
+import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provider;
 import com.google.inject.Provides;

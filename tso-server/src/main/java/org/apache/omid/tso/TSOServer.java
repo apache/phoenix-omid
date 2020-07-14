@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.util.concurrent.AbstractIdleService;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
@@ -133,7 +133,8 @@ public class TSOServer extends AbstractIdleService {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                stopAndWait();
+                stopAsync();
+                awaitTerminated();
             }
         });
         LOG.info("Shutdown Hook Attached");
@@ -149,7 +150,8 @@ public class TSOServer extends AbstractIdleService {
         try {
             TSOServer tsoServer = getInitializedTsoServer(config);
             tsoServer.attachShutDownHook();
-            tsoServer.startAndWait();
+            tsoServer.startAsync();
+            tsoServer.awaitRunning();
             if (config.getLowLatency() &&
                     !(config.getCommitTableStoreModule() instanceof HBaseCommitTableStorageModule)) {
                 LOG.error("Running low latency mode with memory commit table. Use only with testing!");

@@ -17,13 +17,15 @@
  */
 package org.apache.omid;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.Enumeration;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NetworkUtils {
 
@@ -34,6 +36,14 @@ public class NetworkUtils {
 
     public static String getDefaultNetworkInterface() {
 
+        try (DatagramSocket s=new DatagramSocket()) {
+            s.connect(InetAddress.getByAddress(new byte[]{1,1,1,1}), 0);
+            return NetworkInterface.getByInetAddress(s.getLocalAddress()).getName();
+        } catch (Exception e) {
+            //fall through
+        }
+
+        //Fall back to old logic
         try {
             Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
             String fallBackName = null;
@@ -56,9 +66,8 @@ public class NetworkUtils {
         } catch (SocketException ignored) {
             throw new RuntimeException("Failed to find any network interfaces", ignored);
         }
+
         throw new IllegalArgumentException(String.format("No network '%s*'/'%s*' interfaces found",
                                                          MAC_TSO_NET_IFACE_PREFIX, LINUX_TSO_NET_IFACE_PREFIX));
-
     }
-
 }

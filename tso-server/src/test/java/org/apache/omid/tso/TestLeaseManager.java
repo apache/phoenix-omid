@@ -46,7 +46,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
 
 public class TestLeaseManager {
 

@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 
 @Test(groups = "sharedHBase")
 public class TestTransactionCleanup extends OmidTestBase {

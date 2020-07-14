@@ -26,8 +26,8 @@ import com.codahale.metrics.Slf4jReporter;
 import com.codahale.metrics.Timer.Context;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
-import com.google.common.base.Strings;
-import com.google.common.net.HostAndPort;
+import org.apache.phoenix.thirdparty.com.google.common.base.Strings;
+import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
 import org.apache.commons.io.FileUtils;
 import org.apache.omid.metrics.CodahaleMetricsConfig.Reporter;
 import org.slf4j.Logger;
@@ -141,7 +141,7 @@ public class CodahaleMetricsProvider implements MetricsProvider, MetricsRegistry
         HostAndPort addr = HostAndPort.fromString(graphiteHost);
 
         final Graphite graphite = new Graphite(
-                new InetSocketAddress(addr.getHostText(), addr.getPort()));
+                new InetSocketAddress(addr.getHost(), addr.getPort()));
 
         return GraphiteReporter.forRegistry(metrics)
                 .prefixedWith(prefix)

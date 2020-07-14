@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;

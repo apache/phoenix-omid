@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.proto.TSOProto;
 import org.jboss.netty.bootstrap.ServerBootstrap;

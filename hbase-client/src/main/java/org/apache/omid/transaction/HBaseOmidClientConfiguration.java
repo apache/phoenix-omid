@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.apache.commons.beanutils.BeanUtils;

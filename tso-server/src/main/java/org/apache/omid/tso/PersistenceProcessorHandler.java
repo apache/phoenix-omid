@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
 import com.lmax.disruptor.WorkHandler;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.Histogram;
@@ -209,7 +209,7 @@ public class PersistenceProcessorHandler implements WorkHandler<PersistenceProce
     @Override
     public String toString() {
 
-        return Objects.toStringHelper(this).add("id", id).toString();
+        return MoreObjects.toStringHelper(this).add("id", id).toString();
 
     }
 

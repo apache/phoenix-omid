@@ -17,8 +17,8 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.jboss.netty.channel.Channel;
 
 public final class PersistEvent {
@@ -119,7 +119,7 @@ public final class PersistEvent {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("type", type)
                 .add("ST", startTimestamp)
                 .add("CT", commitTimestamp)

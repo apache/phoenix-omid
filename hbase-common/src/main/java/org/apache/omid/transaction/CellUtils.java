@@ -36,13 +36,14 @@ import org.apache.omid.HBaseShims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Objects;
-import com.google.common.base.Objects.ToStringHelper;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
+import org.apache.phoenix.thirdparty.com.google.common.base.Objects;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects.ToStringHelper;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
+import org.apache.phoenix.thirdparty.com.google.common.hash.Hasher;
+import org.apache.phoenix.thirdparty.com.google.common.hash.Hashing;
 
 @SuppressWarnings("all")
 public final class CellUtils {
@@ -465,7 +466,7 @@ public final class CellUtils {
 
         @Override
         public String toString() {
-            ToStringHelper helper = Objects.toStringHelper(this);
+            ToStringHelper helper = MoreObjects.toStringHelper(this);
             helper.add("row", Bytes.toStringBinary(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength()));
             helper.add("family", Bytes.toString(cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength()));
             helper.add("is shadow cell?", isShadowCell);

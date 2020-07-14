@@ -40,8 +40,8 @@ import org.apache.omid.tso.client.CellId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 
 public class HBaseSyncPostCommitter implements PostCommitActions {
 

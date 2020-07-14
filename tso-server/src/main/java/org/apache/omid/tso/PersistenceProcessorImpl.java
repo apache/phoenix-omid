@@ -17,10 +17,10 @@
  */
 package org.apache.omid.tso;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.base.MoreObjects;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.RingBuffer;
@@ -206,7 +206,7 @@ class PersistenceProcessorImpl implements PersistenceProcessor {
 
         @Override
         public String toString() {
-            return Objects.toStringHelper(this)
+            return MoreObjects.toStringHelper(this)
                     .add("batchSequence", batchSequence)
                     .add("batch", batch)
                     .toString();

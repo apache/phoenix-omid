@@ -68,7 +68,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
@@ -166,7 +166,8 @@ public class TestCompactionLL {
 
     private void setupTSO() throws IOException, InterruptedException {
         tso = injector.getInstance(TSOServer.class);
-        tso.startAndWait();
+        tso.startAsync();
+        tso.awaitRunning();
         TestUtils.waitForSocketListening("localhost", 1235, 100);
         Thread.currentThread().setName("UnitTest(s) thread");
     }
@@ -178,7 +179,8 @@ public class TestCompactionLL {
     }
 
     private void teardownTSO() throws IOException, InterruptedException {
-        tso.stopAndWait();
+        tso.stopAsync();
+        tso.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", 1235, 1000);
     }
 
