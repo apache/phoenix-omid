@@ -52,7 +52,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
@@ -122,7 +122,8 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
         LOG.info("===================== Starting TSO 1 =====================");
         tso1 = injector1.getInstance(TSOServer.class);
         leaseManager1 = (PausableLeaseManager) injector1.getInstance(LeaseManagement.class);
-        tso1.startAndWait();
+        tso1.startAsync();
+        tso1.awaitRunning();
         TestUtils.waitForSocketListening("localhost", TSO1_PORT, 100);
         LOG.info("================ Finished loading TSO 1 ==================");
 
@@ -135,7 +136,8 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
         LOG.info("===================== Starting TSO 2 =====================");
         tso2 = injector2.getInstance(TSOServer.class);
         injector2.getInstance(LeaseManagement.class);
-        tso2.startAndWait();
+        tso2.startAsync();
+        tso2.awaitRunning();
         // Don't do this here: TestUtils.waitForSocketListening("localhost", 4321, 100);
         LOG.info("================ Finished loading TSO 2 ==================");
 
@@ -165,9 +167,11 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
         hBaseUtils.createTable(TableName.valueOf((DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)),
                                new byte[][]{DEFAULT_TIMESTAMP_STORAGE_CF_NAME.getBytes()},
                                Integer.MAX_VALUE);
-        tso1.stopAndWait();
+        tso1.stopAsync();
+        tso1.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", TSO1_PORT, 100);
-        tso2.stopAndWait();
+        tso2.stopAsync();
+        tso2.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", TSO2_PORT, 100);
 
         zkClient.delete().forPath(TSO_LEASE_PATH);
@@ -319,7 +323,8 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             LOG.info("++++++++++++++++++++ KILLING TSO 1 +++++++++++++++++++");
             LOG.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             LOG.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            tso1.stopAndWait();
+            tso1.stopAsync();
+            tso1.awaitTerminated();
             TestUtils.waitForSocketNotListening("localhost", TSO1_PORT, 100);
 
             // Try to commit, but it should abort due to the change in mastership

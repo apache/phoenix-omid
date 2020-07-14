@@ -83,9 +83,9 @@
             <version>${commons.conf.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
+            <artifactId>phoenix-shaded-guava</artifactId>
+            <version>${phoenix.thirdparty.version}</version>
         </dependency>
 
         <!-- end utils -->

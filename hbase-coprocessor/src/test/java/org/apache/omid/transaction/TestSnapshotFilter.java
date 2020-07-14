@@ -74,7 +74,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import static org.testng.Assert.fail;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
@@ -180,7 +180,8 @@ public class TestSnapshotFilter {
 
     private void setupTSO() throws IOException, InterruptedException {
         tso = injector.getInstance(TSOServer.class);
-        tso.startAndWait();
+        tso.startAsync();
+        tso.awaitRunning();
         TestUtils.waitForSocketListening("localhost", 5679, 100);
         Thread.currentThread().setName("UnitTest(s) thread");
     }
@@ -192,7 +193,8 @@ public class TestSnapshotFilter {
     }
 
     private void teardownTSO() throws IOException, InterruptedException {
-        tso.stopAndWait();
+        tso.stopAsync();
+        tso.awaitTerminated();
         TestUtils.waitForSocketNotListening("localhost", 5679, 1000);
     }
 

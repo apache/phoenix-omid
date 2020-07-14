@@ -17,10 +17,10 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.base.Charsets;
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.AbstractFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.AbstractFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
@@ -143,14 +143,14 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 // TSO info includes the new TSO host:port address and epoch
                 String[] currentTSOAndEpochArray = tsoInfo.split("#");
                 hp = HostAndPort.fromString(currentTSOAndEpochArray[0]);
-                setTSOAddress(hp.getHostText(), hp.getPort());
+                setTSOAddress(hp.getHost(), hp.getPort());
                 epoch = Long.parseLong(currentTSOAndEpochArray[1]);
                 LOG.info("\t* Current TSO host:port found in ZK: {} Epoch {}", hp, getEpoch());
                 break;
             case DIRECT:
             default:
                 hp = HostAndPort.fromString(omidConf.getConnectionString());
-                setTSOAddress(hp.getHostText(), hp.getPort());
+                setTSOAddress(hp.getHost(), hp.getPort());
                 LOG.info("\t* TSO host:port {} will be connected directly", hp);
                 break;
         }
@@ -339,7 +339,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         // TSO info includes the new TSO host:port address and epoch
         String[] currentTSOAndEpochArray = tsoInfo.split("#");
         HostAndPort hp = HostAndPort.fromString(currentTSOAndEpochArray[0]);
-        setTSOAddress(hp.getHostText(), hp.getPort());
+        setTSOAddress(hp.getHost(), hp.getPort());
         epoch = Long.parseLong(currentTSOAndEpochArray[1]);
         LOG.info("CurrentTSO ZNode changed. New TSO Host & Port {}/Epoch {}", hp, getEpoch());
         if (currentChannel != null && currentChannel.isConnected()) {

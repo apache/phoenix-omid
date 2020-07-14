@@ -21,8 +21,8 @@ import static com.google.common.base.Charsets.UTF_8;
 
 import org.apache.omid.tso.client.CellId;
 
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
+import org.apache.phoenix.thirdparty.com.google.common.hash.Hasher;
+import org.apache.phoenix.thirdparty.com.google.common.hash.Hashing;
 
 public class HBaseCellId implements CellId {
 

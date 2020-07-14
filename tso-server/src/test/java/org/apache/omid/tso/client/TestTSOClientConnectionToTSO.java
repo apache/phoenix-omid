@@ -125,7 +125,8 @@ public class TestTSOClientConnectionToTSO {
         injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 100);
         LOG.info("Finished loading TSO");
 
@@ -143,7 +144,8 @@ public class TestTSOClientConnectionToTSO {
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
         LOG.info("TSO Server Stopped");
@@ -161,7 +163,8 @@ public class TestTSOClientConnectionToTSO {
         injector = Guice.createInjector(new TSOMockModule(config));
         LOG.info("Starting TSO");
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 100);
         LOG.info("Finished loading TSO");
 
@@ -181,7 +184,8 @@ public class TestTSOClientConnectionToTSO {
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
         LOG.info("TSO Server Stopped");
@@ -199,7 +203,8 @@ public class TestTSOClientConnectionToTSO {
         injector = Guice.createInjector(new TSOMockModule(config));
         LOG.info("Starting Initial TSO");
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 100);
         LOG.info("Finished loading TSO");
 
@@ -218,7 +223,8 @@ public class TestTSOClientConnectionToTSO {
         assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Then stop the server...
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
         LOG.info("Initial TSO Server Stopped");
@@ -242,7 +248,8 @@ public class TestTSOClientConnectionToTSO {
         Injector newInjector = Guice.createInjector(new TSOMockModule(config));
         LOG.info("Re-Starting again the TSO");
         tsoServer = newInjector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 100);
         LOG.info("Finished loading restarted TSO");
 
@@ -259,7 +266,8 @@ public class TestTSOClientConnectionToTSO {
         assertNotNull(startTS);
 
         // ...and stop the server
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
         LOG.info("Restarted TSO Server Stopped");
     }

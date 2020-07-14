@@ -17,11 +17,11 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.hash.Hashing;
-import com.google.common.util.concurrent.Futures;
-
+import org.apache.phoenix.thirdparty.com.google.common.base.Function;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.hash.Hashing;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.Futures;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.metrics.Counter;
@@ -477,7 +477,7 @@ public abstract class AbstractTransactionManager implements TransactionManager {
                 postCommitter.removeCommitTableEntry(tx);
                 return null;
             }
-        });
+        }, MoreExecutors.directExecutor());
 
     }
 

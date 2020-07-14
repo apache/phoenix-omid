@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.common.collect.Sets;
+import org.apache.phoenix.thirdparty.com.google.common.collect.Sets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
@@ -83,7 +83,8 @@ public class TestTSOClientRequestAndResponseBehaviours {
         LOG.info("==================================================================================================");
 
         tsoServer = injector.getInstance(TSOServer.class);
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
         TestUtils.waitForSocketListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 100);
 
         LOG.info("==================================================================================================");
@@ -104,7 +105,8 @@ public class TestTSOClientRequestAndResponseBehaviours {
     public void afterMethod() throws Exception {
 
 
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
         tsoServer = null;
         TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 1000);
 

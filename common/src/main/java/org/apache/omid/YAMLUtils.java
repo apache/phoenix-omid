@@ -17,8 +17,8 @@
  */
 package org.apache.omid;
 
-import com.google.common.base.Preconditions;
-import com.google.common.io.Resources;
+import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
+import org.apache.phoenix.thirdparty.com.google.common.io.Resources;
 import org.apache.commons.beanutils.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

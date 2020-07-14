@@ -8,7 +8,7 @@ notifications:
   on_failure: always
 
 jdk:
-  - oraclejdk8
+  - openjdk8
 
 branches:
   only:
@@ -27,12 +27,13 @@ before_script:
   - umask 022
   - git config --global user.email "dev@omid.incubator.apache.org"
   - git config --global user.name "Omid CI"
+  - REPO_DIR=$(pwd)
   # Install protobuf to genearte TSO client-server protocol in each compilation
   - cd ..
   - wget https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.gz
   - tar -xzvf protobuf-2.5.0.tar.gz
   - cd protobuf-2.5.0 && ./configure --prefix=/usr && make && sudo make install
-  - cd ../incubator-omid
+  - cd $REPO_DIR
 
 script:
   - if [ "${TRAVIS_PULL_REQUEST}" = "false" ] ; then

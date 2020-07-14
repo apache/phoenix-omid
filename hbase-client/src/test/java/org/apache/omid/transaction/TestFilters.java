@@ -41,8 +41,8 @@ import org.mockito.stubbing.Answer;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 
 /**
  * Tests to verify that Get and Scan filters still work with transactions tables

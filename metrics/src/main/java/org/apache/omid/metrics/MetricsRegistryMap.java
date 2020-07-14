@@ -17,7 +17,7 @@
  */
 package org.apache.omid.metrics;
 
-import com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 
 import java.util.ArrayList;
 import java.util.List;

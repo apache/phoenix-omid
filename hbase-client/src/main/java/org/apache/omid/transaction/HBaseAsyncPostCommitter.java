@@ -17,8 +17,8 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.omid.tso.client.CellId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

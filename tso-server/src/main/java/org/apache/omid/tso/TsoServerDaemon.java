@@ -45,12 +45,14 @@ public class TsoServerDaemon implements Daemon {
 
     @Override
     public void start() throws Exception {
-        tsoServer.startAndWait();
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
     }
 
     @Override
     public void stop() throws Exception {
-        tsoServer.stopAndWait();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
     }
 
     @Override

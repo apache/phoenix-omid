@@ -42,9 +42,9 @@ import org.apache.omid.transaction.HBaseTransactionManager.CommitTimestampLocato
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
+import org.apache.phoenix.thirdparty.com.google.common.collect.Maps;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 
 @Test(groups = "sharedHBase")
 public class TestHBaseTransactionClient extends OmidTestBase {

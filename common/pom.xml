@@ -58,6 +58,11 @@
         <!-- utils -->
 
         <dependency>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
+            <artifactId>phoenix-shaded-guava</artifactId>
+            <version>${phoenix.thirdparty.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
             <version>${snakeyaml.version}</version>

@@ -28,7 +28,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
+import org.apache.phoenix.thirdparty.com.google.common.base.Charsets;
 
 @Test(groups = "noHBase")
 public class TestTTableBehaviour {
