@@ -111,7 +111,7 @@ class LeaseManager extends AbstractScheduledService implements LeaseManagement {
     @Override
     public void stopService() throws LeaseManagementException {
         stopAsync();
-        awaitRunning();
+        awaitTerminated();
     }
 
     @Override

@@ -175,8 +175,7 @@
         <hbase2.version>2.0.1</hbase2.version>
         <hadoop1.version>2.7.5</hadoop1.version>
         <hadoop2.version>3.0.0</hadoop2.version>
-<!--         <guava.version>14.0.1</guava.version> -->
-        <phoenix.shaded.guava.version>1.0.0-SNAPSHOT</phoenix.shaded.guava.version>
+        <phoenix.thirdparty.version>1.0.0-SNAPSHOT</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
         <junit.version>4.13</junit.version>

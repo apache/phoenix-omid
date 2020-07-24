@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.apache.phoenix.thirdparty</groupId>
             <artifactId>phoenix-shaded-guava</artifactId>
-            <version>${phoenix.shaded.guava.version}</version>
+            <version>${phoenix.thirdparty.version}</version>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>
