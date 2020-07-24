@@ -67,7 +67,7 @@
         <!-- utils -->
 
         <dependency>
-            <groupId>org.apache.phoenix</groupId>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
             <artifactId>phoenix-shaded-guava</artifactId>
             <version>${phoenix.shaded.guava.version}</version>
         </dependency>
@@ -78,11 +78,6 @@
             <version>${guice.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.phoenix</groupId>
-            <artifactId>phoenix-shaded-guava</artifactId>
-            <version>${phoenix.shaded.guava.version}</version>
-        </dependency>
         <!-- end utils -->
 
         <!-- logging -->
@@ -106,6 +101,12 @@
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <version>${testng.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

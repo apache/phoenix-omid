@@ -76,7 +76,7 @@
         <!-- end distributed comm -->
         
         <dependency>
-            <groupId>org.apache.phoenix</groupId>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
             <artifactId>phoenix-shaded-guava</artifactId>
             <version>${phoenix.shaded.guava.version}</version>
         </dependency>
