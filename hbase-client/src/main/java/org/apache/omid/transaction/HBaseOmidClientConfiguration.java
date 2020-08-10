@@ -58,7 +58,7 @@ public class HBaseOmidClientConfiguration extends SecureHBaseConfig {
         this(CONFIG_FILE_NAME);
     }
 
-    public <K, V> HBaseOmidClientConfiguration(Map<K, V> properties) {
+    public <K, V> HBaseOmidClientConfiguration(Map<String, ? extends Object> properties) {
         try {
             BeanUtils.populate(this, properties);
         } catch (IllegalAccessException | InvocationTargetException e) {
