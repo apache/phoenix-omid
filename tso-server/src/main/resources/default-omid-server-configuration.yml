@@ -41,9 +41,9 @@ batchSizePerCTWriter: 25
 # When this timeout expires, the contents of the batch are flushed to the datastore
 batchPersistTimeoutInMs: 10
 # Timestamp generation strategy
-# INCREMENTAL - [Default] regular counter
-# WORLD_TIME - world time based counter
-timestampType: INCREMENTAL
+# INCREMENTAL - regular counter
+# WORLD_TIME - [Default] world time based counter
+timestampType: WORLD_TIME
 lowLatency: false
 # Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
 timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
