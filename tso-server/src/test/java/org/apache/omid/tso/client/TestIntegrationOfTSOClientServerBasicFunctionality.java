@@ -135,20 +135,20 @@ public class TestIntegrationOfTSOClientServerBasicFunctionality {
 
         long startTsTx2 = tsoClient.getNewStartTimestamp().get();
         referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
-        assertEquals(startTsTx2, referenceTimestamp, "Should grow monotonically");
+        assertTrue(startTsTx2 >= referenceTimestamp, "Should grow monotonically");
         assertTrue(startTsTx2 > startTsTx1, "Two timestamps obtained consecutively should grow");
 
         long commitTsTx2 = tsoClient.commit(startTsTx2, Sets.newHashSet(c1)).get();
         referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
-        assertEquals(commitTsTx2, referenceTimestamp, "Should grow monotonically");
+        assertTrue(commitTsTx2 >= referenceTimestamp, "Should grow monotonically");
 
         long commitTsTx1 = tsoClient.commit(startTsTx1, Sets.newHashSet(c2)).get();
         referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
-        assertEquals(commitTsTx1, referenceTimestamp, "Should grow monotonically");
+        assertTrue(commitTsTx1 >= referenceTimestamp, "Should grow monotonically");
 
         long startTsTx3 = tsoClient.getNewStartTimestamp().get();
         referenceTimestamp += CommitTable.MAX_CHECKPOINTS_PER_TXN;
-        assertEquals(startTsTx3, referenceTimestamp, "Should grow monotonically");
+        assertTrue(startTsTx3 >= referenceTimestamp, "Should grow monotonically");
     }
 
     @Test(timeOut = 30_000)

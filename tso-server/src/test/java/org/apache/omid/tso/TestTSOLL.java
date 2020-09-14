@@ -26,6 +26,7 @@ import com.google.inject.Module;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.proto.TSOProto;
+import org.apache.omid.tso.TSOServerConfig.TIMESTAMP_TYPE;
 import org.apache.omid.tso.client.CellId;
 import org.apache.omid.tso.client.TSOClient;
 import org.apache.omid.tso.client.TSOClientOneShot;
@@ -70,6 +71,7 @@ public class TestTSOLL {
         tsoConfig.setLowLatency(true);
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setPort(TSO_SERVER_PORT);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
         tsoConfig.setNumConcurrentCTWriters(2);
         Module tsoServerMockModule = new TSOMockModule(tsoConfig);
         Injector injector = Guice.createInjector(tsoServerMockModule);

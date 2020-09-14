@@ -49,6 +49,7 @@ import org.apache.omid.tools.hbase.OmidTableManager;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
+import org.apache.omid.tso.TSOServerConfig.TIMESTAMP_TYPE;
 import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.apache.omid.tso.client.TSOClient;
 import org.slf4j.Logger;
@@ -90,6 +91,7 @@ public abstract class OmidTestBase {
         tsoConfig.setPort(1234);
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setWaitStrategy("LOW_CPU");
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
         Injector injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
         TSOServer tso = injector.getInstance(TSOServer.class);

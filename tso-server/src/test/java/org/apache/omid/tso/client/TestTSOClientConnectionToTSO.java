@@ -30,6 +30,7 @@ import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
 import org.apache.omid.tso.VoidLeaseManagementModule;
+import org.apache.omid.tso.TSOServerConfig.TIMESTAMP_TYPE;
 import org.apache.statemachine.StateMachine.FsmImpl;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
@@ -121,6 +122,7 @@ public class TestTSOClientConnectionToTSO {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
         tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
         injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
@@ -180,7 +182,7 @@ public class TestTSOClientConnectionToTSO {
         // ... so we should get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+        assertTrue(startTS.longValue() >= CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
@@ -220,7 +222,7 @@ public class TestTSOClientConnectionToTSO {
         // ... and check that initially we get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+        assertTrue(startTS.longValue() >= CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Then stop the server...
         tsoServer.stopAsync();
