@@ -30,6 +30,7 @@ import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
 import org.apache.omid.tso.TSOServerConfig;
 import org.apache.omid.tso.VoidLeaseManagementModule;
+import org.apache.omid.tso.TSOServerConfig.TIMESTAMP_TYPE;
 import org.apache.statemachine.StateMachine.FsmImpl;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
@@ -121,6 +122,7 @@ public class TestTSOClientConnectionToTSO {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
         tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
         injector = Guice.createInjector(new TSOMockModule(tsoConfig));
         LOG.info("Starting TSO");
