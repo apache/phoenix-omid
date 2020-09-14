@@ -112,13 +112,13 @@ monitorContext: false
 # Configuration WITHOUT High Availability using HBase for all required storage & reporting metrics to CSV files
 # ---------------------------------------------------------------------------------------------------------------------
 #
-# commitTableStoreModule: !!org.apache.omid.tso.DefaultHBaseCommitTableStorageModule [ ]
+# commitTableStoreModule: !!org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule [ ]
 #     See optional params
 #         - tableName
 #         - familyName
 #         - principal
 #         - keytab
-# timestampStoreModule: !!org.apache.omid.tso.DefaultHBaseTimestampStorageModule [ ]
+# timestampStoreModule: !!org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule [ ]
 #     See optional params
 #         - tableName
 #         - familyName
@@ -139,8 +139,8 @@ monitorContext: false
 # Configuration WITHOUT High Availability using ZK to store the timestamps & reporting metrics to console every 30 secs
 # ---------------------------------------------------------------------------------------------------------------------
 #
-# commitTableStoreModule: !!org.apache.omid.tso.DefaultHBaseCommitTableStorageModule [ ]
-# timestampStoreModule: !!org.apache.omid.tso.DefaultZKTimestampStorageModule
+# commitTableStoreModule: !!org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule [ ]
+# timestampStoreModule: !!org.apache.omid.timestamp.storage.DefaultZKTimestampStorageModule
 #         zkCluster: "localhost:2181"
 #         namespace: "omid"
 # leaseModule: !!org.apache.omid.tso.VoidLeaseManagementModule [ ]
@@ -158,8 +158,8 @@ monitorContext: false
 # Configuration WITH High Availability using HBase for all required storage and no metrics reports
 # ---------------------------------------------------------------------------------------------------------------------
 #
-# commitTableStoreModule: !!org.apache.omid.tso.DefaultHBaseCommitTableStorageModule [ ]
-# timestampStoreModule: !!org.apache.omid.tso.DefaultHBaseTimestampStorageModule [ ]
+# commitTableStoreModule: !!org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule [ ]
+# timestampStoreModule: !!org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule [ ]
 # leaseModule: !!org.apache.omid.tso.HALeaseManagementModule
 #     leasePeriodInMs: 10000
 #     tsoLeasePath: "/tso-lease"
