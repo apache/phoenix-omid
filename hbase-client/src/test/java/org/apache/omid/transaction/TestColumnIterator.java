@@ -22,7 +22,8 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.mortbay.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -41,6 +42,8 @@ public class TestColumnIterator {
     private final byte[] qualifier1 = Bytes.toBytes("c1");
     private final byte[] qualifier2 = Bytes.toBytes("c2");
     final byte[] data = Bytes.toBytes("data");
+
+    private static final Logger LOG = LoggerFactory.getLogger(TestTransactionCleanup.class);
 
     private final List<Cell> cells = new ArrayList<Cell>(
             Arrays.asList(
@@ -62,7 +65,7 @@ public class TestColumnIterator {
 
         ImmutableList<Collection<Cell>> groupedColumnsWithoutShadowCells =
                 SnapshotFilterImpl.groupCellsByColumnFilteringShadowCellsAndFamilyDeletion(cells);
-        Log.info("Column Groups " + groupedColumnsWithoutShadowCells);
+        LOG.info("Column Groups " + groupedColumnsWithoutShadowCells);
         assertEquals(groupedColumnsWithoutShadowCells.size(), 3, "Should be 3 column groups");
         int group1Counter = 0;
         int group2Counter = 0;
