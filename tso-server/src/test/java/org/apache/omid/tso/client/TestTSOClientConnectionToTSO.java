@@ -182,7 +182,7 @@ public class TestTSOClientConnectionToTSO {
         // ... so we should get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+        assertTrue(startTS.longValue() >= CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Close the tsoClient connection and stop the TSO Server
         tsoClient.close().get();
@@ -222,7 +222,7 @@ public class TestTSOClientConnectionToTSO {
         // ... and check that initially we get responses from the methods
         Long startTS = tsoClient.getNewStartTimestamp().get();
         LOG.info("Start TS {} ", startTS);
-        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+        assertTrue(startTS.longValue() >= CommitTable.MAX_CHECKPOINTS_PER_TXN);
 
         // Then stop the server...
         tsoServer.stopAsync();
