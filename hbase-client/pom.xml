@@ -58,6 +58,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
+            <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.omid</groupId>
             <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -169,7 +174,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven-jar-plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -182,7 +186,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <reuseForks>true</reuseForks>
                     <groups>.*</groups>
