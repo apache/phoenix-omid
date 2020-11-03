@@ -273,7 +273,6 @@
 
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>${maven-clean-plugin.version}</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -286,7 +285,6 @@
 
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>${maven-assembly-plugin.version}</version>
                 <configuration>
                     <skipAssembly>false</skipAssembly>
                     <tarLongFileMode>gnu</tarLongFileMode>
@@ -294,7 +292,7 @@
                         <descriptor>maven/assembly/bin.xml</descriptor>
                     </descriptors>
                 </configuration>
-		<executions>
+                <executions>
                     <execution>
                         <id>make-assembly</id>
                         <phase>package</phase>
@@ -308,7 +306,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven-jar-plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
