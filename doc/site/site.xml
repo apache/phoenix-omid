@@ -72,7 +72,7 @@
         </menu>
 
         <menu name="Contribute">
-            <item name="Source Code" href="https://git-wip-us.apache.org/repos/asf/incubator-omid.git" />
+            <item name="Source Code" href="https://git-wip-us.apache.org/repos/asf/phoenix-omid.git" />
             <item name="JIRA" href="https://issues.apache.org/jira/browse/Omid" />
             <item name="Mailing Lists" href="mailing-lists.html" />
             <item name="Coding Guide and Style" href="coding-guide-and-style.html" />
