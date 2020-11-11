@@ -88,37 +88,31 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os.plugin.version}</version>
+            </extension>
+        </extensions>
         <plugins>
             <plugin>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>${maven-antrun-plugin.version}</version>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${protobuf.plugin.version}</version>
                 <executions>
                     <execution>
+                        <id>compile-protoc</id>
                         <phase>generate-sources</phase>
-                        <id>default-cli</id>
-                        <configuration>
-                            <target>
-                                <mkdir dir="${project.build.directory}/generated-sources/proto" />
-                                <path id="proto.path">
-                                    <fileset dir="src/main/proto">
-                                        <include name="**/*.proto" />
-                                    </fileset>
-                                </path>
-                                <pathconvert pathsep=" " property="proto.files" refid="proto.path" />
-                                <exec executable="${protoc.path}protoc" failonerror="true">
-                                    <arg value="--java_out=${project.build.directory}/generated-sources/proto" />
-                                    <arg value="-I${project.basedir}/src/main/proto" />
-                                    <arg line="${proto.files}" />
-                                </exec>
-                            </target>
-                        </configuration>
                         <goals>
-                            <goal>run</goal>
+                            <goal>compile</goal>
                         </goals>
+                        <configuration>
+                            <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
