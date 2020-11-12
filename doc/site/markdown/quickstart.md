@@ -85,9 +85,9 @@ pom.xml file:
 
 ```xml
 <dependency>
-   <groupId>com.yahoo.omid</groupId>
-   <artifactId>hbase-client</artifactId>
-   <version>${hbase_client.version}</version>
+   <groupId>org.apache.omid</groupId>
+   <artifactId>omid-hbase-client-hbase1.x</artifactId>
+   <version>1.0.1</version>
 </dependency>
 ```
 
@@ -109,12 +109,15 @@ different rows of a table in a transactional context, but is enough to show how 
 detailed explanation of the client interfaces can be found in the [Basic Examples](basic-examples.html) section.
 
 ```java
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
-import com.yahoo.omid.transaction.HBaseTransactionManager;
-import com.yahoo.omid.transaction.TTable;
-import com.yahoo.omid.transaction.Transaction;
-import com.yahoo.omid.transaction.TransactionManager;
+import org.apache.omid.transaction.HBaseTransactionManager;
+import org.apache.omid.transaction.TTable;
+import org.apache.omid.transaction.Transaction;
+import org.apache.omid.transaction.TransactionManager;
+import org.testng.annotations.Test;
 
 public class OmidExample {
 
@@ -124,16 +127,17 @@ public class OmidExample {
     public static void main(String[] args) throws Exception {
 
         try (TransactionManager tm = HBaseTransactionManager.newInstance();
-             TTable txTable = new TTable("MY_TX_TABLE")) {
+             Connection conn = ConnectionFactory.createConnection();
+             TTable txTable = new TTable(conn, "MY_TX_TABLE")) {
 
             Transaction tx = tm.begin();
 
             Put row1 = new Put(Bytes.toBytes("EXAMPLE_ROW1"));
-            row1.add(family, qualifier, Bytes.toBytes("val1"));
+            row1.addColumn(family, qualifier, Bytes.toBytes("val1"));
             txTable.put(tx, row1);
 
             Put row2 = new Put(Bytes.toBytes("EXAMPLE_ROW2"));
-            row2.add(family, qualifier, Bytes.toBytes("val2"));
+            row2.addColumn(family, qualifier, Bytes.toBytes("val2"));
             txTable.put(tx, row2);
 
             tm.commit(tx);
@@ -153,19 +157,32 @@ the application code by creating an instance of the `HBaseOmidClientConfiguratio
 creation of the transaction manager:
 
 ```java
-    import com.yahoo.omid.transaction.HBaseOmidClientConfiguration;
+    import org.apache.hadoop.hbase.client.Connection;
+    import org.apache.hadoop.hbase.client.ConnectionFactory;
+    import org.apache.hadoop.hbase.util.Bytes;
+    import org.apache.omid.transaction.HBaseOmidClientConfiguration;
+    import org.apache.omid.transaction.HBaseTransactionManager;
+    import org.apache.omid.transaction.TTable;
+    import org.apache.omid.transaction.TransactionManager;
+    import org.apache.omid.tso.client.OmidClientConfiguration;
 
-    ...
+    public class OmidExample {
+        
+        public static void main(String[] args) throws Exception {
+            HBaseOmidClientConfiguration omidClientConfiguration = new HBaseOmidClientConfiguration();
+            omidClientConfiguration.setConnectionType(OmidClientConfiguration.ConnType.DIRECT);
+            omidClientConfiguration.setConnectionString("my_tso_server_host:54758");
+            omidClientConfiguration.setRetryDelayInMs(3000);
     
-    HBaseOmidClientConfiguration omidClientConfiguration = new HBaseOmidClientConfiguration();
-    omidClientConfiguration.setConnectionType(DIRECT);
-    omidClientConfiguration.setConnectionString("my_tso_server_host:54758");
-    omidClientConfiguration.setRetryDelayMs(3000);
-    
-    try (TransactionManager tm = HBaseTransactionManager.newInstance(omidClientConfiguration);
-             TTable txTable = new TTable("MY_TX_TABLE")) {
-    
-    ...
+            try (TransactionManager tm = HBaseTransactionManager.newInstance(omidClientConfiguration);
+                 Connection conn = ConnectionFactory.createConnection();
+                 TTable txTable = new TTable(conn, "MY_TX_TABLE")) {
+                
+            }
+        }
+
+    }
+
 ```
 
 Also, you will need to create a HBase table "MY_TX_TABLE", with column family "MY_CF", and with `TTL` disabled and

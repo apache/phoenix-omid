@@ -170,7 +170,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase0.version>0.98.10.1-hadoop1</hbase0.version>
         <hbase1.version>1.3.1</hbase1.version>
         <hbase2.version>2.0.1</hbase2.version>
         <hadoop1.version>2.7.5</hadoop1.version>
