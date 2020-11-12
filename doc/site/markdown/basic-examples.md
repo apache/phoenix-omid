@@ -214,12 +214,17 @@ The following example summarizes the steps described above.
 
 ```java
 
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import com.yahoo.omid.transaction.HBaseTransactionManager;
-import com.yahoo.omid.transaction.TTable;
-import com.yahoo.omid.transaction.Transaction;
-import com.yahoo.omid.transaction.TransactionManager;
+import org.apache.omid.transaction.HBaseTransactionManager;
+import org.apache.omid.transaction.RollbackException;
+import org.apache.omid.transaction.TTable;
+import org.apache.omid.transaction.Transaction;
+import org.apache.omid.transaction.TransactionManager;
 
 public class Example {
 
@@ -232,14 +237,15 @@ public class Example {
     public static void main(String[] args) throws Exception {
 
         try (TransactionManager tm = HBaseTransactionManager.newInstance();
-             TTable txTable = new TTable("EXAMPLE_TABLE")) {
+             Connection conn = ConnectionFactory.createConnection();
+             TTable txTable = new TTable(conn, "EXAMPLE_TABLE")) {
 
             Transaction tx = tm.begin();
-            System.out.printl("Transaction started");
+            System.out.println("Transaction started");
 
             // Retrieve data transactionally
             Get get = new Get(exampleRow);
-            get.add(family, qualifier);
+            get.addColumn(family, qualifier);
             Result txGetResult = txTable.get(tx, get);
             byte[] retrievedValue = txGetResult.getValue(family, qualifier);
 
@@ -253,8 +259,8 @@ public class Example {
             // Otherwise, add a value in other column and try to commit the transaction
             try {
                 Put putOnRow = new Put(exampleRow);
-                putOnRow.add(family, qualifier, dataValue);
-        	    txTable.put(tx, putOnRow);
+                putOnRow.addColumn(family, qualifier, dataValue);
+                txTable.put(tx, putOnRow);
                 tm.commit(tx);
                 System.out.println("Transaction committed. New value written to example row");
             } catch(RollbackException e) {
