@@ -17,15 +17,19 @@
  */
 package org.apache.omid;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.List;
 
 public class NetworkUtils {
 
@@ -69,5 +73,33 @@ public class NetworkUtils {
 
         throw new IllegalArgumentException(String.format("No network '%s*'/'%s*' interfaces found",
                                                          MAC_TSO_NET_IFACE_PREFIX, LINUX_TSO_NET_IFACE_PREFIX));
+    }
+
+    public static int availablePort() {
+        return availablePorts(1).get(0);
+    }
+
+    public static List<Integer> availablePorts(int count) {
+        List<ServerSocket> servers = new ArrayList<>();
+        List<Integer> availablePorts = new ArrayList<>();
+        IOException lastError= null;
+        try {
+            for (int i = 0; i < count; ++i) {
+                servers.add(new ServerSocket(0));
+            }
+        } catch (IOException e) {
+            lastError = e;
+        } finally {
+            for (ServerSocket s : servers) {
+                availablePorts.add(s.getLocalPort());
+                try {
+                    s.close();
+                } catch (IOException e) {
+                    lastError = e;
+                }
+            }
+        }
+        if (lastError != null) throw new RuntimeException(lastError);
+        return availablePorts;
     }
 }

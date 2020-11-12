@@ -17,13 +17,12 @@
  */
 package org.apache.omid.tso;
 
-import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
-import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.channel.ChannelException;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.proto.TSOProto;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -48,6 +47,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 /**
@@ -59,43 +61,37 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
 
     private static final Logger LOG = LoggerFactory.getLogger(TSOChannelHandler.class);
 
-    private final ChannelFactory factory;
-
     private final ServerBootstrap bootstrap;
-
-    @VisibleForTesting
-    Channel listeningChannel;
-    @VisibleForTesting
-    ChannelGroup channelGroup;
-
-    private RequestProcessor requestProcessor;
-
-    private TSOServerConfig config;
-
-    private MetricsRegistry metrics;
+    private ChannelGroup channelGroup;
+    private boolean closed = false;
+    private final RequestProcessor requestProcessor;
+    private final TSOServerConfig config;
+    private final MetricsRegistry metrics;
 
     @Inject
     public TSOChannelHandler(TSOServerConfig config, RequestProcessor requestProcessor, MetricsRegistry metrics) {
-
         this.config = config;
         this.metrics = metrics;
         this.requestProcessor = requestProcessor;
         // Setup netty listener
-        this.factory = new NioServerSocketChannelFactory(
+        this.bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
                 Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("boss-%d").build()),
                 Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("worker-%d").build()),
-                (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2);
-
-        this.bootstrap = new ServerBootstrap(factory);
+                (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2));
         bootstrap.setPipelineFactory(new TSOPipelineFactory(this));
 
+    }
+
+    private void checkClosed() {
+        if (closed) throw new ChannelException("TSOChannelHandler is already closed");
     }
 
     /**
      * Allows to create and connect the communication channel closing the previous one if existed
      */
     void reconnect() {
-        if (listeningChannel == null && channelGroup == null) {
+        checkClosed();
+        if (channelGroup == null) {
             LOG.debug("Creating communication channel...");
         } else {
             LOG.debug("Reconnecting communication channel...");
@@ -104,9 +100,16 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
         // Create the global ChannelGroup
         channelGroup = new DefaultChannelGroup(TSOChannelHandler.class.getName());
         LOG.debug("\tCreating channel to listening for incoming connections in port {}", config.getPort());
-        listeningChannel = bootstrap.bind(new InetSocketAddress(config.getPort()));
+        Channel listeningChannel = bootstrap.bind(new InetSocketAddress(config.getPort()));
         channelGroup.add(listeningChannel);
         LOG.debug("\tListening channel created and connected: {}", listeningChannel);
+    }
+
+    /**
+     * @return the listening channels
+     */
+    Set<Channel> channels() {
+        return channelGroup == null ? Collections.<Channel>emptySet() : new HashSet<>(channelGroup);
     }
 
     /**
@@ -114,11 +117,6 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
      */
     void closeConnection() {
         LOG.debug("Closing communication channel...");
-        if (listeningChannel != null) {
-            LOG.debug("\tUnbinding listening channel {}", listeningChannel);
-            listeningChannel.unbind().awaitUninterruptibly();
-            LOG.debug("\tListening channel {} unbound", listeningChannel);
-        }
         if (channelGroup != null) {
             LOG.debug("\tClosing channel group {}", channelGroup);
             channelGroup.close().awaitUninterruptibly();
@@ -205,7 +203,8 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
     @Override
     public void close() throws IOException {
         closeConnection();
-        factory.releaseExternalResources();
+        bootstrap.releaseExternalResources();
+        closed = true;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
