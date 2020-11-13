@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid;
 
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 import org.apache.phoenix.thirdparty.com.google.common.io.Resources;
-import org.apache.commons.beanutils.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -56,7 +57,8 @@ public class YAMLUtils {
     @SuppressWarnings("unchecked")
     public Map loadSettings(String resourcePath, String defaultResourcePath) throws IOException {
         Map defaultSetting = loadAsMap(defaultResourcePath);
-        Preconditions.checkState(defaultSetting.size() > 0, String.format("Failed to load file '%s' from classpath", defaultResourcePath));
+        Preconditions.checkState(defaultSetting.size() > 0,
+            String.format("Failed to load file '%s' from classpath", defaultResourcePath));
         if (resourcePath != null) {
             Map userSetting = loadAsMap(resourcePath);
             defaultSetting.putAll(userSetting);

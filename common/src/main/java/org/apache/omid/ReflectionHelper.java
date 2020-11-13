@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid;
 
 import java.lang.reflect.InvocationTargetException;
@@ -22,7 +23,7 @@ import java.lang.reflect.Method;
 
 public class ReflectionHelper {
 
-    static public <T> Object invokeParameterlessMethod(T theObject, String methodName)
+    public static <T> Object invokeParameterlessMethod(T theObject, String methodName)
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         Method method = theObject.getClass().getDeclaredMethod(methodName, null);
