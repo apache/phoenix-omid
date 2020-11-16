@@ -18,7 +18,7 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.2-SNAPSHOT</version>
     </parent>
 
@@ -34,32 +34,12 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-timestamp-storage-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <!-- End of Dependencies on Omid modules -->
 

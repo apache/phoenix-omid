@@ -18,12 +18,12 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.2-SNAPSHOT</version>
     </parent>
 
     <name>State Machine</name>
-    <artifactId>omid-statemachine</artifactId>
+    <artifactId>omid-statemachine-${hbase.artifactId.suffix}</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>

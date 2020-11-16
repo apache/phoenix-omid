@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.2-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-commit-table</artifactId>
+    <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
     <packaging>jar</packaging>
     <name>Commit Table</name>
 

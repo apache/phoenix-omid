@@ -18,7 +18,7 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.2-SNAPSHOT</version>
     </parent>
 
@@ -32,24 +32,18 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table</artifactId>
+            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-common</artifactId>
+            <artifactId>omid-common-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- End of Dependencies on Omid modules -->
