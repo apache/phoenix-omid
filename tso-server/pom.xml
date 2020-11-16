@@ -18,7 +18,7 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
 
@@ -33,7 +33,7 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table</artifactId>
+            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -41,28 +41,12 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
 
@@ -70,27 +54,17 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-timestamp-storage-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-common-${hbase.exclude.artifactId.suffix}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-metrics</artifactId>
+            <artifactId>omid-metrics-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- The codahale-related dependency is added here just to include the jar in the final
         tar.gz package assembled. -->
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-codahale-metrics</artifactId>
+            <artifactId>omid-codahale-metrics-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <scope>runtime</scope>
         </dependency>
@@ -104,14 +78,14 @@
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table</artifactId>
+            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <classifier>tests</classifier>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-transaction-client</artifactId>
+            <artifactId>omid-transaction-client-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
 
