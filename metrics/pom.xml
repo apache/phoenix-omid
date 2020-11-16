@@ -17,12 +17,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>omid</artifactId>
         <groupId>org.apache.omid</groupId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-metrics</artifactId>
+    <artifactId>omid-metrics-${hbase.artifactId.suffix}</artifactId>
     <name>Metrics</name>
 
     <dependencies>

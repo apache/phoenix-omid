@@ -18,7 +18,7 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
 
@@ -34,16 +34,10 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-common</artifactId>
+            <artifactId>omid-common-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
 

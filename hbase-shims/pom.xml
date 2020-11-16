@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid</artifactId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-shims-aggregator</artifactId>
+    <artifactId>omid-shims-aggregator-${hbase.artifactId.suffix}</artifactId>
     <packaging>pom</packaging>
     <name>Shims Aggregator for HBase</name>
     <modules>

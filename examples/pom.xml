@@ -17,12 +17,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>omid</artifactId>
         <groupId>org.apache.omid</groupId>
+        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-examples</artifactId>
+    <artifactId>omid-examples-${hbase.artifactId.suffix}</artifactId>
     <name>Omid Client Examples</name>
     <description>Includes some examples showing Omid features</description>
 
@@ -34,21 +34,11 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-hbase-client-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>${shims.exclude.artifactId}</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.omid</groupId>
-                    <artifactId>omid-hbase-commit-table-${hbase.exclude.artifactId.suffix}</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-codahale-metrics</artifactId>
+            <artifactId>omid-codahale-metrics-${hbase.artifactId.suffix}</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- End of Dependencies on Omid modules -->

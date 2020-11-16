@@ -2,6 +2,7 @@
 .project
 .settings
 .metadata
+.flattened-pom.xml
 dependency-reduced-pom.xml
 target/
 lib/
