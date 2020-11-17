@@ -27,7 +27,7 @@ import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
 
 /**
  * {@link RpcControllerFactory} that should only be used when making remote RPCs to the region
- * servers. This prevents deadlocks by having RS->RS traffic handled by higher priorities
+ * servers. This prevents deadlocks by having RS to RS traffic handled by higher priorities
  * queues. This controller factory shouldn't be globally configured anywhere and is meant to be
  * used only internally by Omid.
  */

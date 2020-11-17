@@ -359,7 +359,6 @@ public class TTable implements Closeable {
      * @param put an instance of Put
      * @param timestamp  timestamp to be used as cells version
      * @param commitTimestamp  timestamp to be used as commit timestamp
-     * @throws IOException if a remote or network exception occurs.
      */
     static public Put markPutAsCommitted(Put put, long timestamp, long commitTimestamp) {
         final Put tsput = new Put(put.getRow(), timestamp);
@@ -606,7 +605,7 @@ public class TTable implements Closeable {
      *
      * @param transaction an instance of transaction to be used
      * @param puts        List of puts
-     * @param addShadowCell  denotes whether to add the shadow cell
+     * @param addShadowCells  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
     public void put(Transaction transaction, List<Put> puts, boolean addShadowCells) throws IOException {
@@ -622,11 +621,11 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Transactional version of {@link Table#batch(List<? extends Row> rows)}
+     * Transactional version of Table#batch(List rows)
      *
      * @param transaction an instance of transaction to be used
      * @param rows        List of rows that must be instances of Put or Delete
-     * @param addShadowCell  denotes whether to add the shadow cell
+     * @param addShadowCells  denotes whether to add the shadow cell
      * @throws IOException if a remote or network exception occurs
      */
     public void batch(Transaction transaction, List<? extends Row> rows, boolean addShadowCells) throws IOException {

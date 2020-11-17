@@ -175,7 +175,6 @@ public abstract class AbstractTransaction<T extends CellId> implements Transacti
     /**
      * Creates a checkpoint and sets the visibility level to SNAPSHOT_EXCLUDE_CURRENT
      * The number of checkpoints is bounded to NUM_CHECKPOINTS in order to make checkpoint a client side operation
-     * @return true if a checkpoint was created and false otherwise
      * @throws TransactionException
      */
     public void checkpoint() throws TransactionException {
