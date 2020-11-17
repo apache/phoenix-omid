@@ -19,7 +19,7 @@
     <parent>
         <artifactId>omid</artifactId>
         <groupId>org.apache.omid</groupId>
-        <version>1.0.2-SNAPSHOT</version>
+        <version>1.0.2</version>
     </parent>
 
     <artifactId>omid-examples</artifactId>
