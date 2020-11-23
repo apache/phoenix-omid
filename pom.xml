@@ -128,11 +128,22 @@
     </repositories>
 
     <scm>
-        <connection>https://gitbox.apache.org/repos/asf/phoenix-omid.git</connection>
+        <connection>scm:git:https://gitbox.apache.org/repos/asf/phoenix-omid.git</connection>
         <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/phoenix-omid.git</developerConnection>
-        <url>https://gitbox.apache.org/repos/asf/phoenix-omid.git</url>
+        <url>scm:git:https://gitbox.apache.org/repos/asf/phoenix-omid.git</url>
         <tag>master</tag>
     </scm>
+
+    <distributionManagement>
+        <site>
+            <id>apache-omid-site</id>
+            <!-- Wagon-git URL format:
+                     protocol:branch://url
+                 Do not forget the 2 backslashes before the url
+            -->
+            <url>git:asf-site://https://gitbox.apache.org/repos/asf/phoenix-omid-site.git</url>
+        </site>
+    </distributionManagement>
 
     <properties>
 

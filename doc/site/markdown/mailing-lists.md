@@ -11,16 +11,16 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-# Mailing Lists @ Apache Incubator
+# Mailing Lists @ Apache Phoenix
 
 | Developers                       | Commits                               |
 | -------------------------------- | --------------------------------------|
-| dev@omid.incubator.apache.org    | commits@omid.incubator.apache.org     |
+| dev@phoenix.apache.org    | commits@phoenix.apache.org     |
 
 ## Subscribe
 
 In order to subscribe to a list, please add the '-subscribe' suffix to the identifier in each list and send an email. 
-For example use dev-subscribe@omid.incubator.apache.org to subscribe to the list of developers.
+For example use dev-subscribe@phoenix.apache.org to subscribe to the list of developers.
 
 ## Unsubscribe
 Use the '-unsubscribe' suffix to unsubscribe from a list.
