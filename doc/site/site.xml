@@ -1,4 +1,4 @@
-<project name="Apache Omid">
+<project name="Apache Phoenix Omid">
 
     <skin>
         <groupId>org.apache.maven.skins</groupId>
@@ -31,16 +31,9 @@
         <width>200</width>
     </bannerLeft>
 
-    <bannerRight>
-        <name>Apache Incubator</name>
-        <src>http://incubator.apache.org/images/egg-logo2.png</src>
-        <href>http://incubator.apache.org/</href>
-        <width>200</width>
-    </bannerRight>
-
     <publishDate position="right"/>
     <!-- Do not publish version as it shows the current SNAPSHOT -->
-    <!-- version position="right"/ -->
+    <version position="none"/>
 
     <poweredBy>
         <logo name="Maven" href="http://maven.apache.org/" img="http://maven.apache.org/images/logos/maven-feather.png"/>
@@ -50,12 +43,13 @@
 
         <menu name="Home">
             <item name="Overview" href="index.html" />
-            <item name="License" href="license.html" />
+            <item name="Licenses" href="licenses.html" />
         </menu>
 
         <menu name="Download">
-            <item name="Omid Sources" href="https://github.com/apache/incubator-omid" />
-            <item name="Apache Version Repository" href="https://dist.apache.org/repos/dist/release/incubator/omid/" />
+            <item name="Omid Source Repository" href="https://github.com/apache/phoenix-omid" />
+            <item name="Apache Releases for version 1.0.1 and earlier" href="https://dist.apache.org/repos/dist/release/incubator/omid/" />
+            <item name="Apache Releases for version 1.0.2 and later" href="https://dist.apache.org/repos/dist/release/phoenix/" />
         </menu>
 
         <menu name="User Guide &amp; API">
@@ -72,7 +66,7 @@
         </menu>
 
         <menu name="Contribute">
-            <item name="Source Code" href="https://git-wip-us.apache.org/repos/asf/phoenix-omid.git" />
+            <item name="Source Code" href="https://gitbox.apache.org/repos/asf/phoenix-omid.git" />
             <item name="JIRA" href="https://issues.apache.org/jira/browse/Omid" />
             <item name="Mailing Lists" href="mailing-lists.html" />
             <item name="Coding Guide and Style" href="coding-guide-and-style.html" />
