@@ -26,7 +26,7 @@
     <packaging>pom</packaging>
     <name>Shims Aggregator for HBase</name>
     <modules>
-        <module>${shims.module}</module>
+        <module>hbase-2</module>
     </modules>
 
 

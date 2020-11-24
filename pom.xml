@@ -569,9 +569,6 @@
         </profile>
         <profile>
             <id>hbase-1</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
 
             </properties>
@@ -579,6 +576,9 @@
 
         <profile>
             <id>hbase-2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <shims.artifactId>${shims2.artifactId}</shims.artifactId>
                 <shims.exclude.artifactId>${shims1.artifactId}</shims.exclude.artifactId>
