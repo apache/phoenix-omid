@@ -136,7 +136,7 @@
         <!-- distributed comm -->
 
         <dependency>
-            <groupId>org.jboss.netty</groupId>
+            <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
             <version>${netty.version}</version>
         </dependency>
