@@ -26,7 +26,7 @@
     <artifactId>omid</artifactId>
     <packaging>pom</packaging>
     <!-- WARNING: do not update version manually, use mvn versions:set -->
-    <version>1.0.2.7.1.6.0-SNAPSHOT</version>
+    <version>1.0.2.7.1.7.0-SNAPSHOT</version>
 
     <organization>
         <name>Apache Software Foundation</name>
@@ -146,8 +146,8 @@
         <shims.artifactId>${shims1.artifactId}</shims.artifactId>
         <shims.exclude.artifactId>${shims2.artifactId}</shims.exclude.artifactId>
         <java.version>1.7</java.version>
-        <hadoop.version>3.1.1.7.1.6.0-SNAPSHOT</hadoop.version>
-        <hbase.version>2.2.3.7.1.6.0-SNAPSHOT</hbase.version>
+        <hadoop.version>3.1.1.7.1.7.0-SNAPSHOT</hadoop.version>
+        <hbase.version>2.2.3.7.1.7.0-SNAPSHOT</hbase.version>
         <shims.module>hbase-1</shims.module>
         <hbase.artifactId.suffix>${hbase1.artifactId.suffix}</hbase.artifactId.suffix>
         <hbase.exclude.artifactId.suffix>${hbase2.artifactId.suffix}</hbase.exclude.artifactId.suffix>
@@ -158,10 +158,10 @@
 
         <!-- 3rd-Party Library Versioning -->
         <hbase1.version>1.3.1</hbase1.version>
-        <hbase2.version>2.2.3.7.1.6.0-SNAPSHOT</hbase2.version>
+        <hbase2.version>2.2.3.7.1.7.0-SNAPSHOT</hbase2.version>
         <hadoop1.version>2.7.5</hadoop1.version>
-        <hadoop2.version>3.1.1.7.1.6.0-SNAPSHOT</hadoop2.version>
-        <phoenix.thirdparty.version>1.0.0.7.1.6.0-SNAPSHOT</phoenix.thirdparty.version>
+        <hadoop2.version>3.1.1.7.1.7.0-SNAPSHOT</hadoop2.version>
+        <phoenix.thirdparty.version>1.0.0.7.1.7.0-SNAPSHOT</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.30</slf4j.version>
@@ -178,8 +178,8 @@
         <commons.conf.version>1.10</commons.conf.version>
         <hamcrest.version>1.3</hamcrest.version>
         <!-- 2.12+ shades guava -->
-        <curator.version>4.3.0.7.1.6.0-SNAPSHOT</curator.version>
-        <zookeeper.version>3.5.5.7.1.6.0-SNAPSHOT</zookeeper.version>
+        <curator.version>4.3.0.7.1.7.0-SNAPSHOT</curator.version>
+        <zookeeper.version>3.5.5.7.1.7.0-SNAPSHOT</zookeeper.version>
         <snakeyaml.version>1.11</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.6</commons-io.version>
@@ -586,8 +586,8 @@
                 <shims.module>hbase-2</shims.module>
                 <shims.artifactId>${shims2.artifactId}</shims.artifactId>
                 <java.version>1.8</java.version>
-                <hadoop.version>3.1.1.7.1.6.0-SNAPSHOT</hadoop.version>
-                <hbase.version>2.2.3.7.1.6.0-SNAPSHOT</hbase.version>
+                <hadoop.version>3.1.1.7.1.7.0-SNAPSHOT</hadoop.version>
+                <hbase.version>2.2.3.7.1.7.0-SNAPSHOT</hbase.version>
                 <hbase.artifactId.suffix>${hbase2.artifactId.suffix}</hbase.artifactId.suffix>
                 <hbase.exclude.artifactId.suffix>${hbase1.artifactId.suffix}</hbase.exclude.artifactId.suffix>
 
