@@ -161,7 +161,7 @@
         <hbase2.version>2.2.3.7.1.7.0-SNAPSHOT</hbase2.version>
         <hadoop1.version>2.7.5</hadoop1.version>
         <hadoop2.version>3.1.1.7.1.7.0-SNAPSHOT</hadoop2.version>
-        <phoenix.thirdparty.version>1.0.0.7.1.7.0-SNAPSHOT</phoenix.thirdparty.version>
+        <phoenix.thirdparty.version>1.1.0.7.1.7.0-SNAPSHOT</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.30</slf4j.version>
