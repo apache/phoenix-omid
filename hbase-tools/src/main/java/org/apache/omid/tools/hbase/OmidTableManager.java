@@ -78,8 +78,11 @@ public class OmidTableManager {
     }
 
     public void executeActionsOnHBase(Configuration hbaseConf) throws IOException {
-
-        HBaseLogin.loginIfNeeded(mainConfig.loginFlags);
+        mainConfig.loginFlags.setPrincipal(
+                hbaseConf.get(SecureHBaseConfig.HBASE_CLIENT_PRINCIPAL_KEY));
+        mainConfig.loginFlags.setKeytab(
+                hbaseConf.get(SecureHBaseConfig.HBASE_CLIENT_KEYTAB_KEY));
+        HBaseLogin.loginIfNeeded(mainConfig.loginFlags, hbaseConf);
 
         try (Connection conn = ConnectionFactory.createConnection(hbaseConf);
              Admin hBaseAdmin = conn.getAdmin()) {
