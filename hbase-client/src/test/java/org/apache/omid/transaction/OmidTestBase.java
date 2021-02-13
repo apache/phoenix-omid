@@ -40,6 +40,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.omid.NetworkUtils;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.InMemoryCommitTable;
@@ -75,6 +76,7 @@ public abstract class OmidTestBase {
     protected static final String TEST_TABLE = "test";
     protected static final String TEST_FAMILY = "data";
     static final String TEST_FAMILY2 = "data2";
+    public static int port;
 
     private HBaseCommitTableConfig hBaseCommitTableConfig;
 
@@ -88,7 +90,8 @@ public abstract class OmidTestBase {
     public void beforeGroups(ITestContext context) throws Exception {
         // TSO Setup
         TSOServerConfig tsoConfig = new TSOServerConfig();
-        tsoConfig.setPort(1234);
+        port = NetworkUtils.getFreePort();
+        tsoConfig.setPort(port);
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setWaitStrategy("LOW_CPU");
         tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
@@ -99,12 +102,12 @@ public abstract class OmidTestBase {
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
         tso.startAsync();
         tso.awaitRunning();
-        TestUtils.waitForSocketListening("localhost", 1234, 100);
+        TestUtils.waitForSocketListening("localhost", port, 100);
         LOG.info("Finished loading TSO");
         context.setAttribute("tso", tso);
 
         OmidClientConfiguration clientConf = new OmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
         context.setAttribute("clientConf", clientConf);
 
         InMemoryCommitTable commitTable = (InMemoryCommitTable) injector.getInstance(CommitTable.class);
@@ -177,7 +180,7 @@ public abstract class OmidTestBase {
 
     protected TransactionManager newTransactionManager(ITestContext context, PostCommitActions postCommitActions) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .postCommitter(postCommitActions)
@@ -188,7 +191,7 @@ public abstract class OmidTestBase {
 
     protected TransactionManager newTransactionManager(ITestContext context, TSOClient tsoClient) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(getCommitTable(context).getClient())
@@ -199,7 +202,7 @@ public abstract class OmidTestBase {
     protected TransactionManager newTransactionManager(ITestContext context, CommitTable.Client commitTableClient)
             throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(commitTableClient)
@@ -217,7 +220,7 @@ public abstract class OmidTestBase {
         getClient(context).close().get();
         getTSO(context).stopAsync();
         getTSO(context).awaitTerminated();
-        TestUtils.waitForSocketNotListening("localhost", 1234, 1000);
+        TestUtils.waitForSocketNotListening("localhost", port, 1000);
     }
 
     @AfterMethod(groups = "sharedHBase", timeOut = 60_000)

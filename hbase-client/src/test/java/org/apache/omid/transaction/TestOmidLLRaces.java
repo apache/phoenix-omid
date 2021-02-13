@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import org.apache.omid.NetworkUtils;
 import org.apache.omid.committable.hbase.KeyGenerator;
 import org.apache.omid.committable.hbase.KeyGeneratorImplementations;
 
@@ -90,12 +91,14 @@ public class TestOmidLLRaces {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestOmidLLRaces.class);
     private TSOClient client;
+    private int port;
 
     @BeforeClass
     public void setup() throws Exception {
         // TSO Setup
         TSOServerConfig tsoConfig = new TSOServerConfig();
-        tsoConfig.setPort(1234);
+        port = NetworkUtils.getFreePort();
+        tsoConfig.setPort(port);
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setLowLatency(true);
         tsoConfig.setWaitStrategy("LOW_CPU");
@@ -105,11 +108,11 @@ public class TestOmidLLRaces {
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
         tso.startAsync();
         tso.awaitRunning();
-        TestUtils.waitForSocketListening("localhost", 1234, 100);
+        TestUtils.waitForSocketListening("localhost", port, 100);
         LOG.info("Finished loading TSO");
 
         OmidClientConfiguration clientConf = new OmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
 
         // Create the associated Handler
         client = TSOClient.newInstance(clientConf);
@@ -160,7 +163,7 @@ public class TestOmidLLRaces {
 
     protected TransactionManager newTransactionManagerHBaseCommitTable(TSOClient tsoClient) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .tsoClient(tsoClient).build();

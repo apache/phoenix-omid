@@ -102,6 +102,14 @@
             <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
+	<!-- Some Hadoop versions' minicluster dependencies don't pull this in
+	     so need to add explicitly even though Omid uses testng.-->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-testing-util</artifactId>
