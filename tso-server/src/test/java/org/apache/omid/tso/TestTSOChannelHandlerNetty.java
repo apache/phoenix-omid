@@ -261,7 +261,7 @@ public class TestTSOChannelHandlerNetty {
         // Write into the channel
         channel.write(tsBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(1)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
-        verify(requestProcessor, timeout(100).never())
+        verify(requestProcessor, timeout(100).times(0))
                 .commitRequest(anyLong(), anyCollectionOf(Long.class), anyCollectionOf(Long.class), anyBoolean(), any(Channel.class), any(MonitoringContextImpl.class));
     }
 
@@ -277,7 +277,7 @@ public class TestTSOChannelHandlerNetty {
         assertTrue(r.hasCommitRequest());
         // Write into the channel
         channel.write(commitBuilder.build()).await();
-        verify(requestProcessor, timeout(100).never()).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
+        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
         verify(requestProcessor, timeout(100).times(1))
                 .commitRequest(eq(666L), anyCollectionOf(Long.class), anyCollectionOf(Long.class), eq(false), any(Channel.class), any(MonitoringContextImpl.class));
     }
@@ -293,7 +293,7 @@ public class TestTSOChannelHandlerNetty {
         assertTrue(r.hasFenceRequest());
         // Write into the channel
         channel.write(fenceBuilder.build()).await();
-        verify(requestProcessor, timeout(100).never()).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
+        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
         verify(requestProcessor, timeout(100).times(1))
                 .fenceRequest(eq(666L), any(Channel.class), any(MonitoringContextImpl.class));
     }
