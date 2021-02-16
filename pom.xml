@@ -180,7 +180,7 @@
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
         <os.plugin.version>1.6.2</os.plugin.version>
         <junit.version>4.13</junit.version>
-        <mockito.version>1.9.5</mockito.version>
+        <mockito.version>1.10.19</mockito.version>
         <disruptor.version>3.2.0</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
         <jcommander.version>1.35</jcommander.version>
