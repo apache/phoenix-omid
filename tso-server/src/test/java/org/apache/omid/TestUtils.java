@@ -111,4 +111,9 @@ public class TestUtils {
         }
     }
 
+    public static int getRandomPortNumber() {
+        int min = 1050;
+        int max = 60000;
+        return min + (int)(Math.random() * ((max - min) + 1));
+    }
 }

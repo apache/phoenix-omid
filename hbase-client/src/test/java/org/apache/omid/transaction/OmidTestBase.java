@@ -88,7 +88,8 @@ public abstract class OmidTestBase {
     public void beforeGroups(ITestContext context) throws Exception {
         // TSO Setup
         TSOServerConfig tsoConfig = new TSOServerConfig();
-        tsoConfig.setPort(1234);
+        int port = TestUtils.getRandomPortNumber();
+        tsoConfig.setPort(port);
         tsoConfig.setConflictMapSize(1000);
         tsoConfig.setWaitStrategy("LOW_CPU");
         tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
@@ -99,12 +100,12 @@ public abstract class OmidTestBase {
         HBaseTimestampStorageConfig hBaseTimestampStorageConfig = injector.getInstance(HBaseTimestampStorageConfig.class);
         tso.startAsync();
         tso.awaitRunning();
-        TestUtils.waitForSocketListening("localhost", 1234, 100);
+        TestUtils.waitForSocketListening("localhost", port, 100);
         LOG.info("Finished loading TSO");
         context.setAttribute("tso", tso);
 
         OmidClientConfiguration clientConf = new OmidClientConfiguration();
-        clientConf.setConnectionString("localhost:1234");
+        clientConf.setConnectionString("localhost:"+port);
         context.setAttribute("clientConf", clientConf);
 
         InMemoryCommitTable commitTable = (InMemoryCommitTable) injector.getInstance(CommitTable.class);
