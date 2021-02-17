@@ -280,7 +280,7 @@ public class TestReplyProcessor {
         inOrderWatermarkWriter.verify(lowWatermarkWriter, times(1)).persistLowWatermark(eq(100L));
         inOrderWatermarkWriter.verify(lowWatermarkWriter, times(1)).persistLowWatermark(eq(150L));
 
-        verify(lowWatermarkWriter, timeout(100).never()).persistLowWatermark(eq(50L));
+        verify(lowWatermarkWriter, timeout(100).times(0)).persistLowWatermark(eq(50L));
 
         InOrder inOrderCheckLWM = inOrder(replyProcessor, replyProcessor,replyProcessor,replyProcessor,replyProcessor);
         inOrderCheckLWM.verify(replyProcessor, times(1)).updateLowWatermark(Optional.of(100L));
