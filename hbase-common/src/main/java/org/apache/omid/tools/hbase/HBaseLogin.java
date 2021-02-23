@@ -43,10 +43,12 @@ public final class HBaseLogin {
     @Nullable
     public static UserGroupInformation loginIfNeeded(SecureHBaseConfig config, Configuration hbaseConf) throws IOException {
         boolean credsProvided = null != config.getPrincipal() && null != config.getKeytab();
-        if (UserGroupInformation.isSecurityEnabled() && credsProvided) {
+        if (UserGroupInformation.isSecurityEnabled()) {
             // Check if we need to authenticate with kerberos so that we cache the correct ConnectionInfo
             UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-            if (!currentUser.hasKerberosCredentials() || !isSameName(currentUser.getUserName(), config.getPrincipal())) {
+            if (credsProvided
+                    && (!currentUser.hasKerberosCredentials()
+                            || !isSameName(currentUser.getUserName(), config.getPrincipal()))) {
                 synchronized (KERBEROS_LOGIN_LOCK) {
                     // Double check the current user, might have changed since we checked last. Don't want
                     // to re-login if it's the same user.
@@ -63,11 +65,13 @@ public final class HBaseLogin {
                     }
                 }
             } else {
-                // The user already has Kerberos creds, so there isn't anything to change in the ConnectionInfo.
-                LOG.debug("Already logged in as {}", currentUser);
+                if (currentUser.hasKerberosCredentials()) {
+                    // The user already has Kerberos creds, so there isn't anything to change in the ConnectionInfo.
+                    LOG.debug("Already logged in as {}", currentUser);
+                } else {
+                    LOG.warn("Security enabled but not logged in, and did not provide credentials. NULL UGI returned");
+                }
             }
-        } else {
-            LOG.warn("Security NOT enabled when connecting to HBase. Act at your own risk. NULL UGI returned");
         }
         return ugi;
     }

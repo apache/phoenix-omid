@@ -25,8 +25,8 @@ public class SecureHBaseConfig {
     public static final String HBASE_CLIENT_PRINCIPAL_KEY = "hbase.client.principal";
     public static final String HBASE_CLIENT_KEYTAB_KEY = "hbase.client.keytab";
 
-    private String principal = "not set";
-    private String keytab = "not set";
+    private String principal;
+    private String keytab;
 
     // ----------------------------------------------------------------------------------------------------------------
     // WARNING: Do not remove getters/setters, needed by snake_yaml!
