@@ -17,7 +17,7 @@
  */
 package org.apache.omid.tso;
 
-import org.apache.omid.TestUtils;
+import org.apache.omid.NetworkUtils;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.proto.TSOProto;
@@ -85,7 +85,7 @@ public class TestTSOChannelHandlerNetty {
 
     @Test(timeOut = 10_000)
     public void testMainAPI() throws Exception {
-        int port = TestUtils.getRandomPortNumber();
+        int port = NetworkUtils.getFreePort();
         TSOChannelHandler channelHandler = getTSOChannelHandler(port);
         try {
             // Check initial state
@@ -136,7 +136,7 @@ public class TestTSOChannelHandlerNetty {
 
     @Test(timeOut = 10_000)
     public void testNettyConnectionToTSOFromClient() throws Exception {
-        int port = TestUtils.getRandomPortNumber();
+        int port = NetworkUtils.getFreePort();
         TSOChannelHandler channelHandler = getTSOChannelHandler(port);
         try {
             ClientBootstrap nettyClient = createNettyClientBootstrap();
@@ -226,7 +226,7 @@ public class TestTSOChannelHandlerNetty {
 
     @Test(timeOut = 10_000)
     public void testNettyChannelWriting() throws Exception {
-        int port = TestUtils.getRandomPortNumber();
+        int port = NetworkUtils.getFreePort();
         TSOChannelHandler channelHandler = getTSOChannelHandler(port);
         try {
             // ------------------------------------------------------------------------------------------------------------

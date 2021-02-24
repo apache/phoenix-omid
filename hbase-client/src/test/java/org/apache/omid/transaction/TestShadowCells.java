@@ -71,7 +71,6 @@ public class TestShadowCells extends OmidTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(TestShadowCells.class);
 
     private static final String TSO_SERVER_HOST = "localhost";
-    private static final int TSO_SERVER_PORT = 1234;
 
     private static final String TEST_TABLE = "test";
     private static final String TEST_FAMILY = "data";
@@ -117,7 +116,7 @@ public class TestShadowCells extends OmidTestBase {
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
-        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + port);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         TransactionManager tm2 = HBaseTransactionManager.builder(hbaseOmidClientConf)
                                                         .commitTableClient(commitTableClient)
@@ -138,7 +137,7 @@ public class TestShadowCells extends OmidTestBase {
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
-        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + port);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
@@ -186,7 +185,7 @@ public class TestShadowCells extends OmidTestBase {
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
-        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + port);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));
@@ -247,7 +246,7 @@ public class TestShadowCells extends OmidTestBase {
         CommitTable.Client commitTableClient = spy(getCommitTable(context).getClient());
 
         HBaseOmidClientConfiguration hbaseOmidClientConf = new HBaseOmidClientConfiguration();
-        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        hbaseOmidClientConf.setConnectionString(TSO_SERVER_HOST + ":" + port);
         hbaseOmidClientConf.setHBaseConfiguration(hbaseConf);
         PostCommitActions syncPostCommitter = spy(
                 new HBaseSyncPostCommitter(new NullMetricsProvider(), commitTableClient, connection));

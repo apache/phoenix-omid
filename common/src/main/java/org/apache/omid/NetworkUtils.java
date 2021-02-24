@@ -17,10 +17,8 @@
  */
 package org.apache.omid;
 
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
+import java.io.IOException;
+import java.net.*;
 import java.util.Collections;
 import java.util.Enumeration;
 
@@ -70,4 +68,21 @@ public class NetworkUtils {
         throw new IllegalArgumentException(String.format("No network '%s*'/'%s*' interfaces found",
                                                          MAC_TSO_NET_IFACE_PREFIX, LINUX_TSO_NET_IFACE_PREFIX));
     }
+
+    /**
+     * Picks a free port on the host by binding a Socket to '0'.
+     */
+    public static int getFreePort() throws IOException {
+        ServerSocket s = new ServerSocket(0);
+        try {
+            s.setReuseAddress(true);
+            int port = s.getLocalPort();
+            return port;
+        } finally {
+            if (null != s) {
+                s.close();
+            }
+        }
+    }
+
 }
