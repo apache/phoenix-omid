@@ -46,17 +46,18 @@ public final class HBaseLogin {
         if (UserGroupInformation.isSecurityEnabled()) {
             // Check if we need to authenticate with kerberos so that we cache the correct ConnectionInfo
             UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-            if (credsProvided
-                    && (!currentUser.hasKerberosCredentials()
-                            || !isSameName(currentUser.getUserName(), config.getPrincipal()))) {
+            boolean hasKerberosCreds = currentUser.hasKerberosCredentials()
+                    || (currentUser.getRealUser() != null
+                            && currentUser.getRealUser().hasKerberosCredentials());
+            if (credsProvided && (!hasKerberosCreds
+                    || !isSameName(currentUser.getUserName(), config.getPrincipal()))) {
                 synchronized (KERBEROS_LOGIN_LOCK) {
                     // Double check the current user, might have changed since we checked last. Don't want
                     // to re-login if it's the same user.
                     currentUser = UserGroupInformation.getCurrentUser();
-                    if (!currentUser.hasKerberosCredentials() || !isSameName(currentUser.getUserName(), config.getPrincipal())) {
+                    if (!hasKerberosCreds || !isSameName(currentUser.getUserName(), config.getPrincipal())) {
                         final Configuration hbaseConfig = getConfiguration(hbaseConf, config.getPrincipal(), config.getKeytab());
-                        LOG.info("Trying to connect to a secure cluster as {} " +
-                                        "with keytab {}",
+                        LOG.info("Trying to connect to a secure cluster as {} with keytab {}",
                                 hbaseConfig.get(SecureHBaseConfig.HBASE_CLIENT_PRINCIPAL_KEY),
                                 hbaseConfig.get(SecureHBaseConfig.HBASE_CLIENT_KEYTAB_KEY));
                         UserGroupInformation.setConfiguration(hbaseConfig);
@@ -65,7 +66,7 @@ public final class HBaseLogin {
                     }
                 }
             } else {
-                if (currentUser.hasKerberosCredentials()) {
+                if (hasKerberosCreds) {
                     // The user already has Kerberos creds, so there isn't anything to change in the ConnectionInfo.
                     LOG.debug("Already logged in as {}", currentUser);
                 } else {
