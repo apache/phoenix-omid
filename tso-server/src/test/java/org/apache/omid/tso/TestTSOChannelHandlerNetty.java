@@ -62,6 +62,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 
 @SuppressWarnings({"UnusedDeclaration", "StatementWithEmptyBody"})
 public class TestTSOChannelHandlerNetty {
@@ -124,6 +126,7 @@ public class TestTSOChannelHandlerNetty {
             assertEquals(channelHandler.channelGroup.size(), 0);
             try {
                 channelHandler.reconnect();
+                fail("Can't reconnect after closing");
             } catch (ChannelException e) {
                 // Expected: Can't reconnect after closing
                 assertFalse(channelHandler.listeningChannel.isOpen());

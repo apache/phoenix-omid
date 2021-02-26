@@ -107,7 +107,7 @@ public abstract class OmidTestBase {
         context.setAttribute("tso", tso);
 
         OmidClientConfiguration clientConf = new OmidClientConfiguration();
-        clientConf.setConnectionString("localhost:"+port);
+        clientConf.setConnectionString("localhost:" + port);
         context.setAttribute("clientConf", clientConf);
 
         InMemoryCommitTable commitTable = (InMemoryCommitTable) injector.getInstance(CommitTable.class);
@@ -180,7 +180,7 @@ public abstract class OmidTestBase {
 
     protected TransactionManager newTransactionManager(ITestContext context, PostCommitActions postCommitActions) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:"+port);
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .postCommitter(postCommitActions)
@@ -191,7 +191,7 @@ public abstract class OmidTestBase {
 
     protected TransactionManager newTransactionManager(ITestContext context, TSOClient tsoClient) throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:"+port);
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(getCommitTable(context).getClient())
@@ -202,7 +202,7 @@ public abstract class OmidTestBase {
     protected TransactionManager newTransactionManager(ITestContext context, CommitTable.Client commitTableClient)
             throws Exception {
         HBaseOmidClientConfiguration clientConf = new HBaseOmidClientConfiguration();
-        clientConf.setConnectionString("localhost:"+port);
+        clientConf.setConnectionString("localhost:" + port);
         clientConf.setHBaseConfiguration(hbaseConf);
         return HBaseTransactionManager.builder(clientConf)
                 .commitTableClient(commitTableClient)
