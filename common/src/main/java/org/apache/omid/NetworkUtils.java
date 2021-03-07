@@ -15,7 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -23,9 +27,6 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.Enumeration;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NetworkUtils {
 
@@ -36,7 +37,7 @@ public class NetworkUtils {
 
     public static String getDefaultNetworkInterface() {
 
-        try (DatagramSocket s=new DatagramSocket()) {
+        try (DatagramSocket s = new DatagramSocket()) {
             s.connect(InetAddress.getByAddress(new byte[]{1,1,1,1}), 0);
             return NetworkInterface.getByInetAddress(s.getLocalAddress()).getName();
         } catch (Exception e) {
@@ -51,13 +52,14 @@ public class NetworkUtils {
                 NetworkInterface nextElement = networkInterfaces.nextElement();
                 String name = nextElement.getDisplayName();
                 LOG.info("Iterating over network interfaces, found '{}'", name);
-                boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 1; // Checking that inet exists, to avoid taking iBridge
+                // Checking that inet exists, to avoid taking iBridge
+                boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 1;
                 if (hasInet && fallBackName == null) {
                     fallBackName = name;
                 }
-                if ((name.startsWith(MAC_TSO_NET_IFACE_PREFIX) && hasInet ) ||
-                        name.startsWith(LINUX_TSO_NET_IFACE_PREFIX)) {
-                  return name;
+                if ((name.startsWith(MAC_TSO_NET_IFACE_PREFIX) && hasInet )
+                    || name.startsWith(LINUX_TSO_NET_IFACE_PREFIX)) {
+                    return name;
                 }
             }
             if (fallBackName != null) {

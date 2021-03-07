@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid;
 
 import org.testng.annotations.Test;
@@ -27,8 +28,8 @@ public class TestReflectionHelper {
 
         private final int theNumber;
 
-        public TestClass(int aNumber) {
-            this.theNumber = aNumber;
+        public TestClass(int number) {
+            this.theNumber = number;
         }
         
         private int getTheNumber() {

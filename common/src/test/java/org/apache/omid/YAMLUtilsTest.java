@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.omid;
 
 import org.testng.Assert;
@@ -26,7 +27,7 @@ import java.util.Map;
 public class YAMLUtilsTest {
 
     @Test(timeOut = 10_000)
-    public void testLoadDefaultSettings_setToBean() throws Exception {
+    public void testLoadDefaultSettings_setToBean() {
         Map map = new HashMap();
         new YAMLUtils().loadSettings("test.yml", "default-test.yml", map);
         Assert.assertNotNull(map);
@@ -36,7 +37,7 @@ public class YAMLUtilsTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testLoadDefaultSettings_setToBean2() throws Exception {
+    public void testLoadDefaultSettings_setToBean2() {
         Map map = new HashMap();
         new YAMLUtils().loadSettings("test.yml", map);
         Assert.assertNotNull(map);
