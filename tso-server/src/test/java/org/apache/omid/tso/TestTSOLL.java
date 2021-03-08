@@ -18,6 +18,7 @@
 package org.apache.omid.tso;
 
 
+import org.apache.omid.NetworkUtils;
 import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.collect.Sets;
 import com.google.inject.Guice;
@@ -46,7 +47,7 @@ public class TestTSOLL {
     private static final Logger LOG = LoggerFactory.getLogger(TestTSOLL.class);
 
     private static final String TSO_SERVER_HOST = "localhost";
-    private static final int TSO_SERVER_PORT = 1234;
+    private int port;
 
 
     private OmidClientConfiguration tsoClientConf;
@@ -70,7 +71,8 @@ public class TestTSOLL {
         TSOServerConfig tsoConfig = new TSOServerConfig();
         tsoConfig.setLowLatency(true);
         tsoConfig.setConflictMapSize(1000);
-        tsoConfig.setPort(TSO_SERVER_PORT);
+        port = NetworkUtils.getFreePort();
+        tsoConfig.setPort(port);
         tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
         tsoConfig.setNumConcurrentCTWriters(2);
         Module tsoServerMockModule = new TSOMockModule(tsoConfig);
@@ -83,7 +85,7 @@ public class TestTSOLL {
         tsoServer = injector.getInstance(TSOServer.class);
         tsoServer.startAsync();
         tsoServer.awaitRunning();
-        TestUtils.waitForSocketListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 100);
+        TestUtils.waitForSocketListening(TSO_SERVER_HOST, port, 100);
 
         LOG.info("==================================================================================================");
         LOG.info("===================================== TSO Server Initialized =====================================");
@@ -93,7 +95,7 @@ public class TestTSOLL {
         commitTable = injector.getInstance(CommitTable.class);
 
         OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
-        tsoClientConf.setConnectionString(TSO_SERVER_HOST + ":" + TSO_SERVER_PORT);
+        tsoClientConf.setConnectionString(TSO_SERVER_HOST + ":" + port);
 
         this.tsoClientConf = tsoClientConf;
         commitTable = injector.getInstance(CommitTable.class);
@@ -107,7 +109,7 @@ public class TestTSOLL {
         tsoServer.stopAsync();
         tsoServer.awaitTerminated();
         tsoServer = null;
-        TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, TSO_SERVER_PORT, 1000);
+        TestUtils.waitForSocketNotListening(TSO_SERVER_HOST, port, 1000);
 
         pausableTSOracle.resume();
 
@@ -117,7 +119,7 @@ public class TestTSOLL {
     public void testNoWriteToCommitTable() throws Exception {
 
         TSOClient client = TSOClient.newInstance(tsoClientConf);
-        TSOClientOneShot clientOneShot = new TSOClientOneShot(TSO_SERVER_HOST, TSO_SERVER_PORT);
+        TSOClientOneShot clientOneShot = new TSOClientOneShot(TSO_SERVER_HOST, port);
         long ts1 = client.getNewStartTimestamp().get();
 
         TSOProto.Response response1 = clientOneShot.makeRequest(createCommitRequest(ts1, false, testWriteSet));
