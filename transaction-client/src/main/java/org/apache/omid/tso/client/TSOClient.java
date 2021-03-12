@@ -30,25 +30,26 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.LengthFieldPrepender;
-import org.jboss.netty.handler.codec.protobuf.ProtobufDecoder;
-import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
-import org.jboss.netty.util.HashedWheelTimer;
-import org.jboss.netty.util.Timeout;
-import org.jboss.netty.util.TimerTask;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 
@@ -84,8 +86,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     private CuratorFramework zkClient;
     private NodeCache currentTSOZNode;
 
-    private ChannelFactory factory;
-    private ClientBootstrap bootstrap;
+    private Bootstrap bootstrap;
     private Channel currentChannel;
     private final ScheduledExecutorService fsmExecutor;
     StateMachine.Fsm fsm;
@@ -114,17 +115,6 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
     // Avoid instantiation
     private TSOClient(OmidClientConfiguration omidConf) throws IOException {
-
-        // Start client with Nb of active threads = 3 as maximum.
-        int tsoExecutorThreads = omidConf.getExecutorThreads();
-
-        factory = new NioClientSocketChannelFactory(
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("tsoclient-boss-%d").build()),
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("tsoclient-worker-%d").build()), tsoExecutorThreads);
-        // Create the bootstrap
-        bootstrap = new ClientBootstrap(factory);
 
         requestTimeoutInMs = omidConf.getRequestTimeoutInMs();
         requestMaxRetries = omidConf.getRequestMaxRetries();
@@ -160,21 +150,31 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         fsm = new StateMachine.FsmImpl(fsmExecutor);
         fsm.setInitState(new DisconnectedState(fsm));
 
-        ChannelPipeline pipeline = bootstrap.getPipeline();
-        pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
-        pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-        pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
-        pipeline.addLast("protobufencoder", new ProtobufEncoder());
-        pipeline.addLast("handler", new Handler(fsm));
+        // Start client with the configured thread count
+        int tsoExecutorThreads = omidConf.getExecutorThreads();
+        ThreadFactory workerThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoclient-worker-%d").build();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(tsoExecutorThreads, workerThreadFactory);
 
-        bootstrap.setOption("tcpNoDelay", true);
-        bootstrap.setOption("keepAlive", true);
-        bootstrap.setOption("reuseAddress", true);
-        bootstrap.setOption("connectTimeoutMillis", 100);
+        bootstrap = new Bootstrap();
+        bootstrap.group(workerGroup);
+        bootstrap.channel(NioSocketChannel.class);
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.pipeline();
+                pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
+                pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
+                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("inboundHandler", new Handler(fsm));
+            }
+        });
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100);
+
         lowLatency = false;
-
-
-
         conflictDetectionLevel = omidConf.getConflictAnalysisLevel();
 
     }
@@ -317,6 +317,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
      * Used for family deletion
      * @return the conflict detection level.
      */
+    @Override
     public ConflictDetectionLevel getConflictDetectionLevel() {
         return conflictDetectionLevel;
     }
@@ -324,6 +325,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     /**
      * Used for family deletion testing
      */
+    @Override
     public void setConflictDetectionLevel(ConflictDetectionLevel conflictDetectionLevel) {
         this.conflictDetectionLevel = conflictDetectionLevel;
     }
@@ -342,7 +344,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         setTSOAddress(hp.getHost(), hp.getPort());
         epoch = Long.parseLong(currentTSOAndEpochArray[1]);
         LOG.info("CurrentTSO ZNode changed. New TSO Host & Port {}/Epoch {}", hp, getEpoch());
-        if (currentChannel != null && currentChannel.isConnected()) {
+        if (currentChannel != null && currentChannel.isActive()) {
             LOG.info("\tClosing channel with previous TSO {}", currentChannel);
             currentChannel.close();
         }
@@ -513,7 +515,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         }
 
         public StateMachine.State handleEvent(CloseEvent e) {
-            factory.releaseExternalResources();
+            bootstrap.config().group().shutdownGracefully();
             e.success(null);
             return this;
         }
@@ -527,10 +529,11 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
                     if (channelFuture.isSuccess()) {
                         LOG.info("Connection to TSO [{}] established. Channel {}",
-                                 tsoAddress, channelFuture.getChannel());
+                                 tsoAddress, channelFuture.channel());
                     } else {
                         LOG.error("Failed connection attempt to TSO [{}] failed. Channel {}",
-                                  tsoAddress, channelFuture.getChannel());
+                                  tsoAddress, channelFuture.channel());
+                        fsm.sendEvent(new ErrorEvent(new ConnectionException()));
                     }
                 }
             });
@@ -582,6 +585,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             return timeout;
         }
 
+        @Override
         public String toString() {
             String info = "Request type ";
             if (event.getRequest().hasTimestampRequest()) {
@@ -610,7 +614,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             TSOProto.HandshakeRequest.Builder handshake = TSOProto.HandshakeRequest.newBuilder();
             // Add the required handshake capabilities when necessary
             handshake.setClientCapabilities(TSOProto.Capabilities.newBuilder().build());
-            channel.write(TSOProto.Request.newBuilder().setHandshakeRequest(handshake.build()).build());
+            channel.writeAndFlush(TSOProto.Request.newBuilder().setHandshakeRequest(handshake.build()).build());
             timeout = newTimeout();
         }
 
@@ -764,13 +768,13 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 request.error(new IllegalArgumentException("Unknown request type"));
                 return;
             }
-            ChannelFuture f = channel.write(req);
+            ChannelFuture f = channel.writeAndFlush(req);
 
             f.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (!future.isSuccess()) {
-                        fsm.sendEvent(new ErrorEvent(future.getCause()));
+                        fsm.sendEvent(new ErrorEvent(future.cause()));
                     }
                 }
             });
@@ -1003,7 +1007,7 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
     // Helper classes & methods
     // ----------------------------------------------------------------------------------------------------------------
 
-    private class Handler extends SimpleChannelHandler {
+    private class Handler extends ChannelInboundHandlerAdapter {
 
         private StateMachine.Fsm fsm;
 
@@ -1012,37 +1016,34 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         }
 
         @Override
-        public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-            currentChannel = e.getChannel();
-            LOG.debug("HANDLER (CHANNEL CONNECTED): Connection {}. Sending connected event to FSM", e);
-            fsm.sendEvent(new ConnectedEvent(e.getChannel()));
+        public void channelActive(ChannelHandlerContext ctx) {
+            currentChannel = ctx.channel();
+            LOG.debug("HANDLER (CHANNEL ACTIVE): Connection {}. Sending connected event to FSM", ctx.channel());
+            fsm.sendEvent(new ConnectedEvent(ctx.channel()));
         }
 
         @Override
-        public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            LOG.debug("HANDLER (CHANNEL DISCONNECTED): Connection {}. Sending error event to FSM", e);
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            LOG.debug("HANDLER (CHANNEL INACTIVE): Connection {}. Sending error, then channelClosed event to FSM", ctx.channel());
+            // Netty 3 had separate callbacks, and the FSM expects both events.
+            // Sending both is much easier than rewriting the FSM
             fsm.sendEvent(new ErrorEvent(new ConnectionException()));
-        }
-
-        @Override
-        public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            LOG.debug("HANDLER (CHANNEL CLOSED): Connection {}. Sending channel closed event to FSM", e);
             fsm.sendEvent(new ChannelClosedEvent(new ConnectionException()));
         }
 
         @Override
-        public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
-            if (e.getMessage() instanceof TSOProto.Response) {
-                fsm.sendEvent(new ResponseEvent((TSOProto.Response) e.getMessage()));
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            if (msg instanceof TSOProto.Response) {
+                fsm.sendEvent(new ResponseEvent((TSOProto.Response) msg));
             } else {
-                LOG.warn("Received unknown message", e.getMessage());
+                LOG.warn("Received unknown message", msg);
             }
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
-            LOG.error("Error on channel {}", ctx.getChannel(), e.getCause());
-            fsm.sendEvent(new ErrorEvent(e.getCause()));
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            LOG.error("Error on channel {}", ctx.channel(), cause);
+            fsm.sendEvent(new ErrorEvent(cause));
         }
     }
 

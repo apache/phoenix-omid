@@ -21,21 +21,25 @@ import org.apache.omid.NetworkUtils;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.proto.TSOProto;
-import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelException;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.LengthFieldPrepender;
-import org.jboss.netty.handler.codec.protobuf.ProtobufDecoder;
-import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelFactory;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
@@ -48,6 +52,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
@@ -92,45 +97,45 @@ public class TestTSOChannelHandlerNetty {
         try {
             // Check initial state
             assertNull(channelHandler.listeningChannel);
-            assertNull(channelHandler.channelGroup);
+            assertNull(channelHandler.allChannels);
 
             // Check initial connection
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 1);
-            assertEquals(((InetSocketAddress) channelHandler.listeningChannel.getLocalAddress()).getPort(), port);
+            assertEquals(channelHandler.allChannels.size(), 1);
+            assertEquals(((InetSocketAddress) channelHandler.listeningChannel.localAddress()).getPort(), port);
 
             // Check connection close
             channelHandler.closeConnection();
             assertFalse(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 0);
+            assertEquals(channelHandler.allChannels.size(), 0);
 
             // Check re-closing connection
             channelHandler.closeConnection();
             assertFalse(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 0);
+            assertEquals(channelHandler.allChannels.size(), 0);
 
             // Check connection after closing
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 1);
+            assertEquals(channelHandler.allChannels.size(), 1);
 
             // Check re-connection
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 1);
+            assertEquals(channelHandler.allChannels.size(), 1);
 
             // Exercise closeable with re-connection trial
             channelHandler.close();
             assertFalse(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 0);
+            assertEquals(channelHandler.allChannels.size(), 0);
             try {
                 channelHandler.reconnect();
                 fail("Can't reconnect after closing");
-            } catch (ChannelException e) {
+            } catch (Exception e) {
                 // Expected: Can't reconnect after closing
                 assertFalse(channelHandler.listeningChannel.isOpen());
-                assertEquals(channelHandler.channelGroup.size(), 0);
+                assertEquals(channelHandler.allChannels.size(), 0);
             }
         } finally {
             if(channelHandler != null) channelHandler.close();
@@ -142,7 +147,7 @@ public class TestTSOChannelHandlerNetty {
         int port = NetworkUtils.getFreePort();
         TSOChannelHandler channelHandler = getTSOChannelHandler(port);
         try {
-            ClientBootstrap nettyClient = createNettyClientBootstrap();
+            Bootstrap nettyClient = createNettyClientBootstrap();
 
             ChannelFuture channelF = nettyClient.connect(new InetSocketAddress("localhost", port));
 
@@ -158,7 +163,7 @@ public class TestTSOChannelHandlerNetty {
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
             // Eventually the channel group of the server should contain the listening channel
-            assertEquals(channelHandler.channelGroup.size(), 1);
+            assertEquals(channelHandler.allChannels.size(), 1);
 
             // ------------------------------------------------------------------------------------------------------------
             // Test that a client can connect now
@@ -166,16 +171,16 @@ public class TestTSOChannelHandlerNetty {
             channelF = nettyClient.connect(new InetSocketAddress("localhost", port));
             while (!channelF.isDone()) /** do nothing */ ;
             assertTrue(channelF.isSuccess());
-            assertTrue(channelF.getChannel().isConnected());
+            assertTrue(channelF.channel().isActive());
             // Eventually the channel group of the server should have 2 elements
-            while (channelHandler.channelGroup.size() != 2) /** do nothing */ ;
+            while (channelHandler.allChannels.size() != 2) /** do nothing */ ;
 
             // ------------------------------------------------------------------------------------------------------------
             // Close the channel on the client side and test we have one element less in the channel group
             // ------------------------------------------------------------------------------------------------------------
-            channelF.getChannel().close().await();
+            channelF.channel().close().await();
             // Eventually the channel group of the server should have only one element
-            while (channelHandler.channelGroup.size() != 1) /** do nothing */ ;
+            while (channelHandler.allChannels.size() != 1) /** do nothing */ ;
 
             // ------------------------------------------------------------------------------------------------------------
             // Open a new channel and test the connection closing on the server side through the channel handler
@@ -184,13 +189,13 @@ public class TestTSOChannelHandlerNetty {
             while (!channelF.isDone()) /** do nothing */ ;
             assertTrue(channelF.isSuccess());
             // Eventually the channel group of the server should have 2 elements again
-            while (channelHandler.channelGroup.size() != 2) /** do nothing */ ;
+            while (channelHandler.allChannels.size() != 2) /** do nothing */ ;
             channelHandler.closeConnection();
             assertFalse(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 0);
+            assertEquals(channelHandler.allChannels.size(), 0);
             // Wait some time and check the channel was closed
             TimeUnit.SECONDS.sleep(1);
-            assertFalse(channelF.getChannel().isOpen());
+            assertFalse(channelF.channel().isOpen());
 
             // ------------------------------------------------------------------------------------------------------------
             // Test server re-connections with connected clients
@@ -199,28 +204,28 @@ public class TestTSOChannelHandlerNetty {
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
             // Eventually the channel group of the server should contain the listening channel
-            assertEquals(channelHandler.channelGroup.size(), 1);
+            assertEquals(channelHandler.allChannels.size(), 1);
             // Check the client can connect
             channelF = nettyClient.connect(new InetSocketAddress("localhost", port));
             while (!channelF.isDone()) /** do nothing */ ;
             assertTrue(channelF.isSuccess());
             // Eventually the channel group of the server should have 2 elements
-            while (channelHandler.channelGroup.size() != 2) /** do nothing */ ;
+            while (channelHandler.allChannels.size() != 2) /** do nothing */ ;
             // Re-connect and check that client connection was gone
             channelHandler.reconnect();
             assertTrue(channelHandler.listeningChannel.isOpen());
             // Eventually the channel group of the server should contain the listening channel
-            assertEquals(channelHandler.channelGroup.size(), 1);
+            assertEquals(channelHandler.allChannels.size(), 1);
             // Wait some time and check the channel was closed
             TimeUnit.SECONDS.sleep(1);
-            assertFalse(channelF.getChannel().isOpen());
+            assertFalse(channelF.channel().isOpen());
 
             // ------------------------------------------------------------------------------------------------------------
             // Test closeable interface with re-connection trial
             // ------------------------------------------------------------------------------------------------------------
             channelHandler.close();
             assertFalse(channelHandler.listeningChannel.isOpen());
-            assertEquals(channelHandler.channelGroup.size(), 0);
+            assertEquals(channelHandler.allChannels.size(), 0);
         } finally {
             if (channelHandler != null) channelHandler.close();
         }
@@ -239,20 +244,20 @@ public class TestTSOChannelHandlerNetty {
             // Connect channel handler
             channelHandler.reconnect();
             // Create client and connect it
-            ClientBootstrap nettyClient = createNettyClientBootstrap();
+            Bootstrap nettyClient = createNettyClientBootstrap();
             ChannelFuture channelF = nettyClient.connect(new InetSocketAddress("localhost", port));
             // Basic checks for connection
             while (!channelF.isDone()) /** do nothing */ ;
             assertTrue(channelF.isSuccess());
-            assertTrue(channelF.getChannel().isConnected());
-            Channel channel = channelF.getChannel();
+            assertTrue(channelF.channel().isActive());
+            Channel channel = channelF.channel();
             // Eventually the channel group of the server should have 2 elements
-            while (channelHandler.channelGroup.size() != 2) /** do nothing */ ;
+            while (channelHandler.allChannels.size() != 2) /** do nothing */ ;
             // Write first handshake request
             TSOProto.HandshakeRequest.Builder handshake = TSOProto.HandshakeRequest.newBuilder();
             // NOTE: Add here the required handshake capabilities when necessary
             handshake.setClientCapabilities(TSOProto.Capabilities.newBuilder().build());
-            channelF.getChannel().write(TSOProto.Request.newBuilder().setHandshakeRequest(handshake.build()).build());
+            channelF.channel().writeAndFlush(TSOProto.Request.newBuilder().setHandshakeRequest(handshake.build()).build());
 
             // ------------------------------------------------------------------------------------------------------------
             // Test channel writing
@@ -275,7 +280,7 @@ public class TestTSOChannelHandlerNetty {
         TSOProto.TimestampRequest.Builder tsRequestBuilder = TSOProto.TimestampRequest.newBuilder();
         tsBuilder.setTimestampRequest(tsRequestBuilder.build());
         // Write into the channel
-        channel.write(tsBuilder.build()).await();
+        channel.writeAndFlush(tsBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(1)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
         verify(requestProcessor, timeout(100).times(0))
                 .commitRequest(anyLong(), anyCollectionOf(Long.class), anyCollectionOf(Long.class), anyBoolean(), any(Channel.class), any(MonitoringContextImpl.class));
@@ -292,7 +297,7 @@ public class TestTSOChannelHandlerNetty {
         TSOProto.Request r = commitBuilder.build();
         assertTrue(r.hasCommitRequest());
         // Write into the channel
-        channel.write(commitBuilder.build()).await();
+        channel.writeAndFlush(commitBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
         verify(requestProcessor, timeout(100).times(1))
                 .commitRequest(eq(666L), anyCollectionOf(Long.class), anyCollectionOf(Long.class), eq(false), any(Channel.class), any(MonitoringContextImpl.class));
@@ -308,7 +313,7 @@ public class TestTSOChannelHandlerNetty {
         TSOProto.Request r = fenceBuilder.build();
         assertTrue(r.hasFenceRequest());
         // Write into the channel
-        channel.write(fenceBuilder.build()).await();
+        channel.writeAndFlush(fenceBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
         verify(requestProcessor, timeout(100).times(1))
                 .fenceRequest(eq(666L), any(Channel.class), any(MonitoringContextImpl.class));
@@ -318,37 +323,43 @@ public class TestTSOChannelHandlerNetty {
     // Helper methods
     // ----------------------------------------------------------------------------------------------------------------
 
-    private ClientBootstrap createNettyClientBootstrap() {
+    private Bootstrap createNettyClientBootstrap() {
 
-        ChannelFactory factory = new NioClientSocketChannelFactory(
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("client-boss-%d").build()),
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("client-worker-%d").build()), 1);
-        // Create the bootstrap
-        ClientBootstrap bootstrap = new ClientBootstrap(factory);
-        bootstrap.setOption("tcpNoDelay", true);
-        bootstrap.setOption("keepAlive", true);
-        bootstrap.setOption("reuseAddress", true);
-        bootstrap.setOption("connectTimeoutMillis", 100);
-        ChannelPipeline pipeline = bootstrap.getPipeline();
-        pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
-        pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-        pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
-        pipeline.addLast("protobufencoder", new ProtobufEncoder());
-        pipeline.addLast("handler", new SimpleChannelHandler() {
+        ThreadFactory workerThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoclient-worker-%d").build();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(1, workerThreadFactory);
 
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100);
+
+        bootstrap.group(workerGroup);
+        bootstrap.channel(NioSocketChannel.class);
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
-            public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-                LOG.info("Channel {} connected", ctx.getChannel());
-            }
+            public void initChannel(SocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.pipeline();
+                pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
+                pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
+                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("testhandler", new ChannelInboundHandlerAdapter() {
 
-            @Override
-            public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
-                LOG.error("Error on channel {}", ctx.getChannel(), e.getCause());
-            }
+                    @Override
+                    public void channelActive(ChannelHandlerContext ctx) {
+                        LOG.info("Channel {} active", ctx.channel());
+                    }
 
+                    @Override
+                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                        LOG.error("Error on channel {}", ctx.channel(), cause);
+                    }
+
+                });
+            }
         });
+
         return bootstrap;
     }
 }

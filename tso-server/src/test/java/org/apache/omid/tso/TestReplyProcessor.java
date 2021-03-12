@@ -23,7 +23,7 @@ import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.tso.ReplyProcessorImpl.ReplyBatchEvent;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;

@@ -23,7 +23,7 @@ import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

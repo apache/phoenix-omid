@@ -28,7 +28,7 @@ import com.lmax.disruptor.dsl.Disruptor;
 
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.tso.TSOStateManager.TSOState;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

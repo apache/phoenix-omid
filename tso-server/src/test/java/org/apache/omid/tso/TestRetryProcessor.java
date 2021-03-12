@@ -25,7 +25,7 @@ import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.committable.InMemoryCommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;

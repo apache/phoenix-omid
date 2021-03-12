@@ -20,18 +20,27 @@ package org.apache.omid.tso;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.tso.ProgrammableTSOServer.Response.ResponseType;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.group.ChannelGroup;
-import org.jboss.netty.channel.group.DefaultChannelGroup;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.GlobalEventExecutor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,36 +49,51 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Used in tests. Allows to program the set of responses returned by a TSO
  */
-public class ProgrammableTSOServer extends SimpleChannelHandler {
+@Sharable
+public class ProgrammableTSOServer extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProgrammableTSOServer.class);
 
-    private ChannelFactory factory;
-    private ChannelGroup channelGroup;
+    private ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 
     private Queue<Response> responseQueue = new LinkedList<>();
+
+    private static final AttributeKey<TSOChannelContext> TSO_CTX =
+            AttributeKey.valueOf("TSO_CTX");
 
     @Inject
     public ProgrammableTSOServer(int port) {
         // Setup netty listener
-        factory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(new ThreadFactoryBuilder()
-                .setNameFormat("boss-%d").build()), Executors.newCachedThreadPool(new ThreadFactoryBuilder()
-                .setNameFormat("worker-%d").build()), (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2);
 
-        // Create the global ChannelGroup
-        channelGroup = new DefaultChannelGroup(ProgrammableTSOServer.class.getName());
+        int workerThreadCount = (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2;
+        ThreadFactory bossThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoserver-boss-%d").build();
+        ThreadFactory workerThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoserver-worker-%d").build();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(workerThreadCount, workerThreadFactory);
+        EventLoopGroup bossGroup = new NioEventLoopGroup(bossThreadFactory);
 
-        ServerBootstrap bootstrap = new ServerBootstrap(factory);
-        bootstrap.setPipelineFactory(new TSOChannelHandler.TSOPipelineFactory(this));
+        ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.group(bossGroup,  workerGroup);
+        bootstrap.channel(NioServerSocketChannel.class);
+        bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.pipeline();
+                pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(10 * 1024 * 1024, 0, 4, 0, 4));
+                pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
+                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Request.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("handler", ProgrammableTSOServer.this);
+            }
+        });
 
         // Add the parent channel to the group
-        Channel channel = bootstrap.bind(new InetSocketAddress(port));
-        channelGroup.add(channel);
+        Channel channel = bootstrap.bind(new InetSocketAddress(port)).syncUninterruptibly().channel();
+        allChannels.add(channel);
 
         LOG.info("********** Dumb TSO Server running on port {} **********", port);
     }
@@ -96,24 +120,18 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
     // ******************** End of Main interface for tests *******************
 
     @Override
-    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        channelGroup.add(ctx.getChannel());
-    }
-
-    @Override
-    public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        channelGroup.remove(ctx.getChannel());
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        allChannels.add(ctx.channel());
     }
 
     /**
      * Handle received messages
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
-        Object msg = e.getMessage();
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof TSOProto.Request) {
             TSOProto.Request request = (TSOProto.Request) msg;
-            Channel channel = ctx.getChannel();
+            Channel channel = ctx.channel();
             if (request.hasHandshakeRequest()) {
                 checkHandshake(ctx, request.getHandshakeRequest());
                 return;
@@ -148,7 +166,7 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
                 }
             } else {
                 LOG.error("Invalid request {}", request);
-                ctx.getChannel().close();
+                ctx.channel().close();
             }
         } else {
             LOG.error("Unknown message type", msg);
@@ -156,12 +174,12 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        if (e.getCause() instanceof ClosedChannelException) {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        if (cause instanceof ClosedChannelException) {
             return;
         }
-        LOG.warn("TSOHandler: Unexpected exception from downstream.", e.getCause());
-        Channels.close(e.getChannel());
+        LOG.warn("TSOHandler: Unexpected exception.", cause);
+        ctx.channel().close();
     }
 
     private void checkHandshake(final ChannelHandlerContext ctx, TSOProto.HandshakeRequest request) {
@@ -171,15 +189,15 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
             response.setClientCompatible(true).setServerCapabilities(TSOProto.Capabilities.newBuilder().build());
             TSOChannelContext tsoCtx = new TSOChannelContext();
             tsoCtx.setHandshakeComplete();
-            ctx.setAttachment(tsoCtx);
+            ctx.channel().attr(TSO_CTX).set(tsoCtx);
         } else {
             response.setClientCompatible(false);
         }
-        ctx.getChannel().write(TSOProto.Response.newBuilder().setHandshakeResponse(response.build()).build());
+        ctx.channel().writeAndFlush(TSOProto.Response.newBuilder().setHandshakeResponse(response.build()).build());
     }
 
     private boolean handshakeCompleted(ChannelHandlerContext ctx) {
-        Object o = ctx.getAttachment();
+        Object o = ctx.channel().attr(TSO_CTX).get();
         if (o instanceof TSOChannelContext) {
             TSOChannelContext tsoCtx = (TSOChannelContext) o;
             return tsoCtx.getHandshakeComplete();
@@ -192,7 +210,7 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
         TSOProto.TimestampResponse.Builder respBuilder = TSOProto.TimestampResponse.newBuilder();
         respBuilder.setStartTimestamp(startTimestamp);
         builder.setTimestampResponse(respBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
     }
 
     private void sendCommitResponse(long startTimestamp, long commitTimestamp, Channel c) {
@@ -200,7 +218,7 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
         TSOProto.CommitResponse.Builder commitBuilder = TSOProto.CommitResponse.newBuilder();
         commitBuilder.setAborted(false).setStartTimestamp(startTimestamp).setCommitTimestamp(commitTimestamp);
         builder.setCommitResponse(commitBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
     }
 
     private void sendAbortResponse(long startTimestamp, Channel c) {
@@ -208,7 +226,7 @@ public class ProgrammableTSOServer extends SimpleChannelHandler {
         TSOProto.CommitResponse.Builder commitBuilder = TSOProto.CommitResponse.newBuilder();
         commitBuilder.setAborted(true).setStartTimestamp(startTimestamp);
         builder.setCommitResponse(commitBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
     }
 
     private static class TSOChannelContext {
