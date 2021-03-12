@@ -32,7 +32,7 @@ import org.apache.commons.pool2.ObjectPool;
 import org.apache.omid.metrics.Meter;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.proto.TSOProto;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -210,7 +210,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
                 .setStartTimestamp(startTimestamp)
                 .setCommitTimestamp(commitTimestamp);
         builder.setCommitResponse(commitBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
         commitMeter.mark();
         monCtx.timerStop("reply.processor.commit.latency");
     }
@@ -223,7 +223,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
         commitBuilder.setAborted(true);
         commitBuilder.setStartTimestamp(startTimestamp);
         builder.setCommitResponse(commitBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
         abortMeter.mark();
         monCtx.timerStop("reply.processor.abort.latency");
     }
@@ -235,7 +235,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
         TSOProto.TimestampResponse.Builder respBuilder = TSOProto.TimestampResponse.newBuilder();
         respBuilder.setStartTimestamp(startTimestamp);
         builder.setTimestampResponse(respBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
         timestampMeter.mark();
         monCtx.timerStop("reply.processor.timestamp.latency");
     }
@@ -248,7 +248,7 @@ class ReplyProcessorImpl implements EventHandler<ReplyProcessorImpl.ReplyBatchEv
         fenceBuilder.setTableId(tableID);
         fenceBuilder.setFenceId(fenceTimestamp);
         builder.setFenceResponse(fenceBuilder.build());
-        c.write(builder.build());
+        c.writeAndFlush(builder.build());
         monCtx.timerStop("reply.processor.fence.latency");
         fenceMeter.mark();
     }

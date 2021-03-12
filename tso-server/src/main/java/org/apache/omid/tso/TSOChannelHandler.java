@@ -17,56 +17,58 @@
  */
 package org.apache.omid.tso;
 
-import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
-import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.omid.metrics.MetricsRegistry;
-import org.apache.omid.proto.TSOProto;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelHandler;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.group.ChannelGroup;
-import org.jboss.netty.channel.group.DefaultChannelGroup;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.LengthFieldPrepender;
-import org.jboss.netty.handler.codec.protobuf.ProtobufDecoder;
-import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+
+import javax.inject.Inject;
+
+import org.apache.omid.metrics.MetricsRegistry;
+import org.apache.omid.proto.TSOProto;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.GlobalEventExecutor;
 
 /**
  * ChannelHandler for the TSO Server.
  *
  * Incoming requests are processed in this class
  */
-public class TSOChannelHandler extends SimpleChannelHandler implements Closeable {
+// Marked sharable, as all global members used in callbacks are singletons.
+@Sharable
+public class TSOChannelHandler extends ChannelInboundHandlerAdapter implements Closeable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TSOChannelHandler.class);
-
-    private final ChannelFactory factory;
+    private final Logger LOG = LoggerFactory.getLogger(TSOChannelHandler.class);
 
     private final ServerBootstrap bootstrap;
 
     @VisibleForTesting
     Channel listeningChannel;
     @VisibleForTesting
-    ChannelGroup channelGroup;
+    ChannelGroup allChannels;
 
     private RequestProcessor requestProcessor;
 
@@ -74,38 +76,57 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
 
     private MetricsRegistry metrics;
 
+    private static final AttributeKey<TSOChannelContext> TSO_CTX =
+            AttributeKey.valueOf("TSO_CTX");
+
     @Inject
     public TSOChannelHandler(TSOServerConfig config, RequestProcessor requestProcessor, MetricsRegistry metrics) {
 
         this.config = config;
         this.metrics = metrics;
         this.requestProcessor = requestProcessor;
+
         // Setup netty listener
-        this.factory = new NioServerSocketChannelFactory(
-                Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("boss-%d").build()),
-                Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("worker-%d").build()),
-                (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2);
+        int workerThreadCount= (Runtime.getRuntime().availableProcessors() * 2 + 1) * 2;
+        ThreadFactory bossThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoserver-boss-%d").build();
+        ThreadFactory workerThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoserver-worker-%d").build();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(workerThreadCount, workerThreadFactory);
+        EventLoopGroup bossGroup = new NioEventLoopGroup(bossThreadFactory);
 
-        this.bootstrap = new ServerBootstrap(factory);
-        bootstrap.setPipelineFactory(new TSOPipelineFactory(this));
-
+        this.bootstrap = new ServerBootstrap();
+        bootstrap.group(bossGroup,  workerGroup);
+        bootstrap.channel(NioServerSocketChannel.class);
+        bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.pipeline();
+                // Max packet length is 10MB. Transactions with so many cells
+                // that the packet is rejected will receive a ServiceUnavailableException.
+                // 10MB is enough for 2 million cells in a transaction though.
+                pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(10 * 1024 * 1024, 0, 4, 0, 4));
+                pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
+                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Request.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("handler", TSOChannelHandler.this);
+            }
+        });
     }
 
     /**
      * Allows to create and connect the communication channel closing the previous one if existed
      */
     void reconnect() {
-        if (listeningChannel == null && channelGroup == null) {
+        if (listeningChannel == null && allChannels == null) {
             LOG.debug("Creating communication channel...");
         } else {
             LOG.debug("Reconnecting communication channel...");
             closeConnection();
         }
         // Create the global ChannelGroup
-        channelGroup = new DefaultChannelGroup(TSOChannelHandler.class.getName());
+        allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
         LOG.debug("\tCreating channel to listening for incoming connections in port {}", config.getPort());
-        listeningChannel = bootstrap.bind(new InetSocketAddress(config.getPort()));
-        channelGroup.add(listeningChannel);
+        listeningChannel = bootstrap.bind(new InetSocketAddress(config.getPort())).syncUninterruptibly().channel();
+        allChannels.add(listeningChannel);
         LOG.debug("\tListening channel created and connected: {}", listeningChannel);
     }
 
@@ -114,15 +135,10 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
      */
     void closeConnection() {
         LOG.debug("Closing communication channel...");
-        if (listeningChannel != null) {
-            LOG.debug("\tUnbinding listening channel {}", listeningChannel);
-            listeningChannel.unbind().awaitUninterruptibly();
-            LOG.debug("\tListening channel {} unbound", listeningChannel);
-        }
-        if (channelGroup != null) {
-            LOG.debug("\tClosing channel group {}", channelGroup);
-            channelGroup.close().awaitUninterruptibly();
-            LOG.debug("\tChannel group {} closed", channelGroup);
+        if (allChannels != null) {
+            LOG.debug("\tClosing channel group {}", allChannels);
+            allChannels.close().awaitUninterruptibly();
+            LOG.debug("\tChannel group {} closed", allChannels);
         }
     }
 
@@ -131,28 +147,22 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
     // ----------------------------------------------------------------------------------------------------------------
 
     @Override
-    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        channelGroup.add(ctx.getChannel());
-        LOG.debug("TSO channel connected: {}", ctx.getChannel());
+    public void channelActive(ChannelHandlerContext ctx) {
+        allChannels.add(ctx.channel());
+        LOG.debug("TSO channel active: {}", ctx.channel());
     }
 
     @Override
-    public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        channelGroup.remove(ctx.getChannel());
-        LOG.debug("TSO channel disconnected: {}", ctx.getChannel());
-    }
-
-    @Override
-    public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        LOG.debug("TSO channel closed: {}", ctx.getChannel());
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        //ChannelGroup will automatically remove closed Channels
+        LOG.debug("TSO channel inactive: {}", ctx.channel());
     }
 
     /**
      * Handle received messages
      */
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
-        Object msg = e.getMessage();
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof TSOProto.Request) {
             TSOProto.Request request = (TSOProto.Request) msg;
             if (request.hasHandshakeRequest()) {
@@ -160,28 +170,28 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
                 return;
             }
             if (!handshakeCompleted(ctx)) {
-                LOG.error("Handshake not completed. Closing channel {}", ctx.getChannel());
-                ctx.getChannel().close();
+                LOG.error("Handshake not completed. Closing channel {}", ctx.channel());
+                ctx.channel().close();
             }
 
             if (request.hasTimestampRequest()) {
-                requestProcessor.timestampRequest(ctx.getChannel(), MonitoringContextFactory.getInstance(config,metrics));
+                requestProcessor.timestampRequest(ctx.channel(), MonitoringContextFactory.getInstance(config,metrics));
             } else if (request.hasCommitRequest()) {
                 TSOProto.CommitRequest cr = request.getCommitRequest();
                 requestProcessor.commitRequest(cr.getStartTimestamp(),
                                                cr.getCellIdList(),
                                                cr.getTableIdList(),
                                                cr.getIsRetry(),
-                                               ctx.getChannel(),
+                                               ctx.channel(),
                                                MonitoringContextFactory.getInstance(config,metrics));
             } else if (request.hasFenceRequest()) {
                 TSOProto.FenceRequest fr = request.getFenceRequest();
                 requestProcessor.fenceRequest(fr.getTableId(),
-                        ctx.getChannel(),
+                        ctx.channel(),
                         MonitoringContextFactory.getInstance(config,metrics));
             } else {
-                LOG.error("Invalid request {}. Closing channel {}", request, ctx.getChannel());
-                ctx.getChannel().close();
+                LOG.error("Invalid request {}. Closing channel {}", request, ctx.channel());
+                ctx.channel().close();
             }
         } else {
             LOG.error("Unknown message type", msg);
@@ -190,13 +200,13 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
 
     @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        if (e.getCause() instanceof ClosedChannelException) {
-            LOG.warn("ClosedChannelException caught. Cause: ", e.getCause());
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        if (cause instanceof ClosedChannelException) {
+            LOG.warn("ClosedChannelException caught. Cause: ", cause);
             return;
         }
-        LOG.warn("Unexpected exception from downstream. Closing channel {} {}", ctx.getChannel(), e.getCause());
-        ctx.getChannel().close();
+        LOG.warn("Unexpected exception. Closing channel {}", ctx.channel(), cause);
+        ctx.channel().close();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -204,8 +214,12 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
     // ----------------------------------------------------------------------------------------------------------------
     @Override
     public void close() throws IOException {
-        closeConnection();
-        factory.releaseExternalResources();
+        LOG.debug("Shutting down communication channel...");
+        bootstrap.config().group().shutdownGracefully();
+        bootstrap.config().childGroup().shutdownGracefully();
+
+        bootstrap.config().group().terminationFuture().awaitUninterruptibly();
+        bootstrap.config().childGroup().terminationFuture().awaitUninterruptibly();
     }
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -242,51 +256,22 @@ public class TSOChannelHandler extends SimpleChannelHandler implements Closeable
                     .setServerCapabilities(TSOProto.Capabilities.newBuilder().build());
             TSOChannelContext tsoCtx = new TSOChannelContext();
             tsoCtx.setHandshakeComplete();
-            ctx.setAttachment(tsoCtx);
+            ctx.channel().attr(TSO_CTX).set(tsoCtx);
         } else {
             response.setClientCompatible(false);
         }
         response.setLowLatency(config.getLowLatency());
-        ctx.getChannel().write(TSOProto.Response.newBuilder().setHandshakeResponse(response.build()).build());
+        ctx.channel().writeAndFlush(TSOProto.Response.newBuilder().setHandshakeResponse(response.build()).build());
 
     }
 
     private boolean handshakeCompleted(ChannelHandlerContext ctx) {
 
-        Object o = ctx.getAttachment();
-        if (o instanceof TSOChannelContext) {
-            TSOChannelContext tsoCtx = (TSOChannelContext) o;
+        TSOChannelContext tsoCtx = ctx.channel().attr(TSO_CTX).get();
+        if (tsoCtx != null) {
             return tsoCtx.getHandshakeComplete();
         }
         return false;
-
-    }
-
-    /**
-     * Netty pipeline configuration
-     */
-    static class TSOPipelineFactory implements ChannelPipelineFactory {
-
-        private final ChannelHandler handler;
-
-        TSOPipelineFactory(ChannelHandler handler) {
-            this.handler = handler;
-        }
-
-        public ChannelPipeline getPipeline() throws Exception {
-
-            ChannelPipeline pipeline = Channels.pipeline();
-            // Max packet length is 10MB. Transactions with so many cells
-            // that the packet is rejected will receive a ServiceUnavailableException.
-            // 10MB is enough for 2 million cells in a transaction though.
-            pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(10 * 1024 * 1024, 0, 4, 0, 4));
-            pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-            pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Request.getDefaultInstance()));
-            pipeline.addLast("protobufencoder", new ProtobufEncoder());
-            pipeline.addLast("handler", handler);
-
-            return pipeline;
-        }
     }
 
 }

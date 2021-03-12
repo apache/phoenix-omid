@@ -21,21 +21,24 @@ import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableF
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.proto.TSOProto.Response;
-import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.LengthFieldPrepender;
-import org.jboss.netty.handler.codec.protobuf.ProtobufDecoder;
-import org.jboss.netty.handler.codec.protobuf.ProtobufEncoder;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFactory;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +48,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Raw client for communicating with tso server directly with protobuf messages
@@ -58,39 +62,39 @@ public class TSOClientRaw {
     private final Channel channel;
 
     public TSOClientRaw(String host, int port) throws InterruptedException, ExecutionException {
-        // Start client with Nb of active threads = 3 as maximum.
-        ChannelFactory factory = new NioClientSocketChannelFactory(
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("tsoclient-boss-%d").build()),
-                Executors.newCachedThreadPool(
-                        new ThreadFactoryBuilder().setNameFormat("tsoclient-worker-%d").build()), 3);
-        // Create the bootstrap
-        ClientBootstrap bootstrap = new ClientBootstrap(factory);
 
         InetSocketAddress addr = new InetSocketAddress(host, port);
 
-        ChannelPipeline pipeline = bootstrap.getPipeline();
-        pipeline.addLast("lengthbaseddecoder",
-                new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
-        pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-        pipeline.addLast("protobufdecoder",
-                new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
-        pipeline.addLast("protobufencoder", new ProtobufEncoder());
+        // Start client with Nb of active threads = 3
+        ThreadFactory workerThreadFactory = new ThreadFactoryBuilder().setNameFormat("tsoclient-worker-%d").build();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(3, workerThreadFactory);
 
-        Handler handler = new Handler();
-        pipeline.addLast("handler", handler);
-
-        bootstrap.setOption("tcpNoDelay", true);
-        bootstrap.setOption("keepAlive", true);
-        bootstrap.setOption("reuseAddress", true);
-        bootstrap.setOption("connectTimeoutMillis", 100);
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(workerGroup);
+        bootstrap.channel(NioSocketChannel.class);
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel channel) throws Exception {
+                ChannelPipeline pipeline = channel.pipeline();
+                pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
+                pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
+                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("rawHandler", new RawHandler());
+            }
+        });
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100);
 
         ChannelFuture channelFuture = bootstrap.connect(addr).await();
-        channel = channelFuture.getChannel();
+        channel = channelFuture.channel();
+
     }
 
     public void write(TSOProto.Request request) {
-        channel.write(request);
+        channel.writeAndFlush(request);
     }
 
     public Future<Response> getResponse() throws InterruptedException {
@@ -104,12 +108,12 @@ public class TSOClientRaw {
         channel.close();
     }
 
-    private class Handler extends SimpleChannelHandler {
+    private class RawHandler extends ChannelInboundHandlerAdapter {
         @Override
-        public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
-            LOG.info("Message received", e);
-            if (e.getMessage() instanceof Response) {
-                Response resp = (Response) e.getMessage();
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            LOG.info("Message received", msg);
+            if (msg instanceof Response) {
+                Response resp = (Response) msg;
                 try {
                     SettableFuture<Response> future = responseQueue.take();
                     future.set(resp);
@@ -118,16 +122,16 @@ public class TSOClientRaw {
                     LOG.warn("Interrupted in handler", ie);
                 }
             } else {
-                LOG.warn("Received unknown message", e.getMessage());
+                LOG.warn("Received unknown message", msg);
             }
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-            LOG.info("Exception received", e.getCause());
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            LOG.info("Exception received", cause);
             try {
                 SettableFuture<Response> future = responseQueue.take();
-                future.setException(e.getCause());
+                future.setException(cause);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 LOG.warn("Interrupted handling exception", ie);
@@ -135,9 +139,9 @@ public class TSOClientRaw {
         }
 
         @Override
-        public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e)
+        public void channelInactive(ChannelHandlerContext ctx)
                 throws Exception {
-            LOG.info("Disconnected");
+            LOG.info("Inactive");
             try {
                 SettableFuture<Response> future = responseQueue.take();
                 future.setException(new ConnectionException());

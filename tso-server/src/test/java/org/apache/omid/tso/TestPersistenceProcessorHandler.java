@@ -22,7 +22,7 @@ import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.tso.PersistenceProcessorImpl.PersistBatchEvent;
-import org.jboss.netty.channel.Channel;
+import io.netty.channel.Channel;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
