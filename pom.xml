@@ -189,7 +189,7 @@
         <!-- 2.12+ shades guava -->
         <curator.version>2.13.0</curator.version>
         <zookeeper.version>3.4.9</zookeeper.version>
-        <snakeyaml.version>1.11</snakeyaml.version>
+        <snakeyaml.version>1.26</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.4</commons-io.version>
         <google.findbugs.version>3.0.1</google.findbugs.version>
