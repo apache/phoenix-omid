@@ -19,7 +19,7 @@ package org.apache.omid.committable.hbase;
 
 import org.apache.phoenix.thirdparty.com.google.common.base.Preconditions;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.util.Bytes;
 
