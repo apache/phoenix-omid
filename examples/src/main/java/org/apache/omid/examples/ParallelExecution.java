@@ -17,7 +17,7 @@
  */
 package org.apache.omid.examples;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.transaction.RollbackException;
 import org.slf4j.Logger;
