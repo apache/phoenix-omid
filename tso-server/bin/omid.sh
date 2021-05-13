@@ -40,7 +40,7 @@ for j in ../lib/*.jar; do
 done
 
 tso() {
-    exec java $JVM_FLAGS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
+    exec java $JVM_FLAGS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
 }
 
 tsoRelauncher() {
@@ -51,11 +51,11 @@ tsoRelauncher() {
 }
 
 createHBaseCommitTable() {
-    exec java -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
+    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
 }
 
 createHBaseTimestampTable() {
-    exec java -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
+    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
 }
 
 usage() {
