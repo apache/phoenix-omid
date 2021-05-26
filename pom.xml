@@ -176,7 +176,10 @@
         <slf4j.version>1.7.7</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
         <netty4.version>4.1.60.Final</netty4.version>
-        <protobuf.version>2.5.0</protobuf.version>
+        <!-- com.google repo will be used except on Aarch64 platform. -->
+        <protobuf.group>com.google.protobuf</protobuf.group>
+        <protobuf-java.version>2.5.0</protobuf-java.version>
+        <protoc.version>2.5.0</protoc.version>
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
         <os.plugin.version>1.6.2</os.plugin.version>
         <junit.version>4.13</junit.version>
@@ -647,7 +650,20 @@
                 </plugins>
             </build>
         </profile>
-
+        <profile>
+            <id>linux-aarch64</id>
+            <activation>
+                <os>
+                <family>linux</family>
+                <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <!-- PHOENIX-6475 Use custom protoc for Linux ARM64 -->
+                <protobuf.group>org.openlabtesting.protobuf</protobuf.group>
+                <protoc.version>2.5.0.2</protoc.version>
+            </properties>
+        </profile>
     </profiles>
 
     <dependencyManagement>
