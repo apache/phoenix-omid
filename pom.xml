@@ -180,7 +180,7 @@
         <!-- 2.12+ shades guava -->
         <curator.version>4.3.0.7.1.7.0-SNAPSHOT</curator.version>
         <zookeeper.version>3.5.5.7.1.7.0-SNAPSHOT</zookeeper.version>
-        <snakeyaml.version>1.26</snakeyaml.version>
+        <snakeyaml.version>1.11</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.6</commons-io.version>
         <google.findbugs.version>3.0.1</google.findbugs.version>
