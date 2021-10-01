@@ -194,7 +194,8 @@
         <zookeeper.version>3.4.9</zookeeper.version>
         <snakeyaml.version>1.26</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
-        <commons-io.version>2.4</commons-io.version>
+        <!-- Kept for Java 7 compatibility. Overridden in hbase-2 profile.-->
+        <commons-io.version>2.6</commons-io.version>
         <google.findbugs.version>3.0.1</google.findbugs.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -623,6 +624,7 @@
                 <hadoop.version>${hadoop2.version}</hadoop.version>
                 <hbase.version>${hbase2.version}</hbase.version>
                 <hbase.artifactId.suffix>${hbase2.artifactId.suffix}</hbase.artifactId.suffix>
+                <commons-io.version>2.11.0</commons-io.version>
             </properties>
         </profile>
 
