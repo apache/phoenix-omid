@@ -678,12 +678,13 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
                 new ThreadFactoryBuilder().setNameFormat("tso-client-backoff-timeout").build());
 
         Throwable exception;
+        Timeout timeout;
 
         ConnectionFailedState(final StateMachine.Fsm fsm, final Throwable exception) {
             super(fsm);
             LOG.debug("NEW STATE: CONNECTION FAILED [RE-CONNECTION BACKOFF]");
             this.exception = exception;
-            reconnectionTimeoutExecutor.newTimeout(new TimerTask() {
+            this.timeout = reconnectionTimeoutExecutor.newTimeout(new TimerTask() {
                 @Override
                 public void run(Timeout timeout) {
                     fsm.sendEvent(new ReconnectEvent());
@@ -701,13 +702,19 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         }
 
         public StateMachine.State handleEvent(ChannelClosedEvent e) {
+            cleanupState();
             return new DisconnectedState(fsm);
         }
 
-        public StateMachine.State handleEvent(ReconnectEvent e) {
+        public StateMachine.State handleEvent(ReconnectEvent e){
+            cleanupState();
             return new DisconnectedState(fsm);
         }
 
+        private void cleanupState() {
+            if(timeout != null) timeout.cancel();
+            reconnectionTimeoutExecutor.stop();
+        }
     }
 
     private class HandshakeFailedState extends ConnectionFailedState {
