@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <artifactId>omid</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
+    <artifactId>omid-hbase-commit-table</artifactId>
     <packaging>jar</packaging>
     <name>HBase Commit Table</name>
 
@@ -32,17 +32,17 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-commit-table</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-common-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -53,7 +53,6 @@
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
-            <version>${curator.version}</version>
         </dependency>
 
         <!-- end distributed comm -->
@@ -101,7 +100,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -112,7 +110,6 @@
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-test</artifactId>
-            <version>${curator.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -123,11 +120,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.omid</groupId>
-            <artifactId>${shims.artifactId}</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- end testing -->
 
         <!-- TODO remove these two dependencies that are required for HBaseCommitTableTester -->

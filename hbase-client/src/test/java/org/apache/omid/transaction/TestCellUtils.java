@@ -22,7 +22,6 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.HBaseShims;
 import org.apache.omid.tso.client.CellId;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -137,7 +136,7 @@ public class TestCellUtils {
                    "Should be equal");
 
         // Modify dup shadow cell to have a greater MVCC and check that is replaced
-        HBaseShims.setKeyValueSequenceId((KeyValue) dupCell1WithAnotherValue, 1);
+        ((KeyValue)dupCell1WithAnotherValue).setSequenceId(1);
         cellsToShadowCells = CellUtils.mapCellsToShadowCells(badListWithDups);
         assertEquals(cellsToShadowCells.size(), 1, "There should be only 1 key-value maps");
         assertTrue(cellsToShadowCells.containsKey(dupCell1WithAnotherValue));

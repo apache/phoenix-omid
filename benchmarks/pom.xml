@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <artifactId>omid</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-benchmarks-${hbase.artifactId.suffix}</artifactId>
+    <artifactId>omid-benchmarks</artifactId>
     <name>Benchmarks</name>
 
     <dependencies>
@@ -31,22 +31,22 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-transaction-client-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-transaction-client</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-commit-table</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-metrics-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-metrics</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-codahale-metrics-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-codahale-metrics</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- End of Dependencies on Omid modules -->

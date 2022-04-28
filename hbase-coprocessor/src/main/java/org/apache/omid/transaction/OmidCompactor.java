@@ -18,15 +18,14 @@
 package org.apache.omid.transaction;
 
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
-
-
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
-import org.apache.omid.HBaseShims;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
@@ -36,7 +35,7 @@ import org.apache.hadoop.hbase.regionserver.RegionConnectionFactory;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
-
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,8 +123,9 @@ public class OmidCompactor extends BaseRegionObserver {
             if (enableCompactorForAllFamilies) {
                 omidCompactable = true;
             } else {
-
-                omidCompactable = HBaseShims.OmidCompactionEnabled(env, store, OMID_COMPACTABLE_CF_FLAG);
+                TableDescriptor desc = env.getEnvironment().getRegion().getTableDescriptor();
+                ColumnFamilyDescriptor famDesc = desc.getColumnFamily(Bytes.toBytes(store.getColumnFamilyName()));
+                omidCompactable =Boolean.valueOf(Bytes.toString(famDesc.getValue(Bytes.toBytes(OMID_COMPACTABLE_CF_FLAG))));
             }
 
             // only column families tagged as compactable are compacted

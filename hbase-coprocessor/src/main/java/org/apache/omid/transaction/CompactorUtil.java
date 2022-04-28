@@ -21,10 +21,12 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-
-import org.apache.omid.HBaseShims;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.omid.tools.hbase.HBaseLogin;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.apache.hadoop.conf.Configuration;
@@ -39,7 +41,13 @@ public class CompactorUtil {
 
     public static void setOmidCompaction(Connection conn, TableName table, byte[] columnFamily, String value)
             throws IOException {
-        HBaseShims.setCompaction(conn, table, columnFamily, OmidCompactor.OMID_COMPACTABLE_CF_FLAG, value);
+        try(Admin admin = conn.getAdmin()) {
+            TableDescriptor desc = admin.getDescriptor(table);
+            ColumnFamilyDescriptor cfDesc = desc.getColumnFamily(columnFamily);
+            ColumnFamilyDescriptorBuilder cfBuilder = ColumnFamilyDescriptorBuilder.newBuilder(cfDesc);
+            cfBuilder.setValue(Bytes.toBytes(OmidCompactor.OMID_COMPACTABLE_CF_FLAG),Bytes.toBytes(value));
+            admin.modifyColumnFamily(table, cfBuilder.build());
+        }
     }
 
     public static void enableOmidCompaction(Connection conn,

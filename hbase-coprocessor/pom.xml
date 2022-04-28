@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <artifactId>omid</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-hbase-coprocessor-${hbase.artifactId.suffix}</artifactId>
+    <artifactId>omid-hbase-coprocessor</artifactId>
     <packaging>jar</packaging>
     <name>HBase Coprocessors</name>
 
@@ -32,24 +32,24 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-commit-table</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-tso-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-client-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-client</artifactId>
             <version>${project.version}</version>
 
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-tso-server</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -98,7 +98,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -120,9 +119,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.omid</groupId>
-            <artifactId>${shims.artifactId}</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-endpoint</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
