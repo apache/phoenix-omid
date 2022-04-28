@@ -28,7 +28,6 @@ import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.HBaseShims;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.committable.hbase.KeyGenerator;
 import org.apache.omid.committable.hbase.KeyGeneratorImplementations;
@@ -158,7 +157,7 @@ public class OmidTableManager {
         for (byte[] family : families) {
             HColumnDescriptor colDescriptor = new HColumnDescriptor(family);
             colDescriptor.setMaxVersions(maxVersions);
-            HBaseShims.addFamilyToHTableDescriptor(tableDescriptor, colDescriptor);
+            tableDescriptor.addFamily(colDescriptor);
             LOG.info("\tAdding Family {}", colDescriptor);
         }
 

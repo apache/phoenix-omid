@@ -18,11 +18,11 @@
 
     <parent>
         <groupId>org.apache.omid</groupId>
-        <artifactId>omid-${hbase.artifactId.suffix}</artifactId>
-        <version>1.0.3-SNAPSHOT</version>
+        <artifactId>omid</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>omid-tso-server-${hbase.artifactId.suffix}</artifactId>
+    <artifactId>omid-tso-server</artifactId>
     <packaging>jar</packaging>
     <name>TSO and TO Servers</name>
     <description>Omid Transaction Status Oracle server and Timestamp Oracle</description>
@@ -33,38 +33,38 @@
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-commit-table</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-common-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-commit-table</artifactId>
             <version>${project.version}</version>
         </dependency>
 
 
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-timestamp-storage-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-timestamp-storage</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-metrics-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-metrics</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- The codahale-related dependency is added here just to include the jar in the final
         tar.gz package assembled. -->
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-codahale-metrics-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-codahale-metrics</artifactId>
             <version>${project.version}</version>
             <scope>runtime</scope>
         </dependency>
@@ -72,20 +72,20 @@
         The hbase tools are handy to create the required Omid tables from the same script that starts the TSO server -->
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-hbase-tools-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-hbase-tools</artifactId>
             <version>${project.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-commit-table-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-commit-table</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <classifier>tests</classifier>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
-            <artifactId>omid-transaction-client-${hbase.artifactId.suffix}</artifactId>
+            <artifactId>omid-transaction-client</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -122,12 +122,10 @@
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-framework</artifactId>
-            <version>${curator.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
-            <version>${curator.version}</version>
         </dependency>
 
         <!-- end distributed comm -->
@@ -176,17 +174,14 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
-            <version>${log4j.version}</version>
         </dependency>
 
         <!-- end logging -->
@@ -210,7 +205,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -221,15 +215,9 @@
         <dependency>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-test</artifactId>
-            <version>${curator.version}</version>
             <scope>test</scope>
         </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>org.apache.omid</groupId>-->
-            <!--<artifactId>${shims.artifactId}</artifactId>-->
-            <!--<version>${project.version}</version>-->
-        <!--</dependency>-->
         <!-- end testing -->
 
     </dependencies>

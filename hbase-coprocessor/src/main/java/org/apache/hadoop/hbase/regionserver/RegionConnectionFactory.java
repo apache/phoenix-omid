@@ -27,7 +27,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
-import org.apache.omid.HBaseShims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +49,7 @@ public class RegionConnectionFactory {
     // client side. In testing, we've seen NoServerForRegionException occur which
     // is a DoNotRetryIOException which are not retried on the client. It's not
     // clear if this is a real issue or a test-only issue.
-    private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRIES_NUMBER = HBaseShims.getNoRetriesNumber() + 1;
+    private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRIES_NUMBER = 1 + 1;
     private static final int DEFAULT_COMMIT_TABLE_ACCESS_ON_READ_RETRY_PAUSE = 100;
 
     private RegionConnectionFactory() {
@@ -103,7 +102,7 @@ public class RegionConnectionFactory {
         if((connection = connections.get(connectionType)) == null) {
             synchronized (RegionConnectionFactory.class) {
                 if((connection = connections.get(connectionType)) == null) {
-                    connection = HBaseShims.newServerConnection(getTypeSpecificConfiguration(connectionType, env.getConfiguration()), env);
+                    connection = env.createConnection(getTypeSpecificConfiguration(connectionType, env.getConfiguration()));
                     connections.put(connectionType, connection);
                     return connection;
                 }

@@ -33,7 +33,6 @@ import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.proto.TSOProto;
 import org.apache.omid.transaction.AbstractTransaction.VisibilityLevel;
-import org.apache.omid.HBaseShims;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.client.Get;
@@ -132,7 +131,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         SnapshotFilterImpl snapshotFilter= snapshotFilterQueue.poll();
         if (snapshotFilter == null) {
             RegionAccessWrapper regionAccessWrapper =
-                    new RegionAccessWrapper(HBaseShims.getRegionCoprocessorRegion(e.getEnvironment()));
+                    new RegionAccessWrapper(e.getEnvironment().getRegion());
             snapshotFilter = new SnapshotFilterImpl(regionAccessWrapper, initAndGetCommitTableClient());
         }
         return snapshotFilter;

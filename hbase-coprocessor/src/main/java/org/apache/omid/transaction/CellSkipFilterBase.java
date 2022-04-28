@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.omid.OmidFilterBase;
+import org.apache.hadoop.hbase.filter.FilterBase;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.List;
  * Please see TEPHRA-169 for more details.
  */
 
-public class CellSkipFilterBase extends OmidFilterBase {
+public class CellSkipFilterBase extends FilterBase {
     private final Filter filter;
     // remember the previous keyvalue processed by filter when the return code was NEXT_COL or INCLUDE_AND_NEXT_COL
     private KeyValue skipColumn = null;

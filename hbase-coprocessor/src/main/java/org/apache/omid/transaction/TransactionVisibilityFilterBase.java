@@ -26,10 +26,10 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.FilterBase;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.OmidFilterBase;
 
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class TransactionVisibilityFilterBase extends OmidFilterBase {
+public class TransactionVisibilityFilterBase extends FilterBase {
 
     // optional sub-filter to apply to visible cells
     private final Filter userFilter;

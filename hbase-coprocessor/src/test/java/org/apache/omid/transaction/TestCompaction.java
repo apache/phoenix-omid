@@ -57,8 +57,8 @@ import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.omid.HBaseShims;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
@@ -558,8 +558,9 @@ public class TestCompaction {
     // directly after the flush, which we want to avoid.
     private void manualFlush(String tableName) throws Throwable {
         LOG.info("Manually flushing all regions and waiting 2 secs");
-        HBaseShims.flushAllOnlineRegions(hbaseTestUtil.getHBaseCluster().getRegionServer(0),
-                                         TableName.valueOf(tableName));
+        for (HRegion r : hbaseTestUtil.getHBaseCluster().getRegionServer(0).getRegions(TableName.valueOf(tableName))) {
+            r.flush(true);
+        }
         TimeUnit.SECONDS.sleep(2);
     }
 

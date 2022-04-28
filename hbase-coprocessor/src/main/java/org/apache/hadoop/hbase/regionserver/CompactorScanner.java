@@ -22,7 +22,6 @@ import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.collect.Iterators;
 import org.apache.phoenix.thirdparty.com.google.common.collect.PeekingIterator;
 import org.apache.commons.collections4.map.LRUMap;
-import org.apache.omid.HBaseShims;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.Client;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
@@ -77,7 +76,7 @@ public class CompactorScanner implements InternalScanner {
         this.retainNonTransactionallyDeletedCells = preserveNonTransactionallyDeletedCells;
         this.lowWatermark = getLowWatermarkFromCommitTable();
         // Obtain the table in which the scanner is going to operate
-        this.hRegion = HBaseShims.getRegionCoprocessorRegion(e.getEnvironment());
+        this.hRegion = e.getEnvironment().getRegion();
         commitCache = new LRUMap<>(1000);
         LOG.info("Scanner cleaning up uncommitted txs older than LW [{}] in region [{}]",
                 lowWatermark, hRegion.getRegionInfo());
@@ -88,6 +87,7 @@ public class CompactorScanner implements InternalScanner {
         return next(results, -1);
     }
 
+    @Override
     public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
         int limit = scannerContext.getBatchLimit();
         return next(result, limit);
