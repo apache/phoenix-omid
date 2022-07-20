@@ -21,21 +21,24 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.concurrent.Future;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.CommitTable.Client;
 import org.apache.omid.committable.CommitTable.CommitTimestamp;
@@ -90,30 +93,33 @@ public class TestHBaseCommitTable {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        Admin admin = testutil.getHBaseAdmin();
+        Admin admin = testutil.getAdmin();
 
         if (!admin.tableExists(TableName.valueOf(TEST_TABLE))) {
-            HTableDescriptor desc = new HTableDescriptor(TABLE_NAME);
 
-            HColumnDescriptor datafam = new HColumnDescriptor(commitTableFamily);
-            datafam.setMaxVersions(Integer.MAX_VALUE);
-            desc.addFamily(datafam);
+            ArrayList<ColumnFamilyDescriptor> fams = new ArrayList<>();
+            fams.add(ColumnFamilyDescriptorBuilder
+                    .newBuilder(commitTableFamily)
+                    .setMaxVersions(Integer.MAX_VALUE)
+                    .build());
+            fams.add(ColumnFamilyDescriptorBuilder
+                .newBuilder(lowWatermarkFamily)
+                .setMaxVersions(Integer.MAX_VALUE)
+                .build());
 
-            HColumnDescriptor lowWatermarkFam = new HColumnDescriptor(lowWatermarkFamily);
-            lowWatermarkFam.setMaxVersions(Integer.MAX_VALUE);
-            desc.addFamily(lowWatermarkFam);
-
-            // Move to HBaseSims for 2.0 support
-            // For 2.0, use TableDescriptorBuilder to build TableDescriptor
+            TableDescriptor desc = TableDescriptorBuilder
+                    .newBuilder(TABLE_NAME)
+                    .setColumnFamilies(fams)
+                    .build();
             admin.createTable(desc);
         }
 
         if (admin.isTableDisabled(TableName.valueOf(TEST_TABLE))) {
             admin.enableTable(TableName.valueOf(TEST_TABLE));
         }
-        HTableDescriptor[] tables = admin.listTables();
-        for (HTableDescriptor t : tables) {
-            LOG.info(t.getNameAsString());
+        TableDescriptor[] tables = admin.listTables();
+        for (TableDescriptor t : tables) {
+            LOG.info(t.getTableName().getNameAsString());
         }
     }
 
@@ -121,7 +127,7 @@ public class TestHBaseCommitTable {
     public void tearDown() {
         try {
             LOG.info("tearing Down");
-            Admin admin = testutil.getHBaseAdmin();
+            Admin admin = testutil.getAdmin();
             admin.disableTable(TableName.valueOf(TEST_TABLE));
             admin.deleteTable(TableName.valueOf(TEST_TABLE));
 

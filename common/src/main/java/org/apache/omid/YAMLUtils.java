@@ -64,7 +64,6 @@ public class YAMLUtils {
         return defaultSetting;
     }
 
-    @SuppressWarnings("unchecked")
     public Map loadAsMap(String path) throws IOException {
         try {
             String content = Resources.toString(Resources.getResource(path), Charset.forName("UTF-8"));
@@ -75,7 +74,6 @@ public class YAMLUtils {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public Map loadStringAsMap(String content) {
         try {
             Map settings = new Yaml().loadAs(content, Map.class);

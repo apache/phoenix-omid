@@ -36,8 +36,8 @@ import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -162,7 +162,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
     @AfterMethod(alwaysRun = true, timeOut = 60_000)
     public void cleanup() throws Exception {
         LOG.info("Cleanup");
-        HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
+        Admin admin = hBaseUtils.getAdmin();
         deleteTable(admin, TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
         hBaseUtils.createTable(TableName.valueOf((DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME)),
                                new byte[][]{DEFAULT_TIMESTAMP_STORAGE_CF_NAME.getBytes()},

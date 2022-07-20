@@ -42,9 +42,9 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -269,7 +269,7 @@ public class TestShadowCells extends OmidTestBase {
             @Override
             public ListenableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
                 table.flushCommits();
-                HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
+                Admin admin = hBaseUtils.getAdmin();
                 admin.disableTable(TableName.valueOf(table.getTableName()));
                 return (ListenableFuture<Void>) invocation.callRealMethod();
             }
@@ -284,7 +284,7 @@ public class TestShadowCells extends OmidTestBase {
         tm.commit(tx); // Tx effectively commits but the post Commit Actions failed when updating the shadow cells
 
         // Re-enable table to allow the required checks below
-        HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
+        Admin admin = hBaseUtils.getAdmin();
         admin.enableTable(TableName.valueOf(table.getTableName()));
 
         // 1) check that shadow cell is not created...

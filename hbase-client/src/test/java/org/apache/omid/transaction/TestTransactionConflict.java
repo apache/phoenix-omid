@@ -21,10 +21,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
@@ -34,6 +34,8 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,11 +95,14 @@ public class TestTransactionConflict extends OmidTestBase {
             TableName htable2 = TableName.valueOf(table2);
 
             if (!admin.tableExists(htable2)) {
-                HTableDescriptor desc = new HTableDescriptor(table2Name);
-                HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-                datafam.setMaxVersions(Integer.MAX_VALUE);
-                desc.addFamily(datafam);
-    
+                ColumnFamilyDescriptor datafam = ColumnFamilyDescriptorBuilder
+                        .newBuilder(Bytes.toBytes(TEST_FAMILY))
+                        .setMaxVersions(Integer.MAX_VALUE)
+                        .build();
+                TableDescriptor desc = TableDescriptorBuilder
+                        .newBuilder(table2Name)
+                        .setColumnFamily(datafam)
+                        .build();
                 admin.createTable(desc);
             }
     
@@ -300,15 +305,18 @@ public class TestTransactionConflict extends OmidTestBase {
         TableName table2Name = TableName.valueOf(table2);
 
         try (Connection conn = ConnectionFactory.createConnection(hbaseConf);
-             Admin admin = conn.getAdmin()) {
+            Admin admin = conn.getAdmin()) {
             TableName htable2 = TableName.valueOf(table2);
 
             if (!admin.tableExists(htable2)) {
-                HTableDescriptor desc = new HTableDescriptor(table2Name);
-                HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-                datafam.setMaxVersions(Integer.MAX_VALUE);
-                desc.addFamily(datafam);
-
+                ColumnFamilyDescriptor datafam = ColumnFamilyDescriptorBuilder
+                        .newBuilder(Bytes.toBytes(TEST_FAMILY))
+                        .setMaxVersions(Integer.MAX_VALUE)
+                        .build();
+                TableDescriptor desc = TableDescriptorBuilder
+                        .newBuilder(table2Name)
+                        .setColumnFamily(datafam)
+                        .build();
                 admin.createTable(desc);
             }
 

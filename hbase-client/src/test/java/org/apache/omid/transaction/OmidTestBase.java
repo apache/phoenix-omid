@@ -22,23 +22,25 @@ import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.NetworkUtils;
 import org.apache.omid.TestUtils;
@@ -143,14 +145,21 @@ public abstract class OmidTestBase {
     }
 
     protected void createTestTable() throws IOException {
-        HBaseAdmin admin = hBaseUtils.getHBaseAdmin();
-        HTableDescriptor test_table_desc = new HTableDescriptor(TableName.valueOf(TEST_TABLE));
-        HColumnDescriptor datafam = new HColumnDescriptor(TEST_FAMILY);
-        HColumnDescriptor datafam2 = new HColumnDescriptor(TEST_FAMILY2);
-        datafam.setMaxVersions(Integer.MAX_VALUE);
-        datafam2.setMaxVersions(Integer.MAX_VALUE);
-        test_table_desc.addFamily(datafam);
-        test_table_desc.addFamily(datafam2);
+        Admin admin = hBaseUtils.getAdmin();
+        ArrayList<ColumnFamilyDescriptor> fams = new ArrayList<>();
+        fams.add(ColumnFamilyDescriptorBuilder
+                .newBuilder(Bytes.toBytes(TEST_FAMILY))
+                .setMaxVersions(Integer.MAX_VALUE)
+                .build());
+        fams.add(ColumnFamilyDescriptorBuilder
+                .newBuilder(Bytes.toBytes(TEST_FAMILY2))
+                .setMaxVersions(Integer.MAX_VALUE)
+                .build());
+        TableDescriptor test_table_desc = TableDescriptorBuilder
+                .newBuilder(TableName.valueOf(TEST_TABLE))
+                .setColumnFamilies(fams)
+                .build();
+
         admin.createTable(test_table_desc);
     }
 

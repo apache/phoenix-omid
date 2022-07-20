@@ -31,7 +31,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.TableName;
@@ -46,6 +45,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
@@ -518,11 +518,11 @@ public class TTable implements Closeable {
     /**
      * Delegates to {@link Table#getTableDescriptor()}
      *
-     * @return HTableDescriptor an instance of HTableDescriptor
+     * @return TableDescriptor an instance of TableDescriptor
      * @throws IOException if a remote or network exception occurs.
      */
-    public HTableDescriptor getTableDescriptor() throws IOException {
-        return table.getTableDescriptor();
+    public TableDescriptor getTableDescriptor() throws IOException {
+        return table.getDescriptor();
     }
 
     /**

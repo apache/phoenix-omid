@@ -124,7 +124,7 @@ public class TransactionVisibilityFilterBase extends FilterBase {
             return snapshotReturn;
         }
 
-        ReturnCode userRes = userFilter.filterKeyValue(v);
+        ReturnCode userRes = userFilter.filterCell(v);
         switch (userRes) {
             case INCLUDE:
                 return snapshotReturn;
@@ -154,7 +154,7 @@ public class TransactionVisibilityFilterBase extends FilterBase {
 
             // Try to get shadow cell from region
             final Get get = new Get(CellUtil.cloneRow(v));
-            get.setTimeStamp(v.getTimestamp()).setMaxVersions(1);
+            get.setTimestamp(v.getTimestamp()).readVersions(1);
             get.addColumn(CellUtil.cloneFamily(v), CellUtils.addShadowCellSuffixPrefix(CellUtils.FAMILY_DELETE_QUALIFIER));
             Result shadowCell = snapshotFilter.getTableAccessWrapper().get(get);
 

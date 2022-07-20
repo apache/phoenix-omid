@@ -23,7 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Admin;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -37,7 +37,7 @@ public class TestOmidTableManager {
 
     private HBaseTestingUtility hBaseTestUtil;
     private Configuration hbaseConf;
-    private HBaseAdmin hBaseAdmin;
+    private Admin hBaseAdmin;
 
     @BeforeClass
     public void setUpClass() throws Exception {
@@ -47,7 +47,7 @@ public class TestOmidTableManager {
         hBaseTestUtil = new HBaseTestingUtility(hbaseConf);
         hBaseTestUtil.startMiniCluster(1);
 
-        hBaseAdmin = hBaseTestUtil.getHBaseAdmin();
+        hBaseAdmin = hBaseTestUtil.getAdmin();
     }
 
     @AfterClass

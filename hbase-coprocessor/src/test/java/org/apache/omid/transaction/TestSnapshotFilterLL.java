@@ -21,15 +21,16 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
@@ -37,6 +38,8 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
@@ -133,19 +136,21 @@ public class TestSnapshotFilterLL {
     private void createTableIfNotExists(String tableName, byte[]... families) throws IOException {
         if (!admin.tableExists(TableName.valueOf(tableName))) {
             LOG.info("Creating {} table...", tableName);
-            HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
-
+            
+            ArrayList<ColumnFamilyDescriptor> fams = new ArrayList<>();
             for (byte[] family : families) {
-                HColumnDescriptor datafam = new HColumnDescriptor(family);
-                datafam.setMaxVersions(MAX_VERSIONS);
-                desc.addFamily(datafam);
+                fams.add(ColumnFamilyDescriptorBuilder
+                    .newBuilder(family)
+                    .setMaxVersions(MAX_VERSIONS)
+                    .build());
             }
-
             int priority = Coprocessor.PRIORITY_HIGHEST;
-
-            desc.addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null);
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null);
-
+            TableDescriptor desc = TableDescriptorBuilder
+                    .newBuilder(TableName.valueOf(tableName))
+                    .setColumnFamilies(fams)
+                    .addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null)
+                    .addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null)
+                    .build();
             admin.createTable(desc);
             try {
                 hbaseTestUtil.waitTableAvailable(TableName.valueOf(tableName),5000);
