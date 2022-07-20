@@ -30,6 +30,7 @@ import javax.inject.Inject;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.CheckAndMutate;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
@@ -144,7 +145,10 @@ public class HBaseCommitTable implements CommitTable {
                 Put put = new Put(transactionRow, startTimestamp);
                 byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
                 put.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
-                return table.checkAndPut(transactionRow, commitTableFamily, INVALID_TX_QUALIFIER, null, put);
+                CheckAndMutate checkAndPut = CheckAndMutate.newBuilder(transactionRow)
+                        .ifNotExists(commitTableFamily, INVALID_TX_QUALIFIER)
+                        .build(put);
+                return table.checkAndMutate(checkAndPut).isSuccess();
             }
 
         }
@@ -262,7 +266,10 @@ public class HBaseCommitTable implements CommitTable {
                 // timestamp is added and read by a transaction, then snapshot isolation
                 // might not be hold (due to the invalidation)
                 // TODO: Decide what we should we do if we can not contact the commit table. loop till succeed???
-                boolean result = table.checkAndPut(row, commitTableFamily, COMMIT_TABLE_QUALIFIER, null, invalidationPut);
+                CheckAndMutate checkAndPut = CheckAndMutate.newBuilder(row)
+                        .ifNotExists(commitTableFamily, COMMIT_TABLE_QUALIFIER)
+                        .build(invalidationPut);
+                boolean result = table.checkAndMutate(checkAndPut).isSuccess();
                 f.set(result);
             } catch (IOException ioe) {
                 f.setException(ioe);

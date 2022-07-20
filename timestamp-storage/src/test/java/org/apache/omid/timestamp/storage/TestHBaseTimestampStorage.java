@@ -20,11 +20,14 @@ package org.apache.omid.timestamp.storage;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -35,6 +38,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_CF_NAME;
 import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME;
@@ -71,13 +75,17 @@ public class TestHBaseTimestampStorage {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        HBaseAdmin admin = testutil.getHBaseAdmin();
+        Admin admin = testutil.getAdmin();
 
         if (!admin.tableExists(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME))) {
-            HTableDescriptor desc = new HTableDescriptor(TABLE_NAME);
-            HColumnDescriptor datafam = new HColumnDescriptor(DEFAULT_TIMESTAMP_STORAGE_CF_NAME);
-            datafam.setMaxVersions(Integer.MAX_VALUE);
-            desc.addFamily(datafam);
+            ColumnFamilyDescriptor datafam = ColumnFamilyDescriptorBuilder
+                    .newBuilder(Bytes.toBytes(DEFAULT_TIMESTAMP_STORAGE_CF_NAME))
+                    .setMaxVersions(Integer.MAX_VALUE)
+                    .build();
+            TableDescriptor desc = TableDescriptorBuilder
+                    .newBuilder(TABLE_NAME)
+                    .setColumnFamily(datafam)
+                    .build();
 
             admin.createTable(desc);
         }
@@ -85,9 +93,9 @@ public class TestHBaseTimestampStorage {
         if (admin.isTableDisabled(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME))) {
             admin.enableTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
         }
-        HTableDescriptor[] tables = admin.listTables();
-        for (HTableDescriptor t : tables) {
-            LOG.info(t.getNameAsString());
+        List<TableDescriptor> tables = admin.listTableDescriptors();
+        for (TableDescriptor t : tables) {
+            LOG.info(t.getTableName().getNameAsString());
         }
     }
 
@@ -95,7 +103,7 @@ public class TestHBaseTimestampStorage {
     public void tearDown() {
         try {
             LOG.info("tearing Down");
-            HBaseAdmin admin = testutil.getHBaseAdmin();
+            Admin admin = testutil.getAdmin();
             admin.disableTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
             admin.deleteTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
 

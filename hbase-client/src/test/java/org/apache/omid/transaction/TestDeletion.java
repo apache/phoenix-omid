@@ -443,7 +443,7 @@ public class TestDeletion extends OmidTestBase {
         // Check data has not been written to HBase
         // --------------------------------------------------------------------
         Get get = new Get(Bytes.toBytes("row1"));
-        get.setTimeStamp(deleteTx.getTransactionId());
+        get.setTimestamp(deleteTx.getTransactionId());
         Result result = txTable.getHTable().get(get);
         assertTrue(result.isEmpty());
 

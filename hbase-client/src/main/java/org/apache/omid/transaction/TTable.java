@@ -46,6 +46,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
@@ -197,7 +198,7 @@ public class TTable implements Closeable {
         TimeRange timeRange = get.getTimeRange();
         long startTime = timeRange.getMin();
         long endTime = Math.min(timeRange.getMax(), readTimestamp + 1);
-        tsget.setTimeRange(startTime, endTime).setMaxVersions(1);
+        tsget.setTimeRange(startTime, endTime).readVersions(1);
         Map<byte[], NavigableSet<byte[]>> kvs = get.getFamilyMap();
         for (Map.Entry<byte[], NavigableSet<byte[]>> entry : kvs.entrySet()) {
             byte[] family = entry.getKey();
@@ -292,7 +293,7 @@ public class TTable implements Closeable {
         for (List<Cell> cells : fmap.values()) {
             for (Cell cell : cells) {
                 CellUtils.validateCell(cell, writeTimestamp);
-                switch (KeyValue.Type.codeToType(cell.getTypeByte())) {
+                switch (cell.getType()) {
                     case DeleteColumn:
                         deleteP.addColumn(CellUtil.cloneFamily(cell),
                                     CellUtil.cloneQualifier(cell),
@@ -477,7 +478,7 @@ public class TTable implements Closeable {
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
         Scan tsscan = new Scan(scan);
-        tsscan.setMaxVersions(1);
+        tsscan.readVersions(1);
         tsscan.setTimeRange(0, transaction.getReadTimestamp() + 1);
         propagateAttributes(scan, tsscan);
         Map<byte[], NavigableSet<byte[]>> kvs = scan.getFamilyMap();
@@ -518,11 +519,24 @@ public class TTable implements Closeable {
     /**
      * Delegates to {@link Table#getTableDescriptor()}
      *
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link TTable#getDescriptor()}
+     *
      * @return HTableDescriptor an instance of HTableDescriptor
      * @throws IOException if a remote or network exception occurs.
      */
     public HTableDescriptor getTableDescriptor() throws IOException {
         return table.getTableDescriptor();
+    }
+
+    /**
+     * Delegates to {@link Table#getDescriptor()}
+     *
+     * @return TableDescriptor an instance of TableDescriptor
+     * @throws IOException if a remote or network exception occurs.
+     */
+    public TableDescriptor getDescriptor() throws IOException {
+        return table.getDescriptor();
     }
 
     /**
@@ -721,7 +735,7 @@ public class TTable implements Closeable {
     }
 
     private void throwExceptionIfOpSetsTimerange(Mutation userOperation) {
-        if (userOperation.getTimeStamp() != HConstants.LATEST_TIMESTAMP) {
+        if (userOperation.getTimestamp() != HConstants.LATEST_TIMESTAMP) {
             throw new IllegalArgumentException(
                 "Timestamp not allowed in transactional user operations");
         }

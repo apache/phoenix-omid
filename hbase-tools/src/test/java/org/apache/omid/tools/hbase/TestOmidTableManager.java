@@ -23,7 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Admin;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -37,7 +37,7 @@ public class TestOmidTableManager {
 
     private HBaseTestingUtility hBaseTestUtil;
     private Configuration hbaseConf;
-    private HBaseAdmin hBaseAdmin;
+    private Admin hBaseAdmin;
 
     @BeforeClass
     public void setUpClass() throws Exception {
@@ -47,7 +47,7 @@ public class TestOmidTableManager {
         hBaseTestUtil = new HBaseTestingUtility(hbaseConf);
         hBaseTestUtil.startMiniCluster(1);
 
-        hBaseAdmin = hBaseTestUtil.getHBaseAdmin();
+        hBaseAdmin = hBaseTestUtil.getAdmin();
     }
 
     @AfterClass
@@ -70,7 +70,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf(HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME);
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 1, "Should have only 1 region");
 
     }
@@ -86,7 +86,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf(HBaseCommitTableConfig.DEFAULT_COMMIT_TABLE_NAME);
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 16, "Should have 16 regions");
 
     }
@@ -102,7 +102,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf("my-commit-table");
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 1, "Should have only 1 regions");
     }
 

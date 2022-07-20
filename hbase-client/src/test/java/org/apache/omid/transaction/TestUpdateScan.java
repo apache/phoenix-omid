@@ -20,6 +20,7 @@ package org.apache.omid.transaction;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -72,13 +73,12 @@ public class TestUpdateScan extends OmidTestBase {
             }
             tm.commit(t);
 
-            Scan s = new Scan(startKey);
-            CompareFilter.CompareOp op = CompareFilter.CompareOp.LESS_OR_EQUAL;
-            RowFilter toFilter = new RowFilter(op, new BinaryPrefixComparator(stopKey));
+            Scan s = new Scan().withStartRow(startKey);
+            RowFilter toFilter = new RowFilter(CompareOperator.LESS_OR_EQUAL, new BinaryPrefixComparator(stopKey));
             boolean startInclusive = true;
             if (!startInclusive) {
                 FilterList filters = new FilterList(FilterList.Operator.MUST_PASS_ALL);
-                filters.addFilter(new RowFilter(CompareFilter.CompareOp.GREATER, new BinaryPrefixComparator(startKey)));
+                filters.addFilter(new RowFilter(CompareOperator.GREATER, new BinaryPrefixComparator(startKey)));
                 filters.addFilter(new WhileMatchFilter(toFilter));
                 s.setFilter(filters);
             } else {

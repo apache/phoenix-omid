@@ -85,7 +85,7 @@ public final class CellUtils {
             throws IOException {
         Get get = new Get(row);
         get.addColumn(family, qualifier);
-        get.setTimeStamp(version);
+        get.setTimestamp(version);
 
         Result result = cellGetter.get(get);
 
@@ -402,7 +402,7 @@ public final class CellUtils {
             Cell otherCell = otherCellId.getCell();
 
             // Row comparison
-            if (!CellUtil.matchingRow(otherCell, cell)) {
+            if (!CellUtil.matchingRows(otherCell, cell)) {
                 return false;
             }
 

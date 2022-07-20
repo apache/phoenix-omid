@@ -18,15 +18,18 @@
 package org.apache.omid.tools.hbase;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.committable.hbase.KeyGenerator;
@@ -152,18 +155,23 @@ public class OmidTableManager {
             return;
         }
 
-        HTableDescriptor tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
-
+        ArrayList<ColumnFamilyDescriptor> fams = new ArrayList<>();
         for (byte[] family : families) {
-            HColumnDescriptor colDescriptor = new HColumnDescriptor(family);
-            colDescriptor.setMaxVersions(maxVersions);
-            tableDescriptor.addFamily(colDescriptor);
-            LOG.info("\tAdding Family {}", colDescriptor);
+            fams.add(ColumnFamilyDescriptorBuilder
+                .newBuilder(family)
+                .setMaxVersions(maxVersions)
+                .build());
+            LOG.info("\tAdding Family {}", fams.get(fams.size() - 1));
         }
 
-        admin.createTable(tableDescriptor, splitKeys);
+        TableDescriptor desc = TableDescriptorBuilder
+                .newBuilder(TableName.valueOf(tableName))
+                .setColumnFamilies(fams)
+                .build();
 
-        LOG.info("Table {} created. Regions: {}", tableName, admin.getTableRegions(hTableName).size());
+        admin.createTable(desc, splitKeys);
+
+        LOG.info("Table {} created. Regions: {}", tableName, admin.getRegions(hTableName).size());
 
     }
 

@@ -28,6 +28,7 @@ import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.transaction.CellUtils;
 import org.apache.omid.transaction.CellInfo;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
@@ -165,7 +166,7 @@ public class CompactorScanner implements InternalScanner {
             retainLastTimestampedCellsSaved(currentRowWorthValues, lastTimestampedCellsInRow);
 
             // 4) Sort the list
-            Collections.sort(currentRowWorthValues, KeyValue.COMPARATOR);
+            Collections.sort(currentRowWorthValues, CellComparator.getInstance());
         }
 
         // Chomp current row worth values up to the limit
@@ -192,7 +193,7 @@ public class CompactorScanner implements InternalScanner {
 
     @VisibleForTesting
     public boolean shouldRetainNonTransactionallyDeletedCell(Cell cell) {
-        return (CellUtil.isDelete(cell) || CellUtil.isDeleteFamily(cell))
+        return (CellUtil.isDelete(cell) || cell.getType() == Cell.Type.DeleteFamily)
                 &&
                 retainNonTransactionallyDeletedCells;
     }
@@ -232,7 +233,7 @@ public class CompactorScanner implements InternalScanner {
     private Result getShadowCell(byte[] row, byte[] family, byte[] qualifier, long timestamp) throws IOException {
         Get g = new Get(row);
         g.addColumn(family, qualifier);
-        g.setTimeStamp(timestamp);
+        g.setTimestamp(timestamp);
         Result r = hRegion.get(g);
         return r;
     }

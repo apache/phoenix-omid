@@ -26,21 +26,24 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.CoprocessorDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -48,8 +51,9 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
-import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.FamilyFilter;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
@@ -155,19 +159,25 @@ public class TestSnapshotFilter {
     private void createTableIfNotExists(String tableName, byte[]... families) throws IOException {
         if (!admin.tableExists(TableName.valueOf(tableName))) {
             LOG.info("Creating {} table...", tableName);
-            HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
 
+            ArrayList<ColumnFamilyDescriptor> fams = new ArrayList<>();
             for (byte[] family : families) {
-                HColumnDescriptor datafam = new HColumnDescriptor(family);
-                datafam.setMaxVersions(MAX_VERSIONS);
-                desc.addFamily(datafam);
+                fams.add(ColumnFamilyDescriptorBuilder
+                    .newBuilder(family)
+                    .setMaxVersions(MAX_VERSIONS)
+                    .build());
             }
-
             int priority = Coprocessor.PRIORITY_HIGHEST;
-
-            desc.addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null);
-            desc.addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null);
-
+            TableDescriptor desc = TableDescriptorBuilder
+                    .newBuilder(TableName.valueOf(tableName))
+                    .setColumnFamilies(fams)
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder(OmidSnapshotFilter.class.getName())
+                            .setPriority(++priority).build())
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder("org.apache.hadoop.hbase.coprocessor.AggregateImplementation")
+                            .setPriority(++priority).build())
+                    .build();
             admin.createTable(desc);
             try {
                 hbaseTestUtil.waitTableAvailable(TableName.valueOf(tableName),5000);
@@ -305,7 +315,7 @@ public class TestSnapshotFilter {
         SingleColumnValueFilter filter = new SingleColumnValueFilter(
                 famName1,
                 colName1,
-                CompareFilter.CompareOp.EQUAL,
+                CompareOperator.EQUAL,
                 new SubstringComparator("testWrite-1"));
 
         get.setFilter(filter);
@@ -346,7 +356,7 @@ public class TestSnapshotFilter {
         SingleColumnValueFilter filter = new SingleColumnValueFilter(
                 famName1,
                 colName1,
-                CompareFilter.CompareOp.EQUAL,
+                CompareOperator.EQUAL,
                 new SubstringComparator("testWrite-1"));
 
 
@@ -400,8 +410,8 @@ public class TestSnapshotFilter {
         Get get = new Get(rowName1);
 
         Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(famName2)));
 
         get.setFilter(filter1);
         Result result = tt.get(tx4, get);
@@ -462,8 +472,8 @@ public class TestSnapshotFilter {
                     Get get = new Get(rowName1);
 
                     Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
-                            new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+                            new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                            new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(famName2)));
 
                     get.setFilter(filter1);
                     Result result = tt.get(tx4, get);
@@ -531,8 +541,8 @@ public class TestSnapshotFilter {
         Get get = new Get(rowName1);
 
         Filter filter1 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2)));
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(famName2)));
 
         get.setFilter(filter1);
         Result result = tt.get(tx3, get);
@@ -540,7 +550,7 @@ public class TestSnapshotFilter {
 
 
         Filter filter2 = new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))));
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))));
 
         get.setFilter(filter2);
         result = tt.get(tx3, get);
@@ -613,7 +623,7 @@ public class TestSnapshotFilter {
 
         Transaction tx2 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -632,7 +642,7 @@ public class TestSnapshotFilter {
 
         Transaction tx4 = tm.begin();
 
-        ResultScanner iterableRS2 = tt.getScanner(tx4, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        ResultScanner iterableRS2 = tt.getScanner(tx4, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result2 = iterableRS2.next();
         long tsRow2 = result2.rawCells()[0].getTimestamp();
         assertEquals(tsRow2, tx3.getTransactionId(), "Reading differnt version");
@@ -674,8 +684,8 @@ public class TestSnapshotFilter {
 
         Scan scan = new Scan();
         scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY)))));
-        scan.setStartRow(rowName1).setStopRow(rowName1);
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY)))));
+        scan.withStartRow(rowName1).withStopRow(rowName1, true);
 
         ResultScanner iterableRS = tt.getScanner(tx3, scan);
         Result result = iterableRS.next();
@@ -683,8 +693,8 @@ public class TestSnapshotFilter {
         assertFalse(result.containsColumn(famName2, colName2));
 
         scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ONE,
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
-                new FamilyFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(famName2))));
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY))),
+                new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(famName2))));
 
         iterableRS = tt.getScanner(tx3, scan);
         result = iterableRS.next();
@@ -724,7 +734,7 @@ public class TestSnapshotFilter {
 
         Transaction tx3 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -770,7 +780,7 @@ public class TestSnapshotFilter {
 
         Transaction tx3 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName3));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -823,7 +833,7 @@ public class TestSnapshotFilter {
 
         Transaction tx3 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName3));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -874,7 +884,7 @@ public class TestSnapshotFilter {
 
         Transaction tx3 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().setStartRow(rowName1).setStopRow(rowName3));
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName3));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -924,7 +934,7 @@ public class TestSnapshotFilter {
 
         for(Result row: scanner) {
             for(Cell cell: row.rawCells()) {
-                newFilter.filterKeyValue(cell);
+                newFilter.filterCell(cell);
 
             }
         }
@@ -969,7 +979,7 @@ public class TestSnapshotFilter {
 
         for(Result row: scanner) {
             for(Cell cell: row.rawCells()) {
-                newFilter.filterKeyValue(cell);
+                newFilter.filterCell(cell);
             }
         }
         verify(snapshotFilter, Mockito.times(1))

@@ -65,14 +65,14 @@ public class TestBasicTransaction extends OmidTestBase {
         tt.close();
 
         // Checks
-        Get getResultRow1 = new Get(rowName1).setMaxVersions(1);
+        Get getResultRow1 = new Get(rowName1).readVersions(1);
         Result result1 = tt.getHTable().get(getResultRow1);
         byte[] val1 = result1.getValue(famName1, colName1);
         assertTrue(Bytes.equals(dataValue1, result1.getValue(famName1, colName1)),
                 "Unexpected value for row 1 in col 1: " + Bytes.toString(val1));
         long tsRow1 = result1.rawCells()[0].getTimestamp();
 
-        Get getResultRow2 = new Get(rowName2).setMaxVersions(1);
+        Get getResultRow2 = new Get(rowName2).readVersions(1);
         Result result2 = tt.getHTable().get(getResultRow2);
         byte[] val2 = result2.getValue(famName1, colName1);
         assertTrue(Bytes.equals(dataValue2, result2.getValue(famName1, colName1)),
@@ -125,7 +125,7 @@ public class TestBasicTransaction extends OmidTestBase {
         tt.close();
 
         // Checks
-        Get getResultRow1 = new Get(rowName1).setMaxVersions(2);
+        Get getResultRow1 = new Get(rowName1).readVersions(2);
         Result result1 = tt.getHTable().get(getResultRow1);
         byte[] val1 = result1.getValue(famName1, colName1);
         assertTrue(Bytes.equals(dataValue3, result1.getValue(famName1, colName1)),
@@ -134,7 +134,7 @@ public class TestBasicTransaction extends OmidTestBase {
         long lastTsRow1 = result1.rawCells()[0].getTimestamp();
         long previousTsRow1 = result1.rawCells()[1].getTimestamp();
 
-        Get getResultRow2 = new Get(rowName2).setMaxVersions(2);
+        Get getResultRow2 = new Get(rowName2).readVersions(2);
         Result result2 = tt.getHTable().get(getResultRow2);
         byte[] val2 = result2.getValue(famName1, colName1);
         assertTrue(Bytes.equals(dataValue4, result2.getValue(famName1, colName1)),
@@ -178,7 +178,7 @@ public class TestBasicTransaction extends OmidTestBase {
         tt.put(t2, p);
         tm.commit(t2);
 
-        Get g = new Get(row).setMaxVersions(1);
+        Get g = new Get(row).readVersions(1);
         Result r = tt.getHTable().get(g);
         assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
                 "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
@@ -216,7 +216,7 @@ public class TestBasicTransaction extends OmidTestBase {
         }
         Transaction tread = tm.begin();
 
-        Get g = new Get(row).setMaxVersions(1);
+        Get g = new Get(row).readVersions(1);
         Result r = tt.getHTable().get(g);
         assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
                 "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
@@ -253,7 +253,7 @@ public class TestBasicTransaction extends OmidTestBase {
         tt.put(t2, p);
 
         Transaction tread = tm.begin();
-        Get g = new Get(row).setMaxVersions(1);
+        Get g = new Get(row).readVersions(1);
         Result r = tt.get(tread, g);
         assertTrue(Bytes.equals(data1, r.getValue(fam, col)),
                 "Unexpected value for SI read " + tread + ": " + Bytes.toString(r.getValue(fam, col)));
@@ -314,7 +314,7 @@ public class TestBasicTransaction extends OmidTestBase {
         txTable.put(tx2, p);
 
         Transaction scanTx = tm.begin(); // This is the concurrent transactional scanner
-        ResultScanner rs = txTable.getScanner(scanTx, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        ResultScanner rs = txTable.getScanner(scanTx, new Scan().withStartRow(startRow).withStopRow(stopRow));
         Result r = rs.next(); // Exercise the next() method
         int i = 0;
         while (r != null) {
@@ -335,7 +335,7 @@ public class TestBasicTransaction extends OmidTestBase {
 
         int modifiedRows = 0;
         Transaction newScanTx = tm.begin();
-        ResultScanner newRS = txTable.getScanner(newScanTx, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        ResultScanner newRS = txTable.getScanner(newScanTx, new Scan().withStartRow(startRow).withStopRow(stopRow));
         Result[] results = newRS.next(10); // Exercise the next(numRows) method
         for (Result result : results) {
             if (Bytes.equals(data2, result.getValue(fam, col))) {
@@ -347,7 +347,7 @@ public class TestBasicTransaction extends OmidTestBase {
 
         // Same check as before but checking that the results are correct when retrieved through the Scanner Iterator
         modifiedRows = 0;
-        ResultScanner iterableRS = txTable.getScanner(newScanTx, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        ResultScanner iterableRS = txTable.getScanner(newScanTx, new Scan().withStartRow(startRow).withStopRow(stopRow));
         for (Result res : iterableRS) {
             if (Bytes.equals(data2, res.getValue(fam, col))) {
                 LOG.trace("Modified :" + Bytes.toString(res.getRow()));
@@ -403,7 +403,7 @@ public class TestBasicTransaction extends OmidTestBase {
         txTable.put(tx2, p);
 
         int modifiedRows = 0;
-        ResultScanner rs = txTable.getScanner(tx2, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        ResultScanner rs = txTable.getScanner(tx2, new Scan().withStartRow(startRow).withStopRow(stopRow));
         Result r = rs.next();
         while (r != null) {
             if (Bytes.equals(data2, r.getValue(fam, col))) {
@@ -421,7 +421,7 @@ public class TestBasicTransaction extends OmidTestBase {
         tm.rollback(tx2);
 
         Transaction txScan = tm.begin();
-        rs = txTable.getScanner(txScan, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        rs = txTable.getScanner(txScan, new Scan().withStartRow(startRow).withStopRow(stopRow));
         r = rs.next();
         while (r != null) {
             LOG.trace("Scan1 :" + Bytes.toString(r.getRow()) + " => " + Bytes.toString(r.getValue(fam, col)));
@@ -431,7 +431,7 @@ public class TestBasicTransaction extends OmidTestBase {
         }
 
         // Same check as before but checking that the results are correct when retrieved through the Scanner Iterator
-        ResultScanner iterableRS = txTable.getScanner(txScan, new Scan().setStartRow(startRow).setStopRow(stopRow));
+        ResultScanner iterableRS = txTable.getScanner(txScan, new Scan().withStartRow(startRow).withStopRow(stopRow));
         for (Result result : iterableRS) {
             assertTrue(Bytes.equals(data1, result.getValue(fam, col)),
                     "Unexpected value for SI scan " + txScan + ": " + Bytes.toString(result.getValue(fam, col)));
@@ -469,7 +469,7 @@ public class TestBasicTransaction extends OmidTestBase {
 
         Transaction tx3 = tm.begin();
 
-        Get g = new Get(rowName1).setMaxVersions();
+        Get g = new Get(rowName1).readAllVersions();
         g.addColumn(famName1, colName1);
         Result r = tt.get(tx3, g);
         assertEquals(r.size(), 0, "Unexpected size for read.");

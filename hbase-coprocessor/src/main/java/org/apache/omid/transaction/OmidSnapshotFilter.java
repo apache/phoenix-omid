@@ -120,7 +120,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
         snapshotFilterMap.put(get, snapshotFilter);
 
-        get.setMaxVersions();
+        get.readAllVersions();
         Filter newFilter = TransactionFilters.getVisibilityFilter(get.getFilter(),
                 snapshotFilter, hbaseTransaction);
         get.setFilter(newFilter);
@@ -159,7 +159,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         HBaseTransaction hbaseTransaction = getHBaseTransaction(byteTransaction, isLowLatency);
         SnapshotFilterImpl snapshotFilter = getSnapshotFilter(e);
 
-        scan.setMaxVersions();
+        scan.readAllVersions();
         Filter newFilter = TransactionFilters.getVisibilityFilter(scan.getFilter(),
                 snapshotFilter, hbaseTransaction);
         scan.setFilter(newFilter);

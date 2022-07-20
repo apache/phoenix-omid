@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -400,7 +400,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                                                                                        cell.getQualifierOffset(),
                                                                                        cell.getQualifierLength()));
-        pendingGet.setMaxVersions(versionCount);
+        pendingGet.readVersions(versionCount);
         pendingGet.setTimeRange(0, cell.getTimestamp());
 
         return pendingGet;
@@ -488,7 +488,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
             }
         }
 
-        Collections.sort(keyValuesInSnapshot, KeyValue.COMPARATOR);
+        Collections.sort(keyValuesInSnapshot, CellComparator.getInstance());
 
         return keyValuesInSnapshot;
     }

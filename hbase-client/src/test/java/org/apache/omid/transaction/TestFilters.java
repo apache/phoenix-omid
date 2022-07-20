@@ -23,6 +23,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -30,7 +31,6 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.ColumnPrefixFilter;
-import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.ValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -65,7 +65,7 @@ public class TestFilters extends OmidTestBase {
 
     @Test(timeOut = 60_000)
     public void testGetWithValueFilter(ITestContext context) throws Exception {
-        testGet(context, new ValueFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(col1)));
+        testGet(context, new ValueFilter(CompareOperator.EQUAL, new BinaryComparator(col1)));
     }
 
     private void testGet(ITestContext context, Filter f) throws Exception {
@@ -114,7 +114,7 @@ public class TestFilters extends OmidTestBase {
 
     @Test(timeOut = 60_000)
     public void testScanWithValueFilter(ITestContext context) throws Exception {
-        testScan(context, new ValueFilter(CompareFilter.CompareOp.EQUAL, new BinaryComparator(col1)));
+        testScan(context, new ValueFilter(CompareOperator.EQUAL, new BinaryComparator(col1)));
     }
 
     private void testScan(ITestContext context, Filter f) throws Exception {

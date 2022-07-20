@@ -25,6 +25,7 @@ import javax.inject.Inject;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.CheckAndMutate;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
@@ -72,7 +73,10 @@ public class HBaseTimestampStorage implements TimestampStorage {
         if (previousMaxTimestamp != INITIAL_MAX_TS_VALUE) {
             previousVal = Bytes.toBytes(previousMaxTimestamp);
         }
-        if (!table.checkAndPut(TSO_ROW, cfName, TSO_QUALIFIER, previousVal, put)) {
+        CheckAndMutate checkAndPut = CheckAndMutate.newBuilder(TSO_ROW)
+                .ifEquals(cfName, TSO_QUALIFIER, previousVal)
+                .build(put);
+        if (!table.checkAndMutate(checkAndPut).isSuccess()) {
             throw new IOException("Previous max timestamp is incorrect");
         }
     }
