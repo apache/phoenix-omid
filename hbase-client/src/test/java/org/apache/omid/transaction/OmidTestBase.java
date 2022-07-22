@@ -236,7 +236,7 @@ public abstract class OmidTestBase {
     public void afterMethod() {
         try {
             LOG.info("tearing Down");
-            Admin admin = hBaseUtils.getHBaseAdmin();
+            Admin admin = hBaseUtils.getAdmin();
             deleteTable(admin, TableName.valueOf(TEST_TABLE));
             createTestTable();
             if (hBaseCommitTableConfig != null) {
@@ -263,7 +263,7 @@ public abstract class OmidTestBase {
                                byte[] fam, byte[] col, byte[] value) {
 
         try {
-            Get g = new Get(row).setMaxVersions(1);
+            Get g = new Get(row).readVersions(1);
             Result r = table.get(g);
             Cell cell = r.getColumnLatestCell(fam, col);
 

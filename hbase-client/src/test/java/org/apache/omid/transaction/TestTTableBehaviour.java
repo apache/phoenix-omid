@@ -70,7 +70,7 @@ public class TestTTableBehaviour {
 
         // Test that get fails when a timestamp is specified
         Get get = new Get(row);
-        get.setTimeStamp(randomTimestampValue);
+        get.setTimestamp(randomTimestampValue);
         try {
             tt.get(tx, get);
             fail("Should have thrown an IllegalArgumentException due to timestamp specification");

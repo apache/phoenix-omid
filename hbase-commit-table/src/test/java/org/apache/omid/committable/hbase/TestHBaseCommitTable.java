@@ -22,6 +22,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Future;
 
 import org.apache.hadoop.conf.Configuration;
@@ -117,7 +118,7 @@ public class TestHBaseCommitTable {
         if (admin.isTableDisabled(TableName.valueOf(TEST_TABLE))) {
             admin.enableTable(TableName.valueOf(TEST_TABLE));
         }
-        TableDescriptor[] tables = admin.listTables();
+        List<TableDescriptor> tables = admin.listTableDescriptors();
         for (TableDescriptor t : tables) {
             LOG.info(t.getTableName().getNameAsString());
         }

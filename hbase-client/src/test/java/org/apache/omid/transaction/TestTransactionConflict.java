@@ -180,7 +180,7 @@ public class TestTransactionConflict extends OmidTestBase {
         p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
-        Get g = new Get(row).setMaxVersions();
+        Get g = new Get(row).readAllVersions();
         g.addColumn(fam, col);
         Result r = tt.getHTable().get(g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
@@ -345,7 +345,7 @@ public class TestTransactionConflict extends OmidTestBase {
         p.addColumn(fam, col, data1);
         tt.put(t1, p);
 
-        Get g = new Get(row).setMaxVersions();
+        Get g = new Get(row).readAllVersions();
         g.addColumn(fam, col);
         Result r = tt.getHTable().get(g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
@@ -571,7 +571,7 @@ public class TestTransactionConflict extends OmidTestBase {
         p.addColumn(fam, col, data1);
         tt1.put(t1, p);
 
-        Get g = new Get(row).setMaxVersions();
+        Get g = new Get(row).readAllVersions();
         g.addColumn(fam, col);
         Result r = tt1.getHTable().get(g);
         assertEquals(r.size(), 1, "Unexpected size for read.");
@@ -593,7 +593,7 @@ public class TestTransactionConflict extends OmidTestBase {
         assertTrue(Bytes.equals(data2, r.getValue(fam, col)),
                    "Unexpected value for read: " + Bytes.toString(r.getValue(fam, col)));
 
-        Get g1 = new Get(row1).setMaxVersions();
+        Get g1 = new Get(row1).readAllVersions();
         g1.addColumn(fam, col);
         r = tt1.getHTable().get(g1);
         assertEquals(r.size(), 1, "Unexpected size for read.");

@@ -25,12 +25,12 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -96,7 +96,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 1) select * from test where value = 30; -- T1. Returns nothing
         Scan scan = new Scan();
-        Filter f = new SingleColumnValueFilter(famName, colName, CompareFilter.CompareOp.EQUAL, Bytes.toBytes(30));
+        Filter f = new SingleColumnValueFilter(famName, colName, CompareOperator.EQUAL, Bytes.toBytes(30));
         scan.setFilter(f);
         ResultScanner tx1Scanner = txTable.getScanner(tx1, scan);
         assertNull(tx1Scanner.next());
@@ -152,7 +152,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 2) delete from test where value = 20; -- T2, BLOCKS
         Scan scan = new Scan();
-        Filter f = new SingleColumnValueFilter(famName, colName, CompareFilter.CompareOp.EQUAL, Bytes.toBytes(20));
+        Filter f = new SingleColumnValueFilter(famName, colName, CompareOperator.EQUAL, Bytes.toBytes(20));
         scan.setFilter(f);
         ResultScanner tx2Scanner = txTable.getScanner(tx2, scan);
         // assertEquals(tx2Scanner.next(100).length, 1);
@@ -209,7 +209,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Scan scan = new Scan(rowId1, rowId1);
+        Scan scan = new Scan().withStartRow(rowId1).withStopRow(rowId1);
         scan.addColumn(famName, colName);
 
         // 1) select * from test where id = 1; -- T1
@@ -285,7 +285,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Scan rowId1Scan = new Scan(rowId1, rowId1);
+        Scan rowId1Scan = new Scan().withStartRow(rowId1).withStopRow(rowId1);
         rowId1Scan.addColumn(famName, colName);
 
         // 1) select * from test where id = 1; -- T1. Shows 1 => 10
@@ -317,7 +317,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
             count++;
         }
 
-        Scan rowId2Scan = new Scan(rowId2, rowId2);
+        Scan rowId2Scan = new Scan().withStartRow(rowId2).withStopRow(rowId2);
         rowId2Scan.addColumn(famName, colName);
 
         // 3) select * from test where id = 2; -- T2
@@ -404,7 +404,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
 
         // 6) delete from test where value = 20; -- T1. Prints
         // "ERROR: could not serialize access due to concurrent update"
-        Filter f = new SingleColumnValueFilter(famName, colName, CompareFilter.CompareOp.EQUAL, Bytes.toBytes(20));
+        Filter f = new SingleColumnValueFilter(famName, colName, CompareOperator.EQUAL, Bytes.toBytes(20));
         Scan checkFor20 = new Scan();
         checkFor20.setFilter(f);
         ResultScanner checkFor20Scanner = txTable.getScanner(tx1, checkFor20);
@@ -446,7 +446,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Scan rowId12Scan = new Scan(rowId1, rowId3);
+        Scan rowId12Scan = new Scan().withStartRow(rowId1).withStopRow(rowId3);
         rowId12Scan.addColumn(famName, colName);
 
         // 1) select * from test where id in (1,2); -- T1
@@ -534,7 +534,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Filter f = new SingleColumnValueFilter(famName, colName, CompareFilter.CompareOp.EQUAL, Bytes.toBytes("30"));
+        Filter f = new SingleColumnValueFilter(famName, colName, CompareOperator.EQUAL, Bytes.toBytes("30"));
         Scan value30 = new Scan();
         value30.setFilter(f);
         value30.addColumn(famName, colName);

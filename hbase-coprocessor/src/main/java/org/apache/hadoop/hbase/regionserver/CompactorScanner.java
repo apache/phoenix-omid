@@ -192,7 +192,7 @@ public class CompactorScanner implements InternalScanner {
 
     @VisibleForTesting
     public boolean shouldRetainNonTransactionallyDeletedCell(Cell cell) {
-        return (CellUtil.isDelete(cell) || CellUtil.isDeleteFamily(cell))
+        return (CellUtil.isDelete(cell) || cell.getType() == Cell.Type.DeleteFamily)
                 &&
                 retainNonTransactionallyDeletedCells;
     }
@@ -232,7 +232,7 @@ public class CompactorScanner implements InternalScanner {
     private Result getShadowCell(byte[] row, byte[] family, byte[] qualifier, long timestamp) throws IOException {
         Get g = new Get(row);
         g.addColumn(family, qualifier);
-        g.setTimeStamp(timestamp);
+        g.setTimestamp(timestamp);
         Result r = hRegion.get(g);
         return r;
     }

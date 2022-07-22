@@ -48,6 +48,7 @@ import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.CoprocessorDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -167,7 +168,9 @@ public class TestCompaction {
             TableDescriptor desc = TableDescriptorBuilder
                     .newBuilder(TableName.valueOf(tableName))
                     .setColumnFamilies(fams)
-                    .addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,Coprocessor.PRIORITY_HIGHEST,null)
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder("org.apache.hadoop.hbase.coprocessor.AggregateImplementation")
+                            .setPriority(Coprocessor.PRIORITY_HIGHEST).build())
                     .build();
             admin.createTable(desc);
             for (byte[] family : families) {
@@ -527,7 +530,7 @@ public class TestCompaction {
 
         Transaction tx = tm.begin();
         Get get = new Get(Bytes.toBytes(rowId));
-        get.setMaxVersions(2 * MAX_VERSIONS);
+        get.readVersions(2 * MAX_VERSIONS);
         assertEquals(get.getMaxVersions(), (2 * MAX_VERSIONS), "Max versions should be set to " + (2 * MAX_VERSIONS));
         get.addColumn(fam, qual);
         Result result = txTable.get(tx, get);
@@ -548,7 +551,7 @@ public class TestCompaction {
 
         tx = tm.begin();
         get = new Get(Bytes.toBytes(rowId));
-        get.setMaxVersions(2 * MAX_VERSIONS);
+        get.readVersions(2 * MAX_VERSIONS);
         assertEquals(get.getMaxVersions(), (2 * MAX_VERSIONS), "Max versions should be set to " + (2 * MAX_VERSIONS));
         get.addColumn(fam, qual);
         result = txTable.get(tx, get);

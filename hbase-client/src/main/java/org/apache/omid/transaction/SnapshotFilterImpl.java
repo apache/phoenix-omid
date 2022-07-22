@@ -400,7 +400,7 @@ public class SnapshotFilterImpl implements SnapshotFilter {
         pendingGet.addColumn(CellUtil.cloneFamily(cell), CellUtils.addShadowCellSuffixPrefix(cell.getQualifierArray(),
                                                                                        cell.getQualifierOffset(),
                                                                                        cell.getQualifierLength()));
-        pendingGet.setMaxVersions(versionCount);
+        pendingGet.readVersions(versionCount);
         pendingGet.setTimeRange(0, cell.getTimestamp());
 
         return pendingGet;

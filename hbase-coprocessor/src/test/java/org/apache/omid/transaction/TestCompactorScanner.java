@@ -18,9 +18,9 @@
 package org.apache.omid.transaction;
 
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
-import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;
+import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.CompactorScanner;
@@ -67,7 +67,7 @@ public class TestCompactorScanner {
 
         RegionCoprocessorEnvironment rce = mock(RegionCoprocessorEnvironment.class);
         HRegion hRegion = mock(HRegion.class);
-        HRegionInfo hRegionInfo = mock(HRegionInfo.class);
+        RegionInfo hRegionInfo = mock(RegionInfo.class);
         SettableFuture<Long> f = SettableFuture.create();
 
         // Wire required mock internals

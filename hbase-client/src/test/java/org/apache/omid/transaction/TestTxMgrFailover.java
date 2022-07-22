@@ -144,7 +144,7 @@ public class TestTxMgrFailover extends OmidTestBase {
                                                byte[] col) {
 
         try {
-            Get get = new Get(row).setMaxVersions(1);
+            Get get = new Get(row).readVersions(1);
             Result result = table.get(get);
             Cell latestCell = result.getColumnLatestCell(fam, col);
 

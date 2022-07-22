@@ -236,7 +236,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             leaseManager1.pausedInStillInLeasePeriod();
 
             // Read interleaved and check the values writen by tx 1
-            Get getRow1 = new Get(row1).setMaxVersions(1);
+            Get getRow1 = new Get(row1).readVersions(1);
             getRow1.addColumn(TEST_FAMILY.getBytes(), qualifier1);
             Result r = txTable.get(interleavedReadTx, getRow1);
             assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier1), initialData,
@@ -255,7 +255,7 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             }
 
             // Read interleaved and check the values written by tx 1
-            Get getRow2 = new Get(row2).setMaxVersions(1);
+            Get getRow2 = new Get(row2).readVersions(1);
             r = txTable.get(interleavedReadTx, getRow2);
             assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier2), initialData,
                          "Unexpected value for SI read R2Q2" + interleavedReadTx + ": "
@@ -346,12 +346,12 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             HBaseTransaction tx2 = (HBaseTransaction) tm.begin();
             LOG.info("Starting Tx {} writing values for cells ({}, {}) ", tx2, Bytes.toString(data1_q1),
                      Bytes.toString(data1_q2));
-            Get getData1R1Q1 = new Get(row1).setMaxVersions(1);
+            Get getData1R1Q1 = new Get(row1).readVersions(1);
             Result r = txTable.get(tx2, getData1R1Q1);
             assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier1), initialData,
                          "Unexpected value for SI read R1Q1" + tx2 + ": "
                                  + Bytes.toString(r.getValue(TEST_FAMILY.getBytes(), qualifier1)));
-            Get getData1R2Q2 = new Get(row2).setMaxVersions(1);
+            Get getData1R2Q2 = new Get(row2).readVersions(1);
             r = txTable.get(tx2, getData1R2Q2);
             assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier2), initialData,
                          "Unexpected value for SI read R1Q1" + tx2 + ": "
@@ -378,13 +378,13 @@ public class TestEndToEndScenariosWithHA extends OmidTestBase {
             throws IOException, RollbackException {
         Transaction readTx = tm.begin();
         LOG.info("Starting Read Tx {} for checking cell values", readTx.getTransactionId());
-        Get getRow1 = new Get(row1).setMaxVersions(1);
+        Get getRow1 = new Get(row1).readVersions(1);
         getRow1.addColumn(TEST_FAMILY.getBytes(), qualifier1);
         Result r = txTable.get(readTx, getRow1);
         assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier1), expectedDataR1Q1,
                      "Unexpected value for SI read R1Q1" + readTx + ": " + Bytes
                              .toString(r.getValue(TEST_FAMILY.getBytes(), qualifier1)));
-        Get getRow2 = new Get(row2).setMaxVersions(1);
+        Get getRow2 = new Get(row2).readVersions(1);
         r = txTable.get(readTx, getRow2);
         assertEquals(r.getValue(TEST_FAMILY.getBytes(), qualifier2), expectedDataR2Q2,
                      "Unexpected value for SI read R2Q2" + readTx + ": " + Bytes

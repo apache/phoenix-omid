@@ -171,7 +171,7 @@ public class OmidTableManager {
 
         admin.createTable(desc, splitKeys);
 
-        LOG.info("Table {} created. Regions: {}", tableName, admin.getTableRegions(hTableName).size());
+        LOG.info("Table {} created. Regions: {}", tableName, admin.getRegions(hTableName).size());
 
     }
 

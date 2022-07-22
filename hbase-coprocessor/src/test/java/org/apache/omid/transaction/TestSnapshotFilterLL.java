@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.CoprocessorDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -148,8 +149,12 @@ public class TestSnapshotFilterLL {
             TableDescriptor desc = TableDescriptorBuilder
                     .newBuilder(TableName.valueOf(tableName))
                     .setColumnFamilies(fams)
-                    .addCoprocessor(OmidSnapshotFilter.class.getName(),null,++priority,null)
-                    .addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,++priority,null)
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder(OmidSnapshotFilter.class.getName())
+                            .setPriority(++priority).build())
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder("org.apache.hadoop.hbase.coprocessor.AggregateImplementation")
+                            .setPriority(++priority).build())
                     .build();
             admin.createTable(desc);
             try {
@@ -256,7 +261,7 @@ public class TestSnapshotFilterLL {
 
         Transaction tx2 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().setStartRow(rowName1).setStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1));
         assertTrue(iterableRS.next() == null);
 
         tm.commit(tx2);

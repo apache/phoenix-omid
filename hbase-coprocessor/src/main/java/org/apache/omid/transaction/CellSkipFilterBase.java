@@ -18,7 +18,7 @@
 package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.PrivateCellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.filter.Filter;
@@ -30,7 +30,7 @@ import java.util.List;
 /**
  * {@link Filter} that encapsulates another {@link Filter}. It remembers the last {@link KeyValue}
  * for which the underlying filter returned the {@link ReturnCode#NEXT_COL} or {@link ReturnCode#INCLUDE_AND_NEXT_COL},
- * so that when {@link #filterKeyValue} is called again for the same {@link KeyValue} with different
+ * so that when {@link #filterCell} is called again for the same {@link KeyValue} with different
  * version, it returns {@link ReturnCode#NEXT_COL} directly without consulting the underlying {@link Filter}.
  * Please see TEPHRA-169 for more details.
  */
@@ -53,21 +53,21 @@ public class CellSkipFilterBase extends FilterBase {
      */
     private boolean skipCellVersion(Cell cell) {
         return skipColumn != null
-        && CellUtil.matchingRow(cell, skipColumn.getRowArray(), skipColumn.getRowOffset(),
+        && PrivateCellUtil.matchingRows(cell, skipColumn.getRowArray(), skipColumn.getRowOffset(),
                 skipColumn.getRowLength())
-                && CellUtil.matchingFamily(cell, skipColumn.getFamilyArray(), skipColumn.getFamilyOffset(),
+                && PrivateCellUtil.matchingFamily(cell, skipColumn.getFamilyArray(), skipColumn.getFamilyOffset(),
                 skipColumn.getFamilyLength())
-                && CellUtil.matchingQualifier(cell, skipColumn.getQualifierArray(), skipColumn.getQualifierOffset(),
+                && PrivateCellUtil.matchingQualifier(cell, skipColumn.getQualifierArray(), skipColumn.getQualifierOffset(),
                 skipColumn.getQualifierLength());
     }
 
     @Override
-    public ReturnCode filterKeyValue(Cell cell) throws IOException {
+    public ReturnCode filterCell(Cell cell) throws IOException {
         if (skipCellVersion(cell)) {
             return ReturnCode.NEXT_COL;
         }
 
-        ReturnCode code = filter.filterKeyValue(cell);
+        ReturnCode code = filter.filterCell(cell);
         if (code == ReturnCode.NEXT_COL || code == ReturnCode.INCLUDE_AND_NEXT_COL) {
             // only store the reference to the keyvalue if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
             skipColumn = KeyValueUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
@@ -96,8 +96,8 @@ public class CellSkipFilterBase extends FilterBase {
     }
 
     @Override
-    public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
-        return filter.filterRowKey(buffer, offset, length);
+    public boolean filterRowKey(Cell cell) throws IOException {
+        return filter.filterRowKey(cell);
     }
 
     @Override

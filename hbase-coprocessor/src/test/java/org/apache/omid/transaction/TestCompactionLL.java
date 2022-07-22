@@ -43,6 +43,7 @@ import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.CoprocessorDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
@@ -156,7 +157,9 @@ public class TestCompactionLL {
             TableDescriptor desc = TableDescriptorBuilder
                     .newBuilder(TableName.valueOf(tableName))
                     .setColumnFamilies(fams)
-                    .addCoprocessor("org.apache.hadoop.hbase.coprocessor.AggregateImplementation",null,Coprocessor.PRIORITY_HIGHEST,null)
+                    .setCoprocessor(CoprocessorDescriptorBuilder
+                            .newBuilder("org.apache.hadoop.hbase.coprocessor.AggregateImplementation")
+                            .setPriority(Coprocessor.PRIORITY_HIGHEST).build())
                     .build();
             admin.createTable(desc);
             for (byte[] family : families) {

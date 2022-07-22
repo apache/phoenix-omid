@@ -88,7 +88,7 @@ public class TestCheckpoint extends OmidTestBase {
         row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
-        Get g = new Get(rowName1).setMaxVersions(1);
+        Get g = new Get(rowName1).readVersions(1);
 
         Result r = tt.get(tx1, g);
         assertTrue(Bytes.equals(dataValue1, r.getValue(famName1, colName1)),
@@ -169,7 +169,7 @@ public class TestCheckpoint extends OmidTestBase {
 
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
-        Get g = new Get(rowName1).setMaxVersions(1);
+        Get g = new Get(rowName1).readVersions(1);
 
         Result r = tt.get(tx1, g);
         assertTrue(Bytes.equals(dataValue0, r.getValue(famName1, colName1)),
@@ -227,7 +227,7 @@ public class TestCheckpoint extends OmidTestBase {
         
         HBaseTransaction hbaseTx1 = enforceHBaseTransactionAsParam(tx1);
 
-        Get g = new Get(rowName1).setMaxVersions(100);
+        Get g = new Get(rowName1).readVersions(100);
 
         Result r = tt.get(tx1, g);
         assertTrue(Bytes.equals(dataValue0, r.getValue(famName1, colName1)),
@@ -237,7 +237,7 @@ public class TestCheckpoint extends OmidTestBase {
         row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
-        g = new Get(rowName1).setMaxVersions(100);
+        g = new Get(rowName1).readVersions(100);
 
         r = tt.get(tx1, g);
         assertTrue(Bytes.equals(dataValue1, r.getValue(famName1, colName1)),
@@ -291,7 +291,7 @@ public class TestCheckpoint extends OmidTestBase {
         row1.addColumn(famName1, colName1, dataValue1);
         tt.put(tx1, row1);
 
-        Get g = new Get(rowName1).setMaxVersions(1);
+        Get g = new Get(rowName1).readVersions(1);
 
         Result r = tt.get(tx1, g);
         assertTrue(Bytes.equals(dataValue1, r.getValue(famName1, colName1)),

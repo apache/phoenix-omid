@@ -197,7 +197,7 @@ public class TTable implements Closeable {
         TimeRange timeRange = get.getTimeRange();
         long startTime = timeRange.getMin();
         long endTime = Math.min(timeRange.getMax(), readTimestamp + 1);
-        tsget.setTimeRange(startTime, endTime).setMaxVersions(1);
+        tsget.setTimeRange(startTime, endTime).readVersions(1);
         Map<byte[], NavigableSet<byte[]>> kvs = get.getFamilyMap();
         for (Map.Entry<byte[], NavigableSet<byte[]>> entry : kvs.entrySet()) {
             byte[] family = entry.getKey();
@@ -477,7 +477,7 @@ public class TTable implements Closeable {
         HBaseTransaction transaction = enforceHBaseTransactionAsParam(tx);
 
         Scan tsscan = new Scan(scan);
-        tsscan.setMaxVersions(1);
+        tsscan.readVersions(1);
         tsscan.setTimeRange(0, transaction.getReadTimestamp() + 1);
         propagateAttributes(scan, tsscan);
         Map<byte[], NavigableSet<byte[]>> kvs = scan.getFamilyMap();
@@ -721,7 +721,7 @@ public class TTable implements Closeable {
     }
 
     private void throwExceptionIfOpSetsTimerange(Mutation userOperation) {
-        if (userOperation.getTimeStamp() != HConstants.LATEST_TIMESTAMP) {
+        if (userOperation.getTimestamp() != HConstants.LATEST_TIMESTAMP) {
             throw new IllegalArgumentException(
                 "Timestamp not allowed in transactional user operations");
         }

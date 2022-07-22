@@ -295,8 +295,8 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             byte[] family = hBaseCellId.getFamily();
             byte[] shadowCellQualifier = CellUtils.addShadowCellSuffixPrefix(hBaseCellId.getQualifier());
             get.addColumn(family, shadowCellQualifier);
-            get.setMaxVersions(1);
-            get.setTimeStamp(startTimestamp);
+            get.readVersions(1);
+            get.setTimestamp(startTimestamp);
             Result result = tableAccessWrapper.get(get);
             if (result.containsColumn(family, shadowCellQualifier)) {
                 return Optional.of(Bytes.toLong(result.getValue(family, shadowCellQualifier)));

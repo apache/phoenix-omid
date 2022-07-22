@@ -70,7 +70,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf(HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME);
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 1, "Should have only 1 region");
 
     }
@@ -86,7 +86,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf(HBaseCommitTableConfig.DEFAULT_COMMIT_TABLE_NAME);
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 16, "Should have 16 regions");
 
     }
@@ -102,7 +102,7 @@ public class TestOmidTableManager {
         TableName tableName = TableName.valueOf("my-commit-table");
 
         assertTrue(hBaseAdmin.tableExists(tableName));
-        int numRegions = hBaseAdmin.getTableRegions(tableName).size();
+        int numRegions = hBaseAdmin.getRegions(tableName).size();
         assertEquals(numRegions, 1, "Should have only 1 regions");
     }
 

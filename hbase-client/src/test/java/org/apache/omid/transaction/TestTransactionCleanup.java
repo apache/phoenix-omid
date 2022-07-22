@@ -100,7 +100,7 @@ public class TestTransactionCleanup extends OmidTestBase {
 
             // So now we have to check that the Delete marker introduced by the
             // cleanup process is there
-            Scan scan = new Scan(row);
+            Scan scan = new Scan().withStartRow(row);
             scan.setRaw(true); // Raw scan to obtain the deleted cells
             ResultScanner resultScanner = txTable.getHTable().getScanner(scan);
             int resultCount = 0;

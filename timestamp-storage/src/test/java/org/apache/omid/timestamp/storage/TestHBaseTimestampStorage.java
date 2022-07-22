@@ -38,6 +38,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_CF_NAME;
 import static org.apache.omid.timestamp.storage.HBaseTimestampStorageConfig.DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME;
@@ -92,7 +93,7 @@ public class TestHBaseTimestampStorage {
         if (admin.isTableDisabled(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME))) {
             admin.enableTable(TableName.valueOf(DEFAULT_TIMESTAMP_STORAGE_TABLE_NAME));
         }
-        TableDescriptor[] tables = admin.listTables();
+        List<TableDescriptor> tables = admin.listTableDescriptors();
         for (TableDescriptor t : tables) {
             LOG.info(t.getTableName().getNameAsString());
         }
