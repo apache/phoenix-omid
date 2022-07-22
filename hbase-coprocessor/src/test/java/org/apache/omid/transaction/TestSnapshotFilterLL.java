@@ -261,7 +261,7 @@ public class TestSnapshotFilterLL {
 
         Transaction tx2 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         assertTrue(iterableRS.next() == null);
 
         tm.commit(tx2);

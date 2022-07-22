@@ -161,7 +161,7 @@ public class OmidTableManager {
                 .newBuilder(family)
                 .setMaxVersions(maxVersions)
                 .build());
-            LOG.info("\tAdding Family {}", fams.get(fams.size()));
+            LOG.info("\tAdding Family {}", fams.get(fams.size() - 1));
         }
 
         TableDescriptor desc = TableDescriptorBuilder

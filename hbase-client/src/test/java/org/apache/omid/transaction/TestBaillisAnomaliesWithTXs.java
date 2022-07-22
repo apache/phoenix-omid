@@ -209,7 +209,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Scan scan = new Scan().withStartRow(rowId1).withStopRow(rowId1);
+        Scan scan = new Scan().withStartRow(rowId1).withStopRow(rowId1, true);
         scan.addColumn(famName, colName);
 
         // 1) select * from test where id = 1; -- T1
@@ -285,7 +285,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
         Transaction tx1 = tm.begin();
         Transaction tx2 = tm.begin();
 
-        Scan rowId1Scan = new Scan().withStartRow(rowId1).withStopRow(rowId1);
+        Scan rowId1Scan = new Scan().withStartRow(rowId1).withStopRow(rowId1, true);
         rowId1Scan.addColumn(famName, colName);
 
         // 1) select * from test where id = 1; -- T1. Shows 1 => 10

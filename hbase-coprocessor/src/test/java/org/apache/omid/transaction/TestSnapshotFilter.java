@@ -623,7 +623,7 @@ public class TestSnapshotFilter {
 
         Transaction tx2 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx2, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
@@ -642,7 +642,7 @@ public class TestSnapshotFilter {
 
         Transaction tx4 = tm.begin();
 
-        ResultScanner iterableRS2 = tt.getScanner(tx4, new Scan().withStartRow(rowName1).withStopRow(rowName1));
+        ResultScanner iterableRS2 = tt.getScanner(tx4, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result2 = iterableRS2.next();
         long tsRow2 = result2.rawCells()[0].getTimestamp();
         assertEquals(tsRow2, tx3.getTransactionId(), "Reading differnt version");
@@ -685,7 +685,7 @@ public class TestSnapshotFilter {
         Scan scan = new Scan();
         scan.setFilter(new FilterList(FilterList.Operator.MUST_PASS_ONE,
                 new FamilyFilter(CompareOperator.EQUAL, new BinaryComparator(Bytes.toBytes(TEST_FAMILY)))));
-        scan.withStartRow(rowName1).withStopRow(rowName1);
+        scan.withStartRow(rowName1).withStopRow(rowName1, true);
 
         ResultScanner iterableRS = tt.getScanner(tx3, scan);
         Result result = iterableRS.next();
@@ -734,7 +734,7 @@ public class TestSnapshotFilter {
 
         Transaction tx3 = tm.begin();
 
-        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName1));
+        ResultScanner iterableRS = tt.getScanner(tx3, new Scan().withStartRow(rowName1).withStopRow(rowName1, true));
         Result result = iterableRS.next();
         long tsRow = result.rawCells()[0].getTimestamp();
         assertEquals(tsRow, tx1.getTransactionId(), "Reading differnt version");
