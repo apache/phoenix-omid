@@ -102,16 +102,16 @@ USER_OPTION=$1
 shift
 case ${USER_OPTION} in
     basic)
-        java -cp $KLASSPATH -Dlog4j.configuration=file:${SCRIPTDIR}/conf/log4j.properties org.apache.omid.examples.BasicExample "$@"
+        java -cp $KLASSPATH -Dlog4j2.configurationFile=file:${SCRIPTDIR}/conf/log4j2.properties org.apache.omid.examples.BasicExample "$@"
         ;;
     si)
-        java -cp $KLASSPATH -Dlog4j.configuration=file:${SCRIPTDIR}/conf/log4j.properties org.apache.omid.examples.SnapshotIsolationExample "$@"
+        java -cp $KLASSPATH -Dlog4j2.configurationFile=file:${SCRIPTDIR}/conf/log4j2.properties org.apache.omid.examples.SnapshotIsolationExample "$@"
         ;;
     parallel)
-        java -cp $KLASSPATH -Dlog4j.configuration=file:${SCRIPTDIR}/conf/log4j.properties org.apache.omid.examples.ParallelExecution "$@"
+        java -cp $KLASSPATH -Dlog4j2.configurationFile=file:${SCRIPTDIR}/conf/log4j2.properties org.apache.omid.examples.ParallelExecution "$@"
         ;;
     conf)
-        java -cp $KLASSPATH -Dlog4j.configuration=file:${SCRIPTDIR}/conf/log4j.properties org.apache.omid.examples.ConfigurationExample "$@"
+        java -cp $KLASSPATH -Dlog4j2.configurationFile=file:${SCRIPTDIR}/conf/log4j2.properties org.apache.omid.examples.ConfigurationExample "$@"
         ;;
     *)
         show_help

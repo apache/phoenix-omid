@@ -34,6 +34,7 @@
                 <include>org.apache.omid:omid-hbase-commit-table</include>
                 <include>org.apache.omid:omid-codahale-metrics</include>
                 <include>org.apache.omid:omid-hbase-tools</include>
+
             </includes>
             <binaries>
                 <outputDirectory>/lib</outputDirectory>
