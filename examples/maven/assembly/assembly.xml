@@ -52,9 +52,9 @@
             <destName>omid-examples.jar</destName>
         </file>
         <file>
-            <source>${basedir}/src/main/resources/log4j.properties</source>
+            <source>${basedir}/src/main/resources/log4j2.properties</source>
             <outputDirectory>/conf</outputDirectory>
-            <destName>log4j.properties</destName>
+            <destName>log4j2.properties</destName>
         </file>
         <file>
             <source>${basedir}/src/main/resources/hbase-omid-client-config.yml</source>
