@@ -317,7 +317,7 @@ public class TestBaillisAnomaliesWithTXs extends OmidTestBase {
             count++;
         }
 
-        Scan rowId2Scan = new Scan().withStartRow(rowId2).withStopRow(rowId2);
+        Scan rowId2Scan = new Scan().withStartRow(rowId2).withStopRow(rowId2, true);
         rowId2Scan.addColumn(famName, colName);
 
         // 3) select * from test where id = 2; -- T2
