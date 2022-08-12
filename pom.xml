@@ -168,7 +168,7 @@
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
         <os.plugin.version>1.6.2</os.plugin.version>
         <junit.version>4.13.1</junit.version>
-        <mockito.version>1.10.19</mockito.version>
+        <mockito-core.version>2.28.2</mockito-core.version>
         <disruptor.version>3.2.0</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
         <jcommander.version>1.35</jcommander.version>
@@ -928,14 +928,36 @@
                 <version>${log4j.version}</version>
             </dependency>
 
-
             <!-- Other test dependencies -->
+
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>${testng.version}</version>
+                <scope>test</scope>
+            </dependency>
+
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>${junit.version}</version>
                 <scope>test</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito-core.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-all</artifactId>
+                <version>${hamcrest.version}</version>
+                <scope>test</scope>
+            </dependency>
+
         </dependencies>
 
     </dependencyManagement>
