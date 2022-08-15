@@ -177,7 +177,7 @@
         <!-- 2.12+ shades guava -->
         <curator.version>4.2.0</curator.version>
         <zookeeper.version>3.5.9</zookeeper.version>
-        <snakeyaml.version>1.26</snakeyaml.version>
+        <snakeyaml.version>1.30</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <!-- Kept for Java 7 compatibility. Overridden in hbase-2 profile.-->
         <commons-io.version>2.6</commons-io.version>
