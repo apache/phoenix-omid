@@ -28,6 +28,7 @@ import org.apache.omid.committable.CommitTable.CommitTimestamp;
 import org.apache.omid.transaction.CellUtils;
 import org.apache.omid.transaction.CellInfo;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
@@ -165,7 +166,7 @@ public class CompactorScanner implements InternalScanner {
             retainLastTimestampedCellsSaved(currentRowWorthValues, lastTimestampedCellsInRow);
 
             // 4) Sort the list
-            Collections.sort(currentRowWorthValues, KeyValue.COMPARATOR);
+            Collections.sort(currentRowWorthValues, CellComparator.getInstance());
         }
 
         // Chomp current row worth values up to the limit

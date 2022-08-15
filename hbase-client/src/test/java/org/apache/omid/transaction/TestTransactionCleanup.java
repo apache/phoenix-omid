@@ -23,7 +23,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
-import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -108,8 +108,8 @@ public class TestTransactionCleanup extends OmidTestBase {
                 assertEquals(result.size(), 2); // Size == 2, including the put and delete from cleanup
                 LOG.trace("Result {}", result);
                 // The last element of the qualifier should have the Delete marker
-                byte encodedType = result.getColumnLatestCell(family, qual).getTypeByte();
-                assertEquals(KeyValue.Type.codeToType(encodedType), KeyValue.Type.Delete);
+                Cell.Type encodedType = result.getColumnLatestCell(family, qual).getType();
+                assertEquals(encodedType, Cell.Type.Delete);
                 resultCount++;
             }
             assertEquals(resultCount, ROWS_MODIFIED);

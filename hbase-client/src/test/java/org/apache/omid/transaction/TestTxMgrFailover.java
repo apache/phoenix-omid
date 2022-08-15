@@ -110,7 +110,7 @@ public class TestTxMgrFailover extends OmidTestBase {
             put.addColumn(TEST_FAMILY.getBytes(), qualifier, data1);
             txTable.put(tx1, put);
             assertEquals(hBaseUtils.countRows(txTable.getHTable()), 1, "Rows should be 1!");
-            checkOperationSuccessOnCell(txTable.getHTable(), KeyValue.Type.Put, data1, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
+            checkOperationSuccessOnCell(txTable.getHTable(), Cell.Type.Put, data1, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
                     qualifier);
 
             try {
@@ -125,7 +125,7 @@ public class TestTxMgrFailover extends OmidTestBase {
             assertEquals(tx1.getStatus(), Status.ROLLEDBACK);
             assertEquals(tx1.getCommitTimestamp(), 0);
             // Check the cleanup process did its job and the committed data is NOT there
-            checkOperationSuccessOnCell(txTable.getHTable(), KeyValue.Type.Delete, null, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
+            checkOperationSuccessOnCell(txTable.getHTable(), Cell.Type.Delete, null, TEST_TABLE.getBytes(), row1, TEST_FAMILY.getBytes(),
                     qualifier);
         }
 
@@ -136,7 +136,7 @@ public class TestTxMgrFailover extends OmidTestBase {
     // ----------------------------------------------------------------------------------------------------------------
 
     protected void checkOperationSuccessOnCell(Table table,
-                                               KeyValue.Type targetOp,
+                                               Cell.Type targetOp,
                                                @Nullable byte[] expectedValue,
                                                byte[] tableName,
                                                byte[] row,
@@ -150,7 +150,7 @@ public class TestTxMgrFailover extends OmidTestBase {
 
             switch (targetOp) {
                 case Put:
-                    assertEquals(latestCell.getTypeByte(), targetOp.getCode());
+                    assertEquals(latestCell.getType(), targetOp);
                     assertEquals(CellUtil.cloneValue(latestCell), expectedValue);
                     LOG.trace("Value for " + Bytes.toString(tableName) + ":"
                             + Bytes.toString(row) + ":" + Bytes.toString(fam) + ":"

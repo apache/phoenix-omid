@@ -292,7 +292,7 @@ public class TTable implements Closeable {
         for (List<Cell> cells : fmap.values()) {
             for (Cell cell : cells) {
                 CellUtils.validateCell(cell, writeTimestamp);
-                switch (KeyValue.Type.codeToType(cell.getTypeByte())) {
+                switch (cell.getType()) {
                     case DeleteColumn:
                         deleteP.addColumn(CellUtil.cloneFamily(cell),
                                     CellUtil.cloneQualifier(cell),
@@ -516,7 +516,7 @@ public class TTable implements Closeable {
     }
 
     /**
-     * Delegates to {@link Table#getTableDescriptor()}
+     * Delegates to {@link Table#getDescriptor()}
      *
      * @return TableDescriptor an instance of TableDescriptor
      * @throws IOException if a remote or network exception occurs.
