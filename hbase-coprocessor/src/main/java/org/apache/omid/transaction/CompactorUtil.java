@@ -86,7 +86,7 @@ public class CompactorUtil {
         Config cmdline = new Config();
         JCommander jcommander = new JCommander(cmdline, args);
         if (cmdline.help) {
-            jcommander.usage("CompactorUtil");
+            jcommander.usage();
             System.exit(1);
         }
 
