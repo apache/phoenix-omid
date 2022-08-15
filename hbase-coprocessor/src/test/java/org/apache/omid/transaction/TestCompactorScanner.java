@@ -67,7 +67,7 @@ public class TestCompactorScanner {
 
         RegionCoprocessorEnvironment rce = mock(RegionCoprocessorEnvironment.class);
         HRegion hRegion = mock(HRegion.class);
-        RegionInfo hRegionInfo = mock(RegionInfo.class);
+        RegionInfo regionInfo = mock(RegionInfo.class);
         SettableFuture<Long> f = SettableFuture.create();
 
         // Wire required mock internals
@@ -75,7 +75,7 @@ public class TestCompactorScanner {
         when(ctClient.readLowWatermark()).thenReturn(f);
         when(ctx.getEnvironment()).thenReturn(rce);
         when(rce.getRegion()).thenReturn(hRegion);
-        when(hRegion.getRegionInfo()).thenReturn(hRegionInfo);
+        when(hRegion.getRegionInfo()).thenReturn(regionInfo);
 
         LOG.info("Testing when retain is {}", retainOption);
         try (CompactorScanner scanner = spy(new CompactorScanner(ctx,

@@ -53,7 +53,6 @@ public class YAMLUtils {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public Map loadSettings(String resourcePath, String defaultResourcePath) throws IOException {
         Map defaultSetting = loadAsMap(defaultResourcePath);
         Preconditions.checkState(defaultSetting.size() > 0, String.format("Failed to load file '%s' from classpath", defaultResourcePath));

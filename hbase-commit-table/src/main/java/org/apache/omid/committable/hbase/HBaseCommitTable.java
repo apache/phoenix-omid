@@ -146,7 +146,7 @@ public class HBaseCommitTable implements CommitTable {
                 byte[] value = encodeCommitTimestamp(startTimestamp, commitTimestamp);
                 put.addColumn(commitTableFamily, COMMIT_TABLE_QUALIFIER, value);
                 CheckAndMutate checkAndPut = CheckAndMutate.newBuilder(transactionRow)
-                        .ifEquals(commitTableFamily, INVALID_TX_QUALIFIER, null)
+                        .ifNotExists(commitTableFamily, INVALID_TX_QUALIFIER)
                         .build(put);
                 return table.checkAndMutate(checkAndPut).isSuccess();
             }
@@ -267,7 +267,7 @@ public class HBaseCommitTable implements CommitTable {
                 // might not be hold (due to the invalidation)
                 // TODO: Decide what we should we do if we can not contact the commit table. loop till succeed???
                 CheckAndMutate checkAndPut = CheckAndMutate.newBuilder(row)
-                        .ifEquals(commitTableFamily, COMMIT_TABLE_QUALIFIER, null)
+                        .ifNotExists(commitTableFamily, COMMIT_TABLE_QUALIFIER)
                         .build(invalidationPut);
                 boolean result = table.checkAndMutate(checkAndPut).isSuccess();
                 f.set(result);
