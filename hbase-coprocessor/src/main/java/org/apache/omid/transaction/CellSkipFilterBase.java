@@ -18,9 +18,7 @@
 package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.PrivateCellUtil;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.KeyValueUtil;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
 
@@ -28,17 +26,17 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@link Filter} that encapsulates another {@link Filter}. It remembers the last {@link KeyValue}
+ * {@link Filter} that encapsulates another {@link Filter}. It remembers the last {@link Cell}
  * for which the underlying filter returned the {@link ReturnCode#NEXT_COL} or {@link ReturnCode#INCLUDE_AND_NEXT_COL},
- * so that when {@link #filterCell} is called again for the same {@link KeyValue} with different
+ * so that when {@link #filterCell} is called again for the same {@link Cell} with different
  * version, it returns {@link ReturnCode#NEXT_COL} directly without consulting the underlying {@link Filter}.
  * Please see TEPHRA-169 for more details.
  */
 
 public class CellSkipFilterBase extends FilterBase {
     private final Filter filter;
-    // remember the previous keyvalue processed by filter when the return code was NEXT_COL or INCLUDE_AND_NEXT_COL
-    private KeyValue skipColumn = null;
+    // remember the previous cell processed by filter when the return code was NEXT_COL or INCLUDE_AND_NEXT_COL
+    private Cell skipColumn = null;
 
     public CellSkipFilterBase(Filter filter) {
         this.filter = filter;
@@ -46,19 +44,16 @@ public class CellSkipFilterBase extends FilterBase {
 
     /**
      * Determines whether the current cell should be skipped. The cell will be skipped
-     * if the previous keyvalue had the same key as the current cell. This means filter already responded
-     * for the previous keyvalue with ReturnCode.NEXT_COL or ReturnCode.INCLUDE_AND_NEXT_COL.
+     * if the previous cell had the same key as the current cell. This means filter already responded
+     * for the previous cell with ReturnCode.NEXT_COL or ReturnCode.INCLUDE_AND_NEXT_COL.
      * @param cell the {@link Cell} to be tested for skipping
      * @return true is current cell should be skipped, false otherwise
      */
     private boolean skipCellVersion(Cell cell) {
         return skipColumn != null
-        && PrivateCellUtil.matchingRows(cell, skipColumn.getRowArray(), skipColumn.getRowOffset(),
-                skipColumn.getRowLength())
-                && PrivateCellUtil.matchingFamily(cell, skipColumn.getFamilyArray(), skipColumn.getFamilyOffset(),
-                skipColumn.getFamilyLength())
-                && PrivateCellUtil.matchingQualifier(cell, skipColumn.getQualifierArray(), skipColumn.getQualifierOffset(),
-                skipColumn.getQualifierLength());
+        && CellUtil.matchingRows(cell, skipColumn)
+                && CellUtil.matchingFamily(cell, skipColumn)
+                && CellUtil.matchingQualifier(cell, skipColumn);
     }
 
     @Override
@@ -69,11 +64,8 @@ public class CellSkipFilterBase extends FilterBase {
 
         ReturnCode code = filter.filterCell(cell);
         if (code == ReturnCode.NEXT_COL || code == ReturnCode.INCLUDE_AND_NEXT_COL) {
-            // only store the reference to the keyvalue if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
-            skipColumn = KeyValueUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
-                    cell.getFamilyArray(), cell.getFamilyOffset(),
-                    cell.getFamilyLength(), cell.getQualifierArray(),
-                    cell.getQualifierOffset(), cell.getQualifierLength());
+            // only store the reference to the cell if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
+            skipColumn = cell;
         } else {
             skipColumn = null;
         }
