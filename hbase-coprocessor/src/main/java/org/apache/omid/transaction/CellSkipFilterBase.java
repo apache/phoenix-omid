@@ -19,6 +19,7 @@ package org.apache.omid.transaction;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
 
@@ -64,8 +65,11 @@ public class CellSkipFilterBase extends FilterBase {
 
         ReturnCode code = filter.filterCell(cell);
         if (code == ReturnCode.NEXT_COL || code == ReturnCode.INCLUDE_AND_NEXT_COL) {
-            // only store the reference to the cell if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
-            skipColumn = cell;
+            // only store the reference to the keyvalue if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
+            skipColumn = KeyValueUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
+                    cell.getFamilyArray(), cell.getFamilyOffset(),
+                    cell.getFamilyLength(), cell.getQualifierArray(),
+                    cell.getQualifierOffset(), cell.getQualifierLength());
         } else {
             skipColumn = null;
         }
