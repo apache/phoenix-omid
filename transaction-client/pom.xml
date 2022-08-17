@@ -69,7 +69,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>${netty4.version}</version>
         </dependency>
 
         <!-- end distributed comm -->
