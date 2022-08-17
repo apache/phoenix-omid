@@ -147,7 +147,6 @@
     <properties>
 
         <java.version>1.8</java.version>
-        <commons-io.version>2.11.0</commons-io.version>
 
         <!-- Basic properties -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -160,7 +159,7 @@
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
         <log4j2.version>2.18.0</log4j2.version>
-        <netty4.version>4.1.76.Final</netty4.version>
+        <netty4.version>4.1.79.Final</netty4.version>
         <!-- com.google repo will be used except on Aarch64 platform. -->
         <protobuf.group>com.google.protobuf</protobuf.group>
         <protobuf-java.version>2.5.0</protobuf-java.version>
@@ -179,8 +178,7 @@
         <zookeeper.version>3.5.9</zookeeper.version>
         <snakeyaml.version>1.30</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
-        <!-- Kept for Java 7 compatibility. Overridden in hbase-2 profile.-->
-        <commons-io.version>2.6</commons-io.version>
+        <commons-io.version>2.11.0</commons-io.version>
         <google.findbugs.version>3.0.1</google.findbugs.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -966,6 +964,12 @@
                   </exclusion>
                 </exclusions>
                 <version>${curator.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty4.version}</version>
             </dependency>
 
             <dependency>
