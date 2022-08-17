@@ -521,7 +521,7 @@ public class TTable implements Closeable {
      * @return TableDescriptor an instance of TableDescriptor
      * @throws IOException if a remote or network exception occurs.
      */
-    public TableDescriptor getTableDescriptor() throws IOException {
+    public TableDescriptor getDescriptor() throws IOException {
         return table.getDescriptor();
     }
 
