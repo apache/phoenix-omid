@@ -63,6 +63,11 @@ public class TransactionVisibilityFilterBase extends FilterBase {
     }
 
     @Override
+    public ReturnCode filterKeyValue(Cell cell) throws IOException {
+        return filterCell(cell);
+    }
+
+    @Override
     public ReturnCode filterCell(Cell v) throws IOException {
         if (CellUtils.isShadowCell(v)) {
             Long commitTs =  Bytes.toLong(CellUtil.cloneValue(v));
@@ -193,6 +198,13 @@ public class TransactionVisibilityFilterBase extends FilterBase {
         return super.filterRow();
     }
 
+    @Override
+    public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
+        if (userFilter != null) {
+            return userFilter.filterRowKey(buffer, offset, length);
+        }
+        return super.filterRowKey(buffer, offset, length);
+    }
 
     @Override
     public boolean filterRowKey(Cell cell) throws IOException {

@@ -58,6 +58,11 @@ public class CellSkipFilterBase extends FilterBase {
     }
 
     @Override
+    public ReturnCode filterKeyValue(Cell cell) throws IOException {
+        return filterCell(cell);
+    }
+
+    @Override
     public ReturnCode filterCell(Cell cell) throws IOException {
         if (skipCellVersion(cell)) {
             return ReturnCode.NEXT_COL;
@@ -89,6 +94,11 @@ public class CellSkipFilterBase extends FilterBase {
     @Override
     public void reset() throws IOException {
         filter.reset();
+    }
+
+    @Override
+    public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
+        return filter.filterRowKey(buffer, offset, length);
     }
 
     @Override

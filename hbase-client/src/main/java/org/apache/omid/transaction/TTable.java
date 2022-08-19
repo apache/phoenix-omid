@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.TableName;
@@ -513,6 +514,16 @@ public class TTable implements Closeable {
      */
     public Configuration getConfiguration() {
         return table.getConfiguration();
+    }
+
+    /**
+     * Delegates to {@link Table#getTableDescriptor()}
+     *
+     * @return HTableDescriptor an instance of HTableDescriptor
+     * @throws IOException if a remote or network exception occurs.
+     */
+    public HTableDescriptor getTableDescriptor() throws IOException {
+        return table.getTableDescriptor();
     }
 
     /**
