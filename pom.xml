@@ -193,6 +193,9 @@
         <maven-jxr-plugin.version>2.3</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.1</maven-findbugs-maven-plugin.version>
         <maven-owasp-plugin.version>6.5.3</maven-owasp-plugin.version>
+        <!-- Code coverage properties -->
+        <maven-clover-plugin.version>4.4.1</maven-clover-plugin.version>
+        <maven-sonar-plugin.version>3.9.1.2184</maven-sonar-plugin.version>
 
         <!-- Licensing properties (for license-maven-plugins) -->
         <license.header>misc/header.txt</license.header>
@@ -634,6 +637,58 @@
                 <protobuf.group>org.openlabtesting.protobuf</protobuf.group>
                 <protoc.version>2.5.0.2</protoc.version>
             </properties>
+        </profile>
+
+        <profile>
+            <id>code-coverage</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <cloverDatabase>${project.build.directory}/clover/code-coverage.db</cloverDatabase>
+                <sonar.core.codeCoveragePlugin>clover</sonar.core.codeCoveragePlugin>
+                <sonar.clover.version>${maven-clover-plugin.version}</sonar.clover.version>
+                <sonar.clover.reportPath>${project.build.directory}/clover/clover.xml</sonar.clover.reportPath>
+                <sonar.surefire.reportsPath>${project.build.directory}/surefire-reports</sonar.surefire.reportsPath>
+                <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.openclover</groupId>
+                        <artifactId>clover-maven-plugin</artifactId>
+                        <version>${maven-clover-plugin.version}</version>
+                        <configuration>
+                            <cloverDatabase>${cloverDatabase}</cloverDatabase>
+                            <cloverMergeDatabase>${cloverDatabase}</cloverMergeDatabase>
+                            <outputDirectory>${project.build.directory}/clover</outputDirectory>
+                            <alwaysReport>true</alwaysReport>
+                            <generateHistorical>false</generateHistorical>
+                            <generateHtml>true</generateHtml>
+                            <generateXml>true</generateXml>
+                            <includesTestSourceRoots>true</includesTestSourceRoots>
+                            <includesAllSourceRoots>true</includesAllSourceRoots>
+                            <includes>
+                                <include>**/org/apache/**/*.java</include>
+                            </includes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>clover-setup</id>
+                                <goals>
+                                    <goal>setup</goal>
+                                </goals>
+                                <phase>process-sources</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonarsource.scanner.maven</groupId>
+                        <artifactId>sonar-maven-plugin</artifactId>
+                        <version>${maven-sonar-plugin.version}</version>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 
