@@ -57,6 +57,10 @@ public class CellSkipFilterBase extends FilterBase {
                 && CellUtil.matchingQualifier(cell, skipColumn);
     }
 
+    /**
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link CellSkipFilterBase#filterKeyValue(Cell)}
+     */
     @Override
     public ReturnCode filterKeyValue(Cell cell) throws IOException {
         return filterCell(cell);
@@ -96,6 +100,10 @@ public class CellSkipFilterBase extends FilterBase {
         filter.reset();
     }
 
+    /**
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link CellSkipFilterBase#filterRowKey(Cell)}
+     */
     @Override
     public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
         return filter.filterRowKey(buffer, offset, length);

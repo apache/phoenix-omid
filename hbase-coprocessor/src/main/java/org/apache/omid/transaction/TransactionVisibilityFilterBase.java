@@ -62,6 +62,10 @@ public class TransactionVisibilityFilterBase extends FilterBase {
 
     }
 
+    /**
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link TransactionVisibilityFilterBase#filterCell(Cell)}
+    */
     @Override
     public ReturnCode filterKeyValue(Cell cell) throws IOException {
         return filterCell(cell);
@@ -198,6 +202,10 @@ public class TransactionVisibilityFilterBase extends FilterBase {
         return super.filterRow();
     }
 
+    /**
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link TransactionVisibilityFilterBase#filterRowKey(Cell)}
+     */
     @Override
     public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
         if (userFilter != null) {

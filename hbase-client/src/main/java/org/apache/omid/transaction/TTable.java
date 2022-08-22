@@ -519,6 +519,9 @@ public class TTable implements Closeable {
     /**
      * Delegates to {@link Table#getTableDescriptor()}
      *
+     * This deprecated method is implemented for backwards compatibility reasons.
+     * use {@link TTable#getDescriptor()}
+     *
      * @return HTableDescriptor an instance of HTableDescriptor
      * @throws IOException if a remote or network exception occurs.
      */
