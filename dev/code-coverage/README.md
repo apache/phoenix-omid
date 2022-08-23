@@ -22,7 +22,7 @@ If the necessary parameters are given it also uploads the results to SonarQube.
 
 The coverage results can be found under `target/clover/index.html` and here is how you can run the clover code analysis:
 
-```sh dev-support/code-coverage/run-coverage.sh```
+```./dev/code-coverage/run-coverage.sh```
 
 ## Publishing coverage results to SonarQube
 
@@ -36,5 +36,5 @@ The project name is an optional parameter.
 
 Here is an example command for running and publishing the coverage data:
 
-`sh dev-support/code-coverage/run-coverage.sh -l ProjectCredentials -u https://exampleserver.com
+`./dev/code-coverage/run-coverage.sh -l ProjectCredentials -u https://exampleserver.com
 -k Project_Key -n Project_Name`
