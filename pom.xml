@@ -152,8 +152,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase.version>2.4.10</hbase.version>
-        <hadoop.version>2.10.0</hadoop.version>
+        <hbase.version>2.4.13</hbase.version>
+        <hadoop.version>3.1.4</hadoop.version>
         <phoenix.thirdparty.version>2.0.0</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
@@ -378,6 +378,8 @@
 
                         <!-- Exclude config and scripts -->
                         <exclude>**/dev-utils/*</exclude>
+                        <exclude>dev-support/artifacts/**</exclude>
+
 
                         <!-- Exclude assembly -->
                         <exclude>**/maven/assembly/*</exclude>
@@ -393,6 +395,7 @@
                         <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ZipfianGenerator.java</exclude>
                         <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ScrambledZipfianGenerator.java
                         </exclude>
+
 
                         <!-- Taken from https://github.com/apache/hbase -->
                         <exclude>**/src/main/java/org/apache/omid/committable/hbase/RegionSplitter.java</exclude>

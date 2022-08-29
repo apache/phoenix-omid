@@ -15,6 +15,7 @@ lib/
 *.iws
 *~
 *.swp
+^dev-support/artifacts
 
 # Generated website files
 generated-website/
