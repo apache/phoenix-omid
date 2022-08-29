@@ -152,8 +152,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase.version>2.4.10</hbase.version>
-        <hadoop.version>2.10.0</hadoop.version>
+        <hbase.version>2.4.13</hbase.version>
+        <hadoop.version>3.1.4</hadoop.version>
         <phoenix.thirdparty.version>2.0.0</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
         <testng.version>6.10</testng.version>
@@ -381,6 +381,9 @@
 
                         <!-- Exclude config and scripts -->
                         <exclude>**/dev-utils/*</exclude>
+                        <exclude>dev-support/artifacts/**</exclude>
+                        <exclude>dev-support/work/**</exclude>
+
 
                         <!-- Exclude assembly -->
                         <exclude>**/maven/assembly/*</exclude>
@@ -396,6 +399,7 @@
                         <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ZipfianGenerator.java</exclude>
                         <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ScrambledZipfianGenerator.java
                         </exclude>
+
 
                         <!-- Taken from https://github.com/apache/hbase -->
                         <exclude>**/src/main/java/org/apache/omid/committable/hbase/RegionSplitter.java</exclude>
@@ -433,6 +437,25 @@
                         <version>1.0</version>
                     </dependency>
                 </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.rat</groupId>
+                <artifactId>apache-rat-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*.yml</exclude>
+                        <exclude>**/*.properties</exclude>
+                        <exclude>**/hbase-site.xml</exclude>
+                        <exclude>**/test-output/**</exclude>
+                        <exclude>doc/site/site.xml</exclude>
+                        <exclude>doc/images/ModuleDependencies.graffle</exclude>
+                        <exclude>misc/findbugs-exclude.xml</exclude>
+                        <exclude>misc/omid_checks.xml</exclude>
+                        <exclude>dev-support/artifacts/**</exclude>
+                        <exclude>dev-support/work/**</exclude>
+                   </excludes>
+                </configuration>
             </plugin>
 
         </plugins>
@@ -488,18 +511,6 @@
                     <plugin>
                         <groupId>org.apache.rat</groupId>
                         <artifactId>apache-rat-plugin</artifactId>
-                        <configuration>
-                            <excludes>
-                                <exclude>**/*.yml</exclude>
-                                <exclude>**/*.properties</exclude>
-                                <exclude>**/hbase-site.xml</exclude>
-                                <exclude>**/test-output/**</exclude>
-                                <exclude>doc/site/site.xml</exclude>
-                                <exclude>doc/images/ModuleDependencies.graffle</exclude>
-                                <exclude>misc/findbugs-exclude.xml</exclude>
-                                <exclude>misc/omid_checks.xml</exclude>
-                           </excludes>
-                        </configuration>
                         <executions>
                             <execution>
                                 <phase>package</phase>

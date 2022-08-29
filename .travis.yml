@@ -38,5 +38,7 @@ script:
     else
       git checkout -b tmp-build-branch
       &&
+      dev-support/rebuild_hbase.sh detect
+      &&
       mvn clean test ;
     fi
