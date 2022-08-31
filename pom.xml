@@ -379,6 +379,7 @@
                         <!-- Exclude config and scripts -->
                         <exclude>**/dev-utils/*</exclude>
                         <exclude>dev-support/artifacts/**</exclude>
+                        <exclude>dev-support/work/**</exclude>
 
 
                         <!-- Exclude assembly -->
@@ -435,6 +436,25 @@
                 </dependencies>
             </plugin>
 
+            <plugin>
+                <groupId>org.apache.rat</groupId>
+                <artifactId>apache-rat-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*.yml</exclude>
+                        <exclude>**/*.properties</exclude>
+                        <exclude>**/hbase-site.xml</exclude>
+                        <exclude>**/test-output/**</exclude>
+                        <exclude>doc/site/site.xml</exclude>
+                        <exclude>doc/images/ModuleDependencies.graffle</exclude>
+                        <exclude>misc/findbugs-exclude.xml</exclude>
+                        <exclude>misc/omid_checks.xml</exclude>
+                        <exclude>dev-support/artifacts/**</exclude>
+                        <exclude>dev-support/work/**</exclude>
+                   </excludes>
+                </configuration>
+            </plugin>
+
         </plugins>
 
         <extensions>
@@ -488,18 +508,6 @@
                     <plugin>
                         <groupId>org.apache.rat</groupId>
                         <artifactId>apache-rat-plugin</artifactId>
-                        <configuration>
-                            <excludes>
-                                <exclude>**/*.yml</exclude>
-                                <exclude>**/*.properties</exclude>
-                                <exclude>**/hbase-site.xml</exclude>
-                                <exclude>**/test-output/**</exclude>
-                                <exclude>doc/site/site.xml</exclude>
-                                <exclude>doc/images/ModuleDependencies.graffle</exclude>
-                                <exclude>misc/findbugs-exclude.xml</exclude>
-                                <exclude>misc/omid_checks.xml</exclude>
-                           </excludes>
-                        </configuration>
                         <executions>
                             <execution>
                                 <phase>package</phase>
