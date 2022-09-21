@@ -84,9 +84,6 @@ public class TestWorldTimeOracle {
     @Test(timeOut = 10_000)
     public void testTimestampOraclePanicsWhenTheStorageHasProblems() throws Exception {
 
-        // Intialize component under test
-        worldClockOracle.initialize();
-
         // Cause an exception when updating the max timestamp
         final CountDownLatch updateMaxTimestampMethodCalled = new CountDownLatch(1);
         doAnswer(new Answer() {
@@ -97,17 +94,8 @@ public class TestWorldTimeOracle {
             }
         }).when(timestampStorage).updateMaxTimestamp(anyLong(), anyLong());
 
-        // Make the previous exception to be thrown
-        Thread allocThread = new Thread("AllocThread") {
-            @Override
-            public void run() {
-                while (true) {
-                    worldClockOracle.next();
-                }
-            }
-        };
-        allocThread.start();
-
+        // Intialize component under test
+        worldClockOracle.initialize();
         updateMaxTimestampMethodCalled.await();
 
         // Verify that it has blown up
