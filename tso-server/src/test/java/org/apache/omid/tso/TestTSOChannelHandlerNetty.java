@@ -281,9 +281,9 @@ public class TestTSOChannelHandlerNetty {
         tsBuilder.setTimestampRequest(tsRequestBuilder.build());
         // Write into the channel
         channel.writeAndFlush(tsBuilder.build()).await();
-        verify(requestProcessor, timeout(100).times(1)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
+        verify(requestProcessor, timeout(100).times(1)).timestampRequest(any(), any(MonitoringContext.class));
         verify(requestProcessor, timeout(100).times(0))
-                .commitRequest(anyLong(), anyCollectionOf(Long.class), anyCollectionOf(Long.class), anyBoolean(), any(Channel.class), any(MonitoringContextImpl.class));
+                .commitRequest(anyLong(), anyCollectionOf(Long.class), anyCollectionOf(Long.class), anyBoolean(), any(), any(MonitoringContext.class));
     }
 
     private void testWritingCommitRequest(Channel channel) throws InterruptedException {
@@ -298,9 +298,9 @@ public class TestTSOChannelHandlerNetty {
         assertTrue(r.hasCommitRequest());
         // Write into the channel
         channel.writeAndFlush(commitBuilder.build()).await();
-        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
+        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(), any(MonitoringContext.class));
         verify(requestProcessor, timeout(100).times(1))
-                .commitRequest(eq(666L), anyCollectionOf(Long.class), anyCollectionOf(Long.class), eq(false), any(Channel.class), any(MonitoringContextImpl.class));
+                .commitRequest(eq(666L), anyCollectionOf(Long.class), anyCollectionOf(Long.class), eq(false), any(), any(MonitoringContext.class));
     }
 
     private void testWritingFenceRequest(Channel channel) throws InterruptedException {
@@ -314,9 +314,9 @@ public class TestTSOChannelHandlerNetty {
         assertTrue(r.hasFenceRequest());
         // Write into the channel
         channel.writeAndFlush(fenceBuilder.build()).await();
-        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(Channel.class), any(MonitoringContextImpl.class));
+        verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(), any(MonitoringContext.class));
         verify(requestProcessor, timeout(100).times(1))
-                .fenceRequest(eq(666L), any(Channel.class), any(MonitoringContextImpl.class));
+                .fenceRequest(eq(666L), any(), any(MonitoringContext.class));
     }
 
     // ----------------------------------------------------------------------------------------------------------------
