@@ -16,6 +16,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 -->
+# OMID  1.1.0 Release Notes
+
+These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
+
+
+---
+
+* [OMID-231](https://issues.apache.org/jira/browse/OMID-231) | *Major* | **Build and test Omid with Hadoop 3**
+
+Omid is now built with HBase 2.x and Hadoop 3.1.
+
+As the public binary HBase 2.x artifacts don't work with Hadoop3, you need to download the HBase sources, and rebuild and install them to the local maven repo before building Omid.
+
+The easiest way to this is to run the following command line:
+
+dev-support/rebuild\_hbase.sh detect
+
+This will download the hbase version used by Omid, rebuild it, and install into the local maven repo.
+
+
+---
+
+* [OMID-224](https://issues.apache.org/jira/browse/OMID-224) | *Major* | **Switch default logging backend to log4j2**
+
+Omid has switched to to the log4j2 logging backend.
+The code was already using slf4j, and backend-agonistic, but now the utilities and binary assembly are using log4j2 instead of log4j.
+The default logging configuration has also been changes to more closely match the HBase logging config.
+
+
+---
+
+* [OMID-222](https://issues.apache.org/jira/browse/OMID-222) | *Major* | **Remove HBase1 support and update HBase 2 version to 2.4**
+
+Omid no longer supports HBase 1.x
+As a result of this, the build process and artifact structure has ben simplified, there are no longer two sets of artifacts to be built.
+Users need to remove the -hbase2.x postfix from the artifact names, and remove any omid shim dependencies from the project as those have been completely removed.
+
+
+---
+
+* [OMID-188](https://issues.apache.org/jira/browse/OMID-188) | *Major* | **Fix "inconsistent module metadata found" when using hbase-2**
+
+The maven artifact structure has changed.
+
+Every artifact is built is built separately for HBase 1 and 2. You will need to add the -hbase-1.x or -hbase-2.x suffix to every Omid artifact that you depend on.
+
+You no longer need to specify exclusions when using the HBase 2.x artifacts.
+
+
+
 # OMID  1.0.2 Release Notes
 
 These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
