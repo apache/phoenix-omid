@@ -156,7 +156,7 @@
         <hadoop.version>3.1.4</hadoop.version>
         <phoenix.thirdparty.version>2.0.0</phoenix.thirdparty.version>
         <guice.version>3.0</guice.version>
-        <testng.version>6.10</testng.version>
+        <testng.version>7.7.0</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
         <log4j2.version>2.18.0</log4j2.version>
         <netty4.version>4.1.86.Final</netty4.version>
