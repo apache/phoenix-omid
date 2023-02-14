@@ -27,6 +27,8 @@ import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.omid.tools.hbase.X509Util.DEFAULT_PROTOCOL;
+
 /**
  * Reads the configuration parameters of a TSO server instance from CONFIG_FILE_NAME.
  * If file CONFIG_FILE_NAME is missing defaults to DEFAULT_CONFIG_FILE_NAME
@@ -92,6 +94,31 @@ public class TSOServerConfig extends SecureHBaseConfig {
     private Boolean lowLatency;
 
     public boolean monitorContext;
+
+    private boolean tlsEnabled = false;
+    private boolean supportPlainText = true;
+
+    private String keyStoreLocation = "";
+
+    private String keyStorePassword = "";
+
+    private String keyStoreType = "";
+
+    private String trustStoreLocation = "";
+
+    private String trustStorePassword = "";
+
+    private String trustStoreType = "";
+
+    private boolean sslCrlEnabled = false;
+
+    private boolean sslOcspEnabled = false;
+
+    private String enabledProtocols;
+
+    private String cipherSuites;
+
+    private String tlsConfigProtocols = DEFAULT_PROTOCOL;
 
     public boolean getMonitorContext() {
         return monitorContext;
@@ -161,6 +188,58 @@ public class TSOServerConfig extends SecureHBaseConfig {
         return timestampType;
     }
 
+    public boolean getTlsEnabled() {
+        return tlsEnabled;
+    }
+
+    public boolean getSupportPlainText() {
+        return supportPlainText;
+    }
+
+    public String getKeyStoreLocation() {
+        return keyStoreLocation;
+    }
+
+    public String getKeyStorePassword() {
+        return keyStorePassword;
+    }
+
+    public String getKeyStoreType() {
+        return keyStoreType;
+    }
+
+    public String getTrustStoreLocation() {
+        return trustStoreLocation;
+    }
+
+    public String getTrustStorePassword() {
+        return trustStorePassword;
+    }
+
+    public String getTrustStoreType() {
+        return trustStoreType;
+    }
+
+    public boolean getSslCrlEnabled() {
+        return sslCrlEnabled;
+    }
+
+    public boolean getSslOcspEnabled() {
+        return sslOcspEnabled;
+    }
+
+    public String getEnabledProtocols() {
+        return enabledProtocols;
+    }
+
+    public String getCipherSuites() {
+        return cipherSuites;
+    }
+
+    public String getTsConfigProtocols() {
+        return tlsConfigProtocols;
+    }
+
     public void setTimestampType(String type) {
         this.timestampType = type;
     }
@@ -211,5 +290,57 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     public void setWaitStrategy(String waitStrategy) {
         this.waitStrategy = waitStrategy;
+    }
+
+    public void setTlsEnabled(boolean tlsEnabled) {
+        this.tlsEnabled = tlsEnabled;
+    }
+
+    public void setSupportPlainText(boolean supportPlainText) {
+        this.supportPlainText = supportPlainText;
+    }
+
+    public void setKeyStoreLocation(String keyStoreLocation) {
+        this.keyStoreLocation = keyStoreLocation;
+    }
+
+    public void setKeyStorePassword(String keyStorePassword) {
+        this.keyStorePassword = keyStorePassword;
+    }
+
+    public void setKeyStoreType(String keyStoreType) {
+        this.keyStoreType = keyStoreType;
+    }
+
+    public void setTrustStoreLocation(String trustStoreLocation) {
+        this.trustStoreLocation = trustStoreLocation;
+    }
+
+    public void setTrustStorePassword(String trustStorePassword) {
+        this.trustStorePassword = trustStorePassword;
+    }
+
+    public void setTrustStoreType(String trustStoreType) {
+        this.trustStoreType = trustStoreType;
+    }
+
+    public void setSslCrlEnabled(boolean sslCrlEnabled) {
+        this.sslCrlEnabled = sslCrlEnabled;
+    }
+
+    public void setSslOcspEnabled(boolean sslOcspEnabled) {
+        this.sslOcspEnabled = sslOcspEnabled;
+    }
+
+    public void setEnabledProtocols(String enabledProtocols) {
+        this.enabledProtocols = enabledProtocols;
+    }
+
+    public void setCipherSuites(String cipherSuites) {
+        this.cipherSuites = cipherSuites;
+    }
+
+    public void setTsConfigProtocols(String tlsConfigProtocols) {
+        this.tlsConfigProtocols = tlsConfigProtocols;
     }
 }

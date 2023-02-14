@@ -56,9 +56,17 @@ metrics: !!org.apache.omid.metrics.NullMetricsProvider [ ]
 monitorContext: false
 
 #  TLS parameters
-tlsEnabled: false
+tlsEnabled: true
 
-supportPlainText: true
+supportPlainText: false
+keyStoreLocation: "/asd"
+keyStorePassword: "pass"
+keyStoreType: "JKS"
+enabledProtocols: "TLSv1.2"
+trustStoreLocation: "/tasd"
+trustStorePassword: "tpas$w0rd1"
+trustStoreType: "JKS"
+cipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Timestamp storage configuration options

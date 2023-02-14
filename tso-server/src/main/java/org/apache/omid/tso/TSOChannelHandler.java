@@ -49,8 +49,13 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.ssl.OptionalSslHandler;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.GlobalEventExecutor;
+import org.apache.omid.tools.hbase.X509Util;
+import org.apache.zookeeper.common.X509Exception;
+
 
 /**
  * ChannelHandler for the TSO Server.
@@ -103,6 +108,10 @@ public class TSOChannelHandler extends ChannelInboundHandlerAdapter implements C
                 // Max packet length is 10MB. Transactions with so many cells
                 // that the packet is rejected will receive a ServiceUnavailableException.
                 // 10MB is enough for 2 million cells in a transaction though.
+                if (config.getTlsEnabled())
+                {
+                    initSSL(pipeline, config.getSupportPlainText());
+                }
                 pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(10 * 1024 * 1024, 0, 4, 0, 4));
                 pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
                 pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Request.getDefaultInstance()));
@@ -111,6 +120,39 @@ public class TSOChannelHandler extends ChannelInboundHandlerAdapter implements C
             }
         });
     }
+
+    private void initSSL(ChannelPipeline p, boolean supportPlaintext)
+            throws X509Exception, IOException {
+        String keyStoreLocation = config.getKeyStoreLocation();
+        char[] keyStorePassword = config.getKeyStorePassword().toCharArray();
+        String keyStoreType = config.getKeyStoreType();
+
+        String trustStoreLocation = config.getTrustStoreLocation();
+        char[] truststorePassword = config.getTrustStorePassword().toCharArray();
+        String truststoreType = config.getTrustStoreType();
+
+        boolean sslCrlEnabled = config.getSslCrlEnabled();
+        boolean sslOcspEnabled = config.getSslOcspEnabled();
+
+        String enabledProtocols = config.getEnabledProtocols();
+        String cipherSuites =  config.getCipherSuites();
+
+        String tlsConfigProtocols = config.getTsConfigProtocols();
+
+        SslContext nettySslContext = X509Util.createSslContextForServer(keyStoreLocation, keyStorePassword,
+                keyStoreType, trustStoreLocation, truststorePassword, truststoreType, sslCrlEnabled,
+                sslOcspEnabled, enabledProtocols, cipherSuites, tlsConfigProtocols);
+
+
+        if (supportPlaintext) {
+            p.addLast("ssl", new OptionalSslHandler(nettySslContext));
+            LOG.info("Dual mode SSL handler added for channel: {}", p.channel());
+        } else {
+            p.addLast("ssl", nettySslContext.newHandler(p.channel().alloc()));
+            LOG.info("SSL handler added for channel: {}", p.channel());
+        }
+    }
+
 
     /**
      * Allows to create and connect the communication channel closing the previous one if existed

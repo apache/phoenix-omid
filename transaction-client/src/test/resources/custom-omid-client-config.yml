@@ -42,8 +42,15 @@ postCommitMode: !!org.apache.omid.tso.client.OmidClientConfiguration$PostCommitM
 # Can either be cell level or row level. Default is cell level
 conflictDetectionLevel: !!org.apache.omid.tso.client.OmidClientConfiguration$ConflictDetectionLevel CELL
 
-
 # ---------------------------------------------------------------------------------------------------------------------
 #  TLS parameters
 # ---------------------------------------------------------------------------------------------------------------------
-tlsEnabled: false
+tlsEnabled: true
+keyStoreLocation: "/asd"
+keyStorePassword: "pass"
+keyStoreType: "JKS"
+enabledProtocols: "TLSv1.2"
+trustStoreLocation: "/tasd"
+trustStorePassword: "tpas$w0rd1"
+trustStoreType: "JKS"
+cipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"

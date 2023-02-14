@@ -17,13 +17,44 @@
  */
 package org.apache.omid.tso;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class TSOServerConfigTest {
 
     @Test(timeOut = 10_000)
     public void testParsesOK() throws Exception {
-        new TSOServerConfig("test-omid.yml");
+        TSOServerConfig tsoServerConfig = new TSOServerConfig("test-omid.yml");
+        Assert.assertEquals(tsoServerConfig.getTlsEnabled(), false);
+        Assert.assertEquals(tsoServerConfig.getSupportPlainText(), true);
+        Assert.assertEquals(tsoServerConfig.getEnabledProtocols(), null);
+        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), "TLSv1.2");
+        Assert.assertEquals(tsoServerConfig.getKeyStoreLocation(), "");
+        Assert.assertEquals(tsoServerConfig.getKeyStorePassword(), "");
+        Assert.assertEquals(tsoServerConfig.getKeyStoreType(), "");
+        Assert.assertEquals(tsoServerConfig.getTrustStoreLocation(), "");
+        Assert.assertEquals(tsoServerConfig.getTrustStorePassword(), "");
+        Assert.assertEquals(tsoServerConfig.getKeyStoreType(), "");
     }
+
+    @Test(timeOut = 10_000)
+    public void testCustomParseK() throws Exception {
+        TSOServerConfig tsoServerConfig = new TSOServerConfig("custom-omid-server-config.yml");
+        Assert.assertEquals(tsoServerConfig.getCipherSuites(), "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
+        Assert.assertEquals(tsoServerConfig.getTlsEnabled(), true);
+        Assert.assertEquals(tsoServerConfig.getSupportPlainText(), false);
+
+        Assert.assertEquals(tsoServerConfig.getEnabledProtocols(), "TLSv1.2");
+        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), "TLSv1.2");
+
+        Assert.assertEquals(tsoServerConfig.getKeyStoreLocation(), "/asd");
+        Assert.assertEquals(tsoServerConfig.getKeyStorePassword(), "pass");
+        Assert.assertEquals(tsoServerConfig.getKeyStoreType(), "JKS");
+        Assert.assertEquals(tsoServerConfig.getTrustStoreLocation(), "/tasd");
+        Assert.assertEquals(tsoServerConfig.getTrustStorePassword(), "tpas$w0rd1");
+        Assert.assertEquals(tsoServerConfig.getKeyStoreType(), "JKS");
+
+    }
+
 
 }
