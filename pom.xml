@@ -176,7 +176,7 @@
         <!-- 2.12+ shades guava -->
         <curator.version>4.2.0</curator.version>
         <zookeeper.version>3.5.9</zookeeper.version>
-        <snakeyaml.version>1.30</snakeyaml.version>
+        <snakeyaml.version>1.33</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.11.0</commons-io.version>
         <google.findbugs.version>3.0.1</google.findbugs.version>
@@ -1071,6 +1071,13 @@
                 <version>${netty4.version}</version>
             </dependency>
             
+            <!-- set version for snakeyaml transitive dependencies -->
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
+
 
 
             <dependency>
