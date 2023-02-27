@@ -54,3 +54,7 @@ trustStoreLocation: "/tasd"
 trustStorePassword: "tpas$w0rd1"
 trustStoreType: "JKS"
 cipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+
+# sslCrlEnabled: true
+# sslOcspEnabled: true
+# tlsConfigProtocols: "TLSv1.2"

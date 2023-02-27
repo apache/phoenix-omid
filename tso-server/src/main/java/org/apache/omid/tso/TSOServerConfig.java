@@ -27,7 +27,7 @@ import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.omid.tools.hbase.X509Util.DEFAULT_PROTOCOL;
+import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOL;
 
 /**
  * Reads the configuration parameters of a TSO server instance from CONFIG_FILE_NAME.

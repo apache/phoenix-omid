@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.omid.tools.hbase;
+package org.apache.omid.tls;
 
-import org.apache.yetus.audience.InterfaceAudience;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
@@ -56,12 +55,11 @@ import java.time.ZoneId;
  * This class contains helper methods for creating X509 certificates and key pairs, and for
  * serializing them to JKS, PEM or other keystore type files.
  * <p/>
- * This file has been copied from the Apache ZooKeeper project.
+ * This file has is based on the one in HBase project.
  * @see <a href=
- *      "https://github.com/apache/zookeeper/blob/c74658d398cdc1d207aa296cb6e20de00faec03e/zookeeper-server/src/test/java/org/apache/zookeeper/common/X509TestHelpers.java">Base
+ *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/test/java/org/apache/hadoop/hbase/io/crypto/tls/X509TestHelpers.java">Base
  *      revision</a>
  */
-@InterfaceAudience.Private
 final class X509TestHelpers {
 
     private static final SecureRandom PRNG = new SecureRandom();

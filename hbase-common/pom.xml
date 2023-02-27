@@ -92,15 +92,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk15on</artifactId>
-        </dependency>
-
         <!-- end testing -->
 
     </dependencies>
@@ -113,18 +104,6 @@
                 <configuration>
                     <skip>true</skip>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>test-jar</goal>
-                        </goals>
-                        <phase>prepare-package</phase>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
 

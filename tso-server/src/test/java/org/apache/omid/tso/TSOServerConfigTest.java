@@ -39,7 +39,7 @@ public class TSOServerConfigTest {
 
     @Test(timeOut = 10_000)
     public void testCustomParseK() throws Exception {
-        TSOServerConfig tsoServerConfig = new TSOServerConfig("custom-omid-server-config.yml");
+        TSOServerConfig tsoServerConfig = new TSOServerConfig("tlstest-omid-server-config.yml");
         Assert.assertEquals(tsoServerConfig.getCipherSuites(), "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
         Assert.assertEquals(tsoServerConfig.getTlsEnabled(), true);
         Assert.assertEquals(tsoServerConfig.getSupportPlainText(), false);

@@ -52,7 +52,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import org.apache.omid.tools.hbase.X509Util;
+import org.apache.omid.tls.X509Util;
 
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.zookeeper.common.X509Exception;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.omid.tools.hbase;
+package org.apache.omid.tls;
 
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -37,9 +37,9 @@ import java.util.function.Supplier;
  * hostname verification, etc). This base class takes care of setting up / cleaning up the test
  * environment, and caching the X509TestContext objects used by the tests.
  * <p/>
- * This file has been copied from the Apache ZooKeeper project.
+ * This file has is based on the one in HBase project.
  * @see <a href=
- *      "https://github.com/apache/zookeeper/blob/c74658d398cdc1d207aa296cb6e20de00faec03e/zookeeper-server/src/test/java/org/apache/zookeeper/common/BaseX509ParameterizedTestCase.java">Base
+ *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/test/java/org/apache/hadoop/hbase/io/crypto/tls/AbstractTestX509Parameterized.java">Base
  *      revision</a>
  */
 public abstract class BaseX509ParameterizedTestCase {

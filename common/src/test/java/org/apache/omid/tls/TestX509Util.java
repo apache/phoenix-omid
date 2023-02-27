@@ -16,20 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.omid.tools.hbase;
+package org.apache.omid.tls;
 
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
-import org.apache.hadoop.hbase.HBaseClassTestRule;
-import org.apache.hadoop.hbase.testclassification.MiscTests;
-import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.zookeeper.common.KeyStoreFileType;
 import org.apache.zookeeper.common.X509Exception;
 import org.junit.After;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -40,18 +35,13 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 /**
- * This file has been copied from the Apache ZooKeeper project.
+ * This file has is based on the one in HBase project.
  * @see <a href=
- *      "https://github.com/apache/zookeeper/blob/master/zookeeper-server/src/test/java/org/apache/zookeeper/common/X509UtilTest.java">Base
+ *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/test/java/org/apache/hadoop/hbase/io/crypto/tls/TestX509Util.java">Base
  *      revision</a>
  */
 @RunWith(Parameterized.class)
-@Category({ MiscTests.class, SmallTests.class })
 public class TestX509Util extends BaseX509ParameterizedTestCase {
-
-    @ClassRule
-    public static final HBaseClassTestRule CLASS_RULE =
-            HBaseClassTestRule.forClass(TestX509Util.class);
 
     @Parameterized.Parameter()
     public X509KeyType caKeyType;

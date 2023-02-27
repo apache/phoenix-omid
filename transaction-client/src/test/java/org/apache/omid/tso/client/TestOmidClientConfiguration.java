@@ -40,7 +40,7 @@ public class TestOmidClientConfiguration {
 
     @Test(timeOut = 10_000)
     public void testCustomYamlReading() {
-        OmidClientConfiguration configuration = new OmidClientConfiguration("custom-omid-client-config.yml");
+        OmidClientConfiguration configuration = new OmidClientConfiguration("tlstest-omid-client-config.yml");
         Assert.assertNotNull(configuration.getConnectionString());
         Assert.assertNotNull(configuration.getConnectionType());
         Assert.assertEquals(configuration.getEnabledProtocols(), "TLSv1.2");

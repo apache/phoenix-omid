@@ -19,9 +19,9 @@ package org.apache.omid.tso.client;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
-import org.apache.omid.tools.hbase.X509KeyType;
-import org.apache.omid.tools.hbase.X509TestContext;
-import org.apache.omid.tools.hbase.X509Util;
+import org.apache.omid.tls.X509KeyType;
+import org.apache.omid.tls.X509TestContext;
+import org.apache.omid.tls.X509Util;
 import org.apache.zookeeper.common.KeyStoreFileType;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.testng.Assert;

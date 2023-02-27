@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.omid.tools.hbase;
+package org.apache.omid.tls;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.zookeeper.common.KeyStoreFileType;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -42,12 +41,11 @@ import static java.util.Objects.requireNonNull;
 /**
  * This class simplifies the creation of certificates and private keys for SSL/TLS connections.
  * <p/>
- * This file has been copied from the Apache ZooKeeper project.
+ * This file has is based on the one in HBase project.
  * @see <a href=
- *      "https://github.com/apache/zookeeper/blob/c74658d398cdc1d207aa296cb6e20de00faec03e/zookeeper-server/src/test/java/org/apache/zookeeper/common/X509TestContext.java">Base
+ *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/test/java/org/apache/hadoop/hbase/io/crypto/tls/X509TestContext.java">Base
  *      revision</a>
  */
-@InterfaceAudience.Private
 public final class X509TestContext {
 
     private static final String TRUST_STORE_PREFIX = "hbase_test_ca";

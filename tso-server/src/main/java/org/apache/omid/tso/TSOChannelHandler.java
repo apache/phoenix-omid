@@ -53,7 +53,7 @@ import io.netty.handler.ssl.OptionalSslHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.GlobalEventExecutor;
-import org.apache.omid.tools.hbase.X509Util;
+import org.apache.omid.tls.X509Util;
 import org.apache.zookeeper.common.X509Exception;
 
 
