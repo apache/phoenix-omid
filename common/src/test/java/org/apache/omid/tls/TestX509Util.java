@@ -21,8 +21,8 @@ package org.apache.omid.tls;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
-import org.apache.zookeeper.common.KeyStoreFileType;
-import org.apache.zookeeper.common.X509Exception;
+import org.apache.omid.tls.KeyStoreFileType;
+import org.apache.omid.tls.X509Exception;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;

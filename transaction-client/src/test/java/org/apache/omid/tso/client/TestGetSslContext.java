@@ -22,7 +22,7 @@ import io.netty.handler.ssl.SslContext;
 import org.apache.omid.tls.X509KeyType;
 import org.apache.omid.tls.X509TestContext;
 import org.apache.omid.tls.X509Util;
-import org.apache.zookeeper.common.KeyStoreFileType;
+import org.apache.omid.tls.KeyStoreFileType;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.testng.Assert;
 import org.testng.annotations.Test;
