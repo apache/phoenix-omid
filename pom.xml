@@ -182,6 +182,7 @@
         <google.findbugs.version>3.0.1</google.findbugs.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
+        <bouncycastle.version>1.60</bouncycastle.version>
 
         <!-- Maven Plugin Versioning -->
         <maven-assembly-plugin-version>3.1.1</maven-assembly-plugin-version>
@@ -1070,7 +1071,7 @@
                 <artifactId>netty-transport-native-unix-common</artifactId>
                 <version>${netty4.version}</version>
             </dependency>
-            
+
             <!-- set version for snakeyaml transitive dependencies -->
             <dependency>
                 <groupId>org.yaml</groupId>
@@ -1135,6 +1136,20 @@
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-all</artifactId>
                 <version>${hamcrest.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk15on</artifactId>
+                <version>${bouncycastle.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk15on</artifactId>
+                <version>${bouncycastle.version}</version>
                 <scope>test</scope>
             </dependency>
 

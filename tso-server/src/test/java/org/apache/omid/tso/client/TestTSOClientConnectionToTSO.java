@@ -25,6 +25,8 @@ import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.CloseableUtils;
 import org.apache.omid.TestUtils;
 import org.apache.omid.committable.CommitTable;
+import org.apache.omid.tls.X509KeyType;
+import org.apache.omid.tls.X509TestContext;
 import org.apache.omid.tso.HALeaseManagementModule;
 import org.apache.omid.tso.TSOMockModule;
 import org.apache.omid.tso.TSOServer;
@@ -33,6 +35,8 @@ import org.apache.omid.tso.VoidLeaseManagementModule;
 import org.apache.omid.tso.TSOServerConfig.TIMESTAMP_TYPE;
 import org.apache.statemachine.StateMachine.FsmImpl;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.apache.omid.tls.KeyStoreFileType;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +44,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.security.Security;
 import java.util.concurrent.ExecutionException;
 
 import static org.testng.Assert.assertEquals;
@@ -66,6 +73,8 @@ public class TestTSOClientConnectionToTSO {
 
     private CuratorFramework zkClient;
     private TSOServer tsoServer;
+
+    protected X509TestContext x509TestContext;
 
     @BeforeMethod
     public void beforeMethod() throws Exception {
@@ -137,6 +146,425 @@ public class TestTSOClientConnectionToTSO {
         OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
         tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
         tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortSSLServerside() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(true);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.JKS, KeyStoreFileType.JKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoConfig.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoConfig.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoConfig.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(false);
+        tsoClientConf.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoClientConf.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoClientConf.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+    }
+
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortSSLBoth() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(false);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.JKS, KeyStoreFileType.JKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoConfig.setSslCrlEnabled(true);
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(true);
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortBCFKS() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(false);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.BCFKS, KeyStoreFileType.BCFKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoConfig.setSslCrlEnabled(true);
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(true);
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortSSLBothMutual() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(false);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.JKS, KeyStoreFileType.JKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoConfig.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoConfig.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoConfig.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+        tsoConfig.setSslCrlEnabled(true);
+
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(true);
+        tsoClientConf.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoClientConf.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoClientConf.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortSSLCipherSuite() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(false);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.JKS, KeyStoreFileType.JKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+
+        tsoConfig.setCipherSuites("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384");
+
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(true);
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+        tsoClientConf.setCipherSuites("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384");
+
+        TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
+
+        // ... so we should get responses from the methods
+        Long startTS = tsoClient.getNewStartTimestamp().get();
+        LOG.info("Start TS {} ", startTS);
+        assertEquals(startTS.longValue(), CommitTable.MAX_CHECKPOINTS_PER_TXN);
+
+        // Close the tsoClient connection and stop the TSO Server
+        tsoClient.close().get();
+        tsoServer.stopAsync();
+        tsoServer.awaitTerminated();
+        tsoServer = null;
+        TestUtils.waitForSocketNotListening(TSO_HOST, tsoPortForTest, 1000);
+        LOG.info("TSO Server Stopped");
+
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSuccessfulConnectionToTSOWithHostAndPortSSLOneCipherSuite2() throws Exception {
+
+        // Launch a TSO WITHOUT publishing the address in HA...
+        TSOServerConfig tsoConfig = new TSOServerConfig();
+        tsoConfig.setConflictMapSize(1000);
+        tsoConfig.setPort(tsoPortForTest);
+        tsoConfig.setTimestampType(TIMESTAMP_TYPE.INCREMENTAL.toString());
+        tsoConfig.setLeaseModule(new VoidLeaseManagementModule());
+        tsoConfig.setTlsEnabled(true);
+        tsoConfig.setSupportPlainText(false);
+
+        Security.addProvider(new BouncyCastleProvider());
+        File tempDir = Files.createTempDirectory("x509Tests").toFile();
+        String keyPassword = "pa$$w0rd";
+        X509KeyType certKeyType = X509KeyType.RSA;
+        X509KeyType caKeyType = X509KeyType.RSA;
+
+        x509TestContext = X509TestContext.newBuilder().setTempDir(tempDir).setKeyStorePassword(keyPassword)
+                .setKeyStoreKeyType(certKeyType).setTrustStorePassword(keyPassword)
+                .setTrustStoreKeyType(caKeyType).build();
+
+        x509TestContext.setSystemProperties(KeyStoreFileType.JKS, KeyStoreFileType.JKS);
+
+        LOG.info("trustStoreLocation :{}", x509TestContext.getTlsConfigKeystoreLocation());
+
+
+        tsoConfig.setKeyStoreLocation(x509TestContext.getTlsConfigKeystoreLocation());;
+        tsoConfig.setKeyStorePassword(x509TestContext.getTlsConfigKeystorePassword());
+        tsoConfig.setKeyStoreType(x509TestContext.getTlsConfigKeystoreType());
+
+        tsoConfig.setCipherSuites("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
+
+
+        injector = Guice.createInjector(new TSOMockModule(tsoConfig));
+        LOG.info("Starting TSO");
+        tsoServer = injector.getInstance(TSOServer.class);
+        tsoServer.startAsync();
+        tsoServer.awaitRunning();
+        TestUtils.waitForSocketListening(TSO_HOST, tsoPortForTest, 300);
+        LOG.info("Finished loading TSO");
+
+        // When no HA node for TSOServer is found we should get a connection
+        // to the TSO through the host:port configured...
+        OmidClientConfiguration tsoClientConf = new OmidClientConfiguration();
+        tsoClientConf.setConnectionString("localhost:" + tsoPortForTest);
+        tsoClientConf.setZkCurrentTsoPath(CURRENT_TSO_PATH);
+        tsoClientConf.setTlsEnabled(true);
+        tsoClientConf.setTrustStoreLocation(x509TestContext.getTlsConfigTrustLocation());
+        tsoClientConf.setTrustStorePassword(x509TestContext.getTlsConfigTrustPassword());
+        tsoClientConf.setTrustStoreType(x509TestContext.getTlsConfigTrustType());
+        tsoClientConf.setCipherSuites("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA");
+
         TSOClient tsoClient = TSOClient.newInstance(tsoClientConf);
 
         // ... so we should get responses from the methods

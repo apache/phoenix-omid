@@ -47,9 +47,15 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import org.apache.omid.tls.X509Util;
+
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.omid.tls.X509Exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +73,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
@@ -103,6 +110,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
 
     // Conflict detection level of the entire system. Can either be Row or Cell level.
     private ConflictDetectionLevel conflictDetectionLevel;
+
+    private final AtomicReference<io.netty.handler.ssl.SslContext> sslContextForClient = new AtomicReference<>();
 
 
     // ----------------------------------------------------------------------------------------------------------------
@@ -162,11 +171,20 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             @Override
             public void initChannel(SocketChannel channel) throws Exception {
                 ChannelPipeline pipeline = channel.pipeline();
+                if (omidConf.getTlsEnabled()){
+                    SslContext sslContext = getSslContext(omidConf);
+                    SslHandler sslHandler = sslContext.newHandler(channel.alloc(), hp.getHost(), hp.getPort());
+                    sslHandler.setHandshakeTimeoutMillis(omidConf.getClientNettyTlsHandshakeTimeout());
+                    channel.pipeline().addFirst(sslHandler);
+                    LOG.info("SSL handler added with handshake timeout {} ms",
+                            sslHandler.getHandshakeTimeoutMillis());
+                }
                 pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
                 pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
                 pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
                 pipeline.addLast("protobufencoder", new ProtobufEncoder());
                 pipeline.addLast("inboundHandler", new Handler(fsm));
+
             }
         });
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
@@ -177,6 +195,38 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
         lowLatency = false;
         conflictDetectionLevel = omidConf.getConflictAnalysisLevel();
 
+    }
+
+    @VisibleForTesting
+    SslContext getSslContext(OmidClientConfiguration omidConf) throws X509Exception, IOException {
+        SslContext result = sslContextForClient.get();
+        if (result == null) {
+
+            String keyStoreLocation = omidConf.getKeyStoreLocation();
+            char[] keyStorePassword = omidConf.getKeyStorePassword().toCharArray();
+            String keyStoreType = omidConf.getKeyStoreType();
+
+            String trustStoreLocation = omidConf.getTrustStoreLocation();
+            char[] truststorePassword = omidConf.getTrustStorePassword().toCharArray();
+            String truststoreType = omidConf.getTrustStoreType();
+
+            boolean sslCrlEnabled = omidConf.getSslCrlEnabled();
+            boolean sslOcspEnabled = omidConf.getSslOcspEnabled();
+
+            String enabledProtocols = omidConf.getEnabledProtocols();
+            String cipherSuites =  omidConf.getCipherSuites();
+
+            String tlsConfigProtocols = omidConf.getTsConfigProtocols();
+
+            result = X509Util.createSslContextForClient(keyStoreLocation, keyStorePassword,
+                    keyStoreType, trustStoreLocation, truststorePassword, truststoreType, sslCrlEnabled,
+                    sslOcspEnabled, enabledProtocols, cipherSuites, tlsConfigProtocols);
+            if (!sslContextForClient.compareAndSet(null, result)) {
+                // lost the race, another thread already set the value
+                result = sslContextForClient.get();
+            }
+        }
+        return result;
     }
 
     // ----------------------------------------------------------------------------------------------------------------
