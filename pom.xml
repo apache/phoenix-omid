@@ -155,7 +155,7 @@
         <hbase.version>2.4.13</hbase.version>
         <hadoop.version>3.1.4</hadoop.version>
         <phoenix.thirdparty.version>2.0.0</phoenix.thirdparty.version>
-        <guice.version>3.0</guice.version>
+        <guice.version>5.1.0</guice.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
         <log4j2.version>2.18.0</log4j2.version>
