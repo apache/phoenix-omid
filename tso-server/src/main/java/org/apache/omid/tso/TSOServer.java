@@ -158,6 +158,7 @@ public class TSOServer extends AbstractIdleService {
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
+            LOG.error("Exception happened during TSO server initialization: ", e);
             System.exit(-1);
         }
 
