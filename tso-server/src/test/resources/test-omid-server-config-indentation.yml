@@ -1,0 +1,70 @@
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+# =====================================================================================================================
+# Omid TSO Server Configuration (Default parameters)
+# =====================================================================================================================
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Basic configuration parameters
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Network interface for TSO server communication. Uncomment the following line to use a specific interface
+# networkIfaceName: eth0
+# If a network interface in the configuration, the TSO will attempt to guess default network interface.
+# See org.apache.omid.tso.TSOServerConfig.getDefaultNetworkInterface for more information.
+
+# Port reserved by the Status Oracle
+port: 54758
+# Wait strategy for the Disruptor processors in TSO pipeline. Options:
+# 1) HIGH_THROUGHPUT - [Default] Use this in production deployments for maximum performance
+# 2) LOW_CPU - Use this option when testing or in deployments where saving CPU cycles is more important than throughput
+waitStrategy: HIGH_THROUGHPUT
+# The number of elements reserved in the conflict map to perform conflict resolution
+conflictMapSize: 100000000
+# The number of Commit Table writers that persist data concurrently to the datastore. It has to be at least 2.
+numConcurrentCTWriters: 2
+# The size of the batch of operations that each Commit Table writes has. The maximum number of operations that can be
+# batched in the system at a certain point in time is: numConcurrentCTWriters * batchSizePerCTWriter
+batchSizePerCTWriter: 25
+# When this timeout expires, the contents of the batch are flushed to the datastore
+batchPersistTimeoutInMs: 10
+# Timestamp generation strategy
+# INCREMENTAL - regular counter
+# WORLD_TIME - [Default] world time based counter
+timestampType: WORLD_TIME
+lowLatency: false
+# Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
+commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]
+leaseModule: !!org.apache.omid.tso.HALeaseManagementModule
+    currentTsoPath: "/custom-current-tso"
+
+# Default stats/metrics configuration
+metrics: !!org.apache.omid.metrics.NullMetricsProvider [ ]
+
+monitorContext: false
+
+#  TLS parameters
+tlsEnabled: true
+
+supportPlainText: false
+keyStoreLocation: "/asd"
+keyStorePassword: "pass"
+keyStoreType: "JKS"
+enabledProtocols: "TLSv1.2"
+trustStoreLocation: "/tasd"
+trustStorePassword: "tpas$w0rd1"
+trustStoreType: "JKS"
+cipherSuites: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]

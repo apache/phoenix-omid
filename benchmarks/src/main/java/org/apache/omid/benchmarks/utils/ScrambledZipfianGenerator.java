@@ -12,6 +12,8 @@
 package org.apache.omid.benchmarks.utils;
 
 
+import org.apache.curator.shaded.com.google.common.annotations.VisibleForTesting;
+
 /**
  * A generator of a zipfian distribution. It produces a sequence of items, such that some items are more popular than others, according
  * to a zipfian distribution. When you construct an instance of this class, you specify the number of items in the set to draw from, either
@@ -144,4 +146,8 @@ public class ScrambledZipfianGenerator extends IntegerGenerator {
     public static final long FNV_offset_basis_64 = 0xCBF29CE484222325L;
     public static final long FNV_prime_64 = 1099511628211L;
 
+    @VisibleForTesting
+    public long getMax() {
+        return _max;
+    }
 }

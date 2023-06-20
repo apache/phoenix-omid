@@ -22,7 +22,10 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.apache.commons.beanutils.BeanUtils;
 import org.apache.omid.YAMLUtils;
+import org.apache.omid.metrics.CodahaleMetricsConfig;
+import org.apache.omid.metrics.CodahaleMetricsProvider;
 import org.apache.omid.metrics.MetricsRegistry;
+import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.OmidClientConfiguration.PostCommitMode;
@@ -30,8 +33,12 @@ import org.apache.omid.tso.client.OmidClientConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Configuration for HBase's Omid client side
@@ -68,7 +75,52 @@ public class HBaseOmidClientConfiguration extends SecureHBaseConfig {
 
     @VisibleForTesting
     HBaseOmidClientConfiguration(String configFileName) {
-        new YAMLUtils().loadSettings(configFileName, DEFAULT_CONFIG_FILE_NAME, this);
+        Map props = new YAMLUtils().getSettingsMap(configFileName, DEFAULT_CONFIG_FILE_NAME);
+        populateProperties(props);
+    }
+
+    public void populateProperties(Map props) {
+        try {
+            if (props.containsKey("omidClientConfiguration")) {
+                Object omidClientConf = new OmidClientConfiguration();
+                Map omidClientProps = (Map<String, ? extends Object>) props.get("omidClientConfiguration");
+                if (omidClientProps != null && omidClientProps.containsKey("connectionType")) {
+                    omidClientProps.put("connectionType", org.apache.omid.tso.client.OmidClientConfiguration.ConnType.valueOf((String) omidClientProps.get("connectionType")));
+                }
+                if (omidClientProps != null && omidClientProps.containsKey("postCommitMode")) {
+                    omidClientProps.put("postCommitMode", PostCommitMode.valueOf((String) omidClientProps.get("postCommitMode")));
+                }
+                if (omidClientProps != null && omidClientProps.containsKey("conflictDetectionLevel")) {
+                    omidClientProps.put("conflictDetectionLevel", ConflictDetectionLevel.valueOf((String) omidClientProps.get("conflictDetectionLevel")));
+                }
+                BeanUtils.populate((Object) omidClientConf, omidClientProps);
+                props.put("omidClientConfiguration", omidClientConf);
+            }
+
+            Object mp;
+            Map mpProps = (Map) props.get("metrics");
+            System.out.println(mpProps);
+            if (mpProps != null && mpProps.containsKey("class") &&
+                    "org.apache.omid.metrics.CodahaleMetricsProvider".equals(mpProps.get("class"))) {
+                CodahaleMetricsConfig mmc = new CodahaleMetricsConfig();
+                mpProps.remove("class");
+                Set reporters = new HashSet<>();
+                for (Object r : (ArrayList) mpProps.get("reporters")) {
+                    reporters.add(CodahaleMetricsConfig.Reporter.valueOf((String) r));
+                }
+                mpProps.put("reporters", reporters);
+
+                BeanUtils.populate((Object) mmc, (Map<String, ? extends Object>) mpProps);
+                mp = new CodahaleMetricsProvider(mmc);
+            } else {
+                mp = new NullMetricsProvider();
+            }
+            props.put("metrics", mp);
+
+            BeanUtils.populate(this, props);
+        } catch (IllegalAccessException | InvocationTargetException | IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

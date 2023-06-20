@@ -28,7 +28,11 @@
     <dependencies>
 
         <!-- Dependencies on Omid modules -->
-
+        <dependency>
+            <groupId>org.apache.omid</groupId>
+            <artifactId>omid-tso-server</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-transaction-client</artifactId>

@@ -19,8 +19,13 @@ package org.apache.omid.tso.client;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.omid.YAMLUtils;
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 
 import static org.apache.omid.tls.X509Util.DEFAULT_HANDSHAKE_DETECTION_TIMEOUT_MILLIS;
 import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOL;
@@ -90,12 +95,31 @@ public class OmidClientConfiguration {
     // ----------------------------------------------------------------------------------------------------------------
 
     public OmidClientConfiguration() {
-        new YAMLUtils().loadSettings(DEFAULT_CONFIG_FILE_NAME, this);
+        Map props = new YAMLUtils().getSettingsMap(DEFAULT_CONFIG_FILE_NAME);
+        populateProperties(props);
     }
 
     @VisibleForTesting
     public OmidClientConfiguration(String configFileName) {
-        new YAMLUtils().loadSettings(configFileName, DEFAULT_CONFIG_FILE_NAME, this);
+        Map props = new YAMLUtils().getSettingsMap(configFileName, DEFAULT_CONFIG_FILE_NAME);
+        populateProperties(props);
+    }
+
+    public void populateProperties(Map props){
+        try {
+            if (props.containsKey("connectionType")) {
+                props.put("connectionType", org.apache.omid.tso.client.OmidClientConfiguration.ConnType.valueOf((String) props.get("connectionType")));
+            }
+            if (props.containsKey("postCommitMode")) {
+                props.put("postCommitMode", PostCommitMode.valueOf((String) props.get("postCommitMode")));
+            }
+            if (props.containsKey("conflictDetectionLevel")) {
+                props.put("conflictDetectionLevel", ConflictDetectionLevel.valueOf((String) props.get("conflictDetectionLevel")));
+            }
+            BeanUtils.populate(this, props);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

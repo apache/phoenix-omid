@@ -85,7 +85,6 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-codahale-metrics</artifactId>
             <version>${project.version}</version>
-            <scope>runtime</scope>
         </dependency>
         <!-- The hbase-related dependency is added here just to include the jar in the final tar.gz package assembled.
         The hbase tools are handy to create the required Omid tables from the same script that starts the TSO server -->
@@ -99,8 +98,6 @@
             <groupId>org.apache.omid</groupId>
             <artifactId>omid-commit-table</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
-            <classifier>tests</classifier>
         </dependency>
         <dependency>
             <groupId>org.apache.omid</groupId>

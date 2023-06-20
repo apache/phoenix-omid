@@ -17,15 +17,25 @@
  */
 package org.apache.omid.tso;
 
+import org.apache.commons.beanutils.BeanUtils;
+import org.apache.omid.metrics.CodahaleMetricsConfig;
+import org.apache.omid.metrics.CodahaleMetricsProvider;
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule;
+import org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule;
 import com.google.inject.Module;
 
 import org.apache.omid.NetworkUtils;
 import org.apache.omid.YAMLUtils;
 import org.apache.omid.metrics.MetricsRegistry;
+import org.apache.omid.metrics.NullMetricsProvider;
 import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.*;
 
 import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOL;
 
@@ -60,7 +70,70 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     @VisibleForTesting
     TSOServerConfig(String configFileName) {
-        new YAMLUtils().loadSettings(configFileName, DEFAULT_CONFIG_FILE_NAME, this);
+        Map props = new YAMLUtils().getSettingsMap(configFileName, DEFAULT_CONFIG_FILE_NAME);
+        populateProperties(props);
+    }
+
+    public void populateProperties(Map props) {
+        try {
+            Object tsm;
+            Map tsmProps = (Map) props.get("timestampStoreModule");
+            if (tsmProps != null && tsmProps.containsKey("class") &&
+                    "org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule".equals(tsmProps.get("class"))) {
+                tsm = new DefaultHBaseTimestampStorageModule();
+                tsmProps.remove("class");
+            } else {
+                tsm = new InMemoryTimestampStorageModule();
+            }
+            BeanUtils.populate((Object) tsm, (Map<String, ? extends Object>) tsmProps);
+            props.put("timestampStoreModule", tsm);
+
+            Object ctsm;
+            Map ctsmProps = (Map) props.get("commitTableStoreModule");
+            if (ctsmProps != null && ctsmProps.containsKey("class") &&
+                "org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule".equals(ctsmProps.get("class"))) {
+                ctsm = new DefaultHBaseCommitTableStorageModule();
+                ctsmProps.remove("class");
+            } else {
+                ctsm = new InMemoryCommitTableStorageModule();
+            }
+            BeanUtils.populate((Object) ctsm, (Map<String, ? extends Object>) ctsmProps);
+            props.put("commitTableStoreModule", ctsm);
+
+            Object lmm;
+            Map lmProps = (Map) props.get("leaseModule");
+            if (lmProps != null && lmProps.containsKey("class") &&
+                    "org.apache.omid.tso.HALeaseManagementModule".equals(lmProps.get("class"))) {
+                lmm = new org.apache.omid.tso.HALeaseManagementModule();
+                lmProps.remove("class");
+            } else {
+                lmm = new VoidLeaseManagementModule();
+            }
+            BeanUtils.populate((Object) lmm, (Map<String, ? extends Object>) lmProps);
+            props.put("leaseModule", lmm);
+
+            Object mp;
+            Map mpProps = (Map) props.get("metrics");
+            if (mpProps != null && mpProps.containsKey("class") &&
+                    "org.apache.omid.metrics.CodahaleMetricsProvider".equals(mpProps.get("class"))) {
+                CodahaleMetricsConfig mmc = new CodahaleMetricsConfig();
+                mpProps.remove("class");
+                Set reporters = new HashSet<>();
+                for (Object r : (ArrayList) mpProps.get("reporters")) {
+                    reporters.add(CodahaleMetricsConfig.Reporter.valueOf((String) r));
+                }
+                mpProps.put("reporters", reporters);
+                BeanUtils.populate((Object) mmc, (Map<String, ? extends Object>) mpProps);
+                mp = new CodahaleMetricsProvider(mmc);
+            } else {
+                mp = new NullMetricsProvider();
+            }
+            props.put("metrics", mp);
+
+            BeanUtils.populate(this, props);
+        } catch (IllegalAccessException | InvocationTargetException  | IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------

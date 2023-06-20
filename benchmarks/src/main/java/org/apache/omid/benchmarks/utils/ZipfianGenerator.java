@@ -11,6 +11,8 @@
  */
 package org.apache.omid.benchmarks.utils;
 
+import org.apache.curator.shaded.com.google.common.annotations.VisibleForTesting;
+
 import java.util.Random;
 
 /**
@@ -286,5 +288,10 @@ public class ZipfianGenerator extends IntegerGenerator {
     @Override
     public double mean() {
         throw new UnsupportedOperationException("@todo implement ZipfianGenerator.mean()");
+    }
+
+    @VisibleForTesting
+    public long getItems() {
+        return items;
     }
 }

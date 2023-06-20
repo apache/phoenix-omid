@@ -26,6 +26,7 @@ import com.codahale.metrics.Slf4jReporter;
 import com.codahale.metrics.Timer.Context;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
+import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.phoenix.thirdparty.com.google.common.base.Strings;
 import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
 import org.apache.commons.io.FileUtils;
@@ -79,6 +80,17 @@ public class CodahaleMetricsProvider implements MetricsProvider, MetricsRegistry
             LOG.warn("No metric reporters found, so metrics won't be available");
         }
         startMetrics();
+    }
+
+
+    @VisibleForTesting
+    public int getMetricsOutputFrequencyInSecs() {
+        return metricsOutputFrequencyInSecs;
+    }
+
+    @VisibleForTesting
+    public List<ScheduledReporter> getReporters() {
+        return reporters;
     }
 
     @Override

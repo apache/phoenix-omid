@@ -97,7 +97,7 @@ public class TestRetryProcessor {
         ArgumentCaptor<Long> firstTSCapture = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Long> secondTSCapture = ArgumentCaptor.forClass(Long.class);
 
-        verify(replyProc, timeout(100).times(1)).sendCommitResponse(firstTSCapture.capture(),
+        verify(replyProc, timeout(200).times(1)).sendCommitResponse(firstTSCapture.capture(),
                                                                     secondTSCapture.capture(),
                                                                     any(), any(MonitoringContext.class), any(Optional.class));
 

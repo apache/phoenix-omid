@@ -8,11 +8,11 @@ batchPersistTimeoutInMs: 100
 networkIfaceName: eth1
 
 commitTableStoreModule: !!org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule
-                     tableName: "sieve_omid:OMID_TIMESTAMP_F"
+  tableName: "sieve_omid:OMID_TIMESTAMP_F"
 
 timestampStoreModule: !!org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule
-                    tableName: "sieve_omid:OMID_COMMIT_TABLE_F"
-                    familyName: "MAX_TIMESTAMP_F"
+  tableName: "sieve_omid:OMID_COMMIT_TABLE_F"
+  familyName: "MAX_TIMESTAMP_F"
 
 leaseModule: !!org.apache.omid.tso.VoidLeaseManagementModule [ ]
 

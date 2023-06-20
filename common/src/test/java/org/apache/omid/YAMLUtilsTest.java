@@ -17,9 +17,11 @@
  */
 package org.apache.omid;
 
+import org.apache.phoenix.thirdparty.com.google.common.io.Resources;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,6 +45,20 @@ public class YAMLUtilsTest {
         Assert.assertEquals(map.get("prop1"), 11);
         Assert.assertEquals(map.get("prop2"), "22");
         Assert.assertEquals(map.size(), 2);
+    }
+
+
+    @Test(timeOut = 10_000)
+    public void testSnakeyamlConfigUpgrade() throws Exception {
+        Map map = new HashMap();
+        String content = Resources.toString(Resources.getResource("config-upgrade.yml"), Charset.forName("UTF-8"));
+        String expected = Resources.toString(Resources.getResource("config-upgrade-res.yml"), Charset.forName("UTF-8"));
+        String upgraded = new YAMLUtils().upgradeOldConfigTOSnakeYaml2Compatible(content);
+        Assert.assertNotNull(map);
+        Assert.assertEquals(upgraded, expected);
+
+        String upgraded_again = new YAMLUtils().upgradeOldConfigTOSnakeYaml2Compatible(upgraded);
+        Assert.assertEquals(upgraded, upgraded_again);
     }
 
 }

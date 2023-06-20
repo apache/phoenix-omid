@@ -1,0 +1,35 @@
+
+port: 54758
+conflictMapSize: 100000000
+numConcurrentCTWriters: 2
+batchSizePerCTWriter: 500
+batchPersistTimeoutInMs: 100
+networkIfaceName: eth1
+
+commitTableStoreModule:
+  class: "org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule"
+  tableName: "sieve_omid:OMID_TIMESTAMP_F"
+
+timestampStoreModule:
+  class: "org.apache.omid.timestamp.storage.DefaultHBaseTimestampStorageModule"
+  tableName: "sieve_omid:OMID_COMMIT_TABLE_F"
+  familyName: "MAX_TIMESTAMP_F"
+
+leaseModule:
+  class: "org.apache.omid.tso.VoidLeaseManagementModule"
+
+metrics:
+  {
+    class: "org.apache.omid.metrics.CodahaleMetricsProvider",
+    outputFreqInSecs: 1,
+    reporters: [
+      "CSV",
+      "SLF4J",
+      "GRAPHITE",
+      "CONSOLE"
+    ],
+    csvDir: "some/folder",
+    prefix: "somePrefix",
+    slf4jLogger: "org.apache",
+    graphiteHostConfig: "somehost:1234"
+  }

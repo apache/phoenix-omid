@@ -78,6 +78,17 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.omid</groupId>
+            <artifactId>omid-metrics</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.omid</groupId>
+            <artifactId>omid-codahale-metrics</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- End of Dependencies on Omid modules -->
 
         <!-- storage related -->

@@ -20,6 +20,10 @@ package org.apache.omid.transaction;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.omid.tso.client.OmidClientConfiguration;
+
+import static org.apache.omid.tso.client.OmidClientConfiguration.ConnType.HA;
+
 public class TestHBaseOmidClientConfiguration {
 
     @Test(timeOut = 10_000)
@@ -37,7 +41,16 @@ public class TestHBaseOmidClientConfiguration {
         Assert.assertNotNull(configuration.getCommitTableName());
         Assert.assertNotNull(configuration.getHBaseConfiguration());
         Assert.assertNotNull(configuration.getMetrics());
-        Assert.assertNotNull(configuration.getOmidClientConfiguration());
+        OmidClientConfiguration omidClientConf = configuration.getOmidClientConfiguration();
+        Assert.assertNotNull(omidClientConf);
+
+        org.testng.Assert.assertEquals(omidClientConf.getConnectionType(), HA);
+        org.testng.Assert.assertEquals(omidClientConf.getConnectionString(), "somehost:54758");
+        org.testng.Assert.assertEquals(omidClientConf.getZkConnectionTimeoutInSecs(), 11);
+        org.testng.Assert.assertEquals(omidClientConf.getRequestMaxRetries(), 6);
+        org.testng.Assert.assertEquals(omidClientConf.getExecutorThreads(), 4);
+
+        Assert.assertEquals(1, 2);
     }
 
 }
