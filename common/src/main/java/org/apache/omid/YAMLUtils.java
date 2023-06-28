@@ -22,11 +22,14 @@ import org.apache.phoenix.thirdparty.com.google.common.io.Resources;
 import org.apache.commons.beanutils.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.inspector.TrustedPrefixesTagInspector;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -75,7 +78,10 @@ public class YAMLUtils {
 
     public Map loadStringAsMap(String content) {
         try {
-            Map settings = new Yaml().loadAs(content, Map.class);
+            LoaderOptions options = new LoaderOptions();
+            options.setTagInspector(new TrustedPrefixesTagInspector(Collections.singletonList("org.apache.omid")));
+            Yaml yaml = new Yaml(options);
+            Map settings = yaml.loadAs(content, Map.class);
             return (settings != null) ? settings : new HashMap(0);
         } catch (IllegalArgumentException e) {
             return new HashMap();
