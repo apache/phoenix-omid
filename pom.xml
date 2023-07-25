@@ -195,6 +195,7 @@
         <maven-jxr-plugin.version>2.3</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.1</maven-findbugs-maven-plugin.version>
         <maven-owasp-plugin.version>6.5.3</maven-owasp-plugin.version>
+        <surefire.version>3.0.0</surefire.version>
         <!-- Code coverage properties -->
         <maven-clover-plugin.version>4.4.1</maven-clover-plugin.version>
         <maven-sonar-plugin.version>3.9.1.2184</maven-sonar-plugin.version>
@@ -232,6 +233,7 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
+                        <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
                         <forkCount>1C</forkCount>
                         <redirectTestOutputToFile>true</redirectTestOutputToFile>
                         <trimStackTrace>false</trimStackTrace>
@@ -328,6 +330,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
                     <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>
