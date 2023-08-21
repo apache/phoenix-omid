@@ -1,6 +1,6 @@
 # Non High Availability configuration with HBase for everything
 
-port: 54758
+port: 24758
 conflictMapSize: 100000000
 numConcurrentCTWriters: 2
 batchSizePerCTWriter: 500
