@@ -85,7 +85,7 @@ public class ConfigurationExample {
 
         HBaseOmidClientConfiguration omidClientConfiguration = new HBaseOmidClientConfiguration();
         omidClientConfiguration.setConnectionType(DIRECT);
-        omidClientConfiguration.setConnectionString("localhost:54758");
+        omidClientConfiguration.setConnectionString("localhost:24758");
         omidClientConfiguration.setRetryDelayInMs(3000);
 
         example.doWork(userTableName, family, omidClientConfiguration);

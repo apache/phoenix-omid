@@ -4,7 +4,7 @@ commitTableName: OMID_COMMIT_TABLE1
 #TSO/HA connection
 omidClientConfiguration: !!org.apache.omid.tso.client.OmidClientConfiguration
       #TSO/HA connection
-      connectionString: "somehost:54758"
+      connectionString: "somehost:24758"
       connectionType: !!org.apache.omid.tso.client.OmidClientConfiguration$ConnType HA
       zkConnectionTimeoutInSecs: 11
 

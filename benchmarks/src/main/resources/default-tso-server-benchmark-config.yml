@@ -60,7 +60,7 @@ commitDelayInMs: 0
 # ---------------------------------------------------------------------------------------------------------------------
 omidClientConfiguration: !!org.apache.omid.tso.client.OmidClientConfiguration
     connectionType: !!org.apache.omid.tso.client.OmidClientConfiguration$ConnType DIRECT
-    connectionString: "localhost:54758"
+    connectionString: "localhost:24758"
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Commit Table storage configuration

@@ -72,7 +72,7 @@ $ bin/omid.sh tso
 ```
 
 This starts the TSO server that in turn will connect to HBase to store information in HBase. By default the TSO listens on 
-port 54758. If you want to change the TSO configuration, you can modify the contents in the conf/omid.conf file.
+port 24758. If you want to change the TSO configuration, you can modify the contents in the conf/omid.conf file.
 
 ## HBase Client Usage
 
@@ -171,7 +171,7 @@ creation of the transaction manager:
         public static void main(String[] args) throws Exception {
             HBaseOmidClientConfiguration omidClientConfiguration = new HBaseOmidClientConfiguration();
             omidClientConfiguration.setConnectionType(OmidClientConfiguration.ConnType.DIRECT);
-            omidClientConfiguration.setConnectionString("my_tso_server_host:54758");
+            omidClientConfiguration.setConnectionString("my_tso_server_host:24758");
             omidClientConfiguration.setRetryDelayInMs(3000);
     
             try (TransactionManager tm = HBaseTransactionManager.newInstance(omidClientConfiguration);

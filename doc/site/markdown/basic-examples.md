@@ -95,7 +95,7 @@ of the transaction manager instance:
     ...    
     HBaseOmidClientConfiguration omidClientConfiguration = new HBaseOmidClientConfiguration();
     omidClientConfiguration.setConnectionType(DIRECT);
-    omidClientConfiguration.setConnectionString("my_tso_server_host:54758");
+    omidClientConfiguration.setConnectionString("my_tso_server_host:24758");
     omidClientConfiguration.setRetryDelayMs(3000);
     
     TransactionManager tm = HBaseTransactionManager.newInstance(omidClientConfiguration);

@@ -4,7 +4,7 @@
 # keytab: /path/to/hbase/client/keytab
 
 omidClientConfiguration: !!org.apache.omid.tso.client.OmidClientConfiguration
-    connectionString: "localhost:54758"
+    connectionString: "localhost:24758"
 
 metrics: !!org.apache.omid.metrics.CodahaleMetricsProvider [
     !!org.apache.omid.metrics.CodahaleMetricsConfig {

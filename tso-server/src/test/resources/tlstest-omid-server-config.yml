@@ -26,7 +26,7 @@
 # See org.apache.omid.tso.TSOServerConfig.getDefaultNetworkInterface for more information.
 
 # Port reserved by the Status Oracle
-port: 54758
+port: 24758
 # Wait strategy for the Disruptor processors in TSO pipeline. Options:
 # 1) HIGH_THROUGHPUT - [Default] Use this in production deployments for maximum performance
 # 2) LOW_CPU - Use this option when testing or in deployments where saving CPU cycles is more important than throughput
