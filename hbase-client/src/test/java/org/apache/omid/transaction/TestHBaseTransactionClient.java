@@ -131,7 +131,7 @@ public class TestHBaseTransactionClient extends OmidTestBase {
     public void testReadCommitTimestampFromCommitTable(ITestContext context) throws Exception {
 
         //connection = ConnectionFactory.createConnection(hbaseConf);
-        final long NON_EXISTING_CELL_TS = 1000L;
+        final long NON_EXISTING_CELL_TS = 1000000L;
 
         PostCommitActions syncPostCommitter =
                 spy(new HBaseSyncPostCommitter(new NullMetricsProvider(), getCommitTable(context).getClient(), connection));
