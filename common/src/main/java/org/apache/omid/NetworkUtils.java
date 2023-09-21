@@ -29,13 +29,19 @@ public class NetworkUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(NetworkUtils.class);
 
+    //FIXME Popular distros haven't called their network interfaces ethX for a long time
     private static final String LINUX_TSO_NET_IFACE_PREFIX = "eth";
+    //Modern Linux typically uses an en prefix
     private static final String MAC_TSO_NET_IFACE_PREFIX = "en";
 
+    // FIXME This seems to be only used for determining the host and port when registering TSO
+    // to ZK for HA.
+    // We should get the TSO IP from the ZK TCP connection on demand, and not worry about the
+    // default network interface at all
     public static String getDefaultNetworkInterface() {
 
         try (DatagramSocket s=new DatagramSocket()) {
-            s.connect(InetAddress.getByAddress(new byte[]{1,1,1,1}), 0);
+            s.connect(InetAddress.getByAddress(new byte[]{1,1,1,1}), 53);
             return NetworkInterface.getByInetAddress(s.getLocalAddress()).getName();
         } catch (Exception e) {
             //fall through
@@ -49,7 +55,7 @@ public class NetworkUtils {
                 NetworkInterface nextElement = networkInterfaces.nextElement();
                 String name = nextElement.getDisplayName();
                 LOG.info("Iterating over network interfaces, found '{}'", name);
-                boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 1; // Checking that inet exists, to avoid taking iBridge
+                boolean hasInet = Collections.list(nextElement.getInetAddresses()).size() > 0; // Checking that inet exists, to avoid taking iBridge
                 if (hasInet && fallBackName == null) {
                     fallBackName = name;
                 }
