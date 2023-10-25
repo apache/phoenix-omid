@@ -173,7 +173,7 @@
         <jcommander.version>1.82</jcommander.version>
         <commons.conf.version>1.10</commons.conf.version>
         <hamcrest.version>1.3</hamcrest.version>
-        <guava.version>32.1.1-jre</guava.version>
+        <guava.version>32.1.3-jre</guava.version>
         <!-- 2.12+ shades guava -->
         <curator.version>4.2.0</curator.version>
         <zookeeper.version>3.5.9</zookeeper.version>
