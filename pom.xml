@@ -152,20 +152,20 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase.version>2.4.13</hbase.version>
+        <hbase.version>2.4.17</hbase.version>
         <hadoop.version>3.1.4</hadoop.version>
         <phoenix.thirdparty.version>2.0.0</phoenix.thirdparty.version>
         <guice.version>5.1.0</guice.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <log4j2.version>2.18.0</log4j2.version>
+        <log4j2.version>2.21.0</log4j2.version>
         <netty4.version>4.1.100.Final</netty4.version>
         <!-- com.google repo will be used except on Aarch64 platform. -->
         <protobuf.group>com.google.protobuf</protobuf.group>
         <protobuf-java.version>2.5.0</protobuf-java.version>
         <protoc.version>2.5.0</protoc.version>
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
-        <junit.version>4.13.1</junit.version>
+        <junit.version>4.13.2</junit.version>
         <mockito.version>2.28.2</mockito.version>
         <disruptor.version>3.2.0</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
@@ -180,7 +180,7 @@
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.11.0</commons-io.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
-        <commons-lang3.version>3.12.0</commons-lang3.version>
+        <commons-lang3.version>3.13.0</commons-lang3.version>
         <bouncycastle.version>1.76</bouncycastle.version>
 
         <!-- Build related plugins -->
