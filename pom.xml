@@ -102,6 +102,7 @@
     </developers>
 
     <modules>
+        <module>omid-checkstyle</module>
         <module>benchmarks</module>
         <module>common</module>
         <module>statemachine</module>
@@ -191,7 +192,7 @@
         <maven-cobertura-plugin.version>2.7</maven-cobertura-plugin.version>
         <maven-license-plugin.version>4.3</maven-license-plugin.version>
         <maven-pmd-plugin.version>3.4</maven-pmd-plugin.version>
-        <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
+        <maven-checkstyle-plugin.version>3.1.1</maven-checkstyle-plugin.version>
         <maven-jxr-plugin.version>2.3</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.1</maven-findbugs-maven-plugin.version>
         <maven-owasp-plugin.version>6.5.3</maven-owasp-plugin.version>
@@ -325,6 +326,38 @@
         </pluginManagement>
 
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.omid</groupId>
+                        <artifactId>omid-checkstyle</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>omid/checkstyle.xml</configLocation>
+                    <encoding>UTF-8</encoding>
+                    <consoleOutput>true</consoleOutput>
+                    <!-- https://issues.apache.org/jira/browse/OMID-169 -->
+                    <!-- enable following config to make checking for violations as part of the build-->
+                    <!-- <violationSeverity>warning</violationSeverity> -->
+                    <failsOnError>true</failsOnError>
+                    <linkXRef>false</linkXRef>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -1179,15 +1212,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jxr-plugin</artifactId>
                 <version>${maven-jxr-plugin.version}</version>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin.version}</version>
-                <configuration>
-                    <configLocation>misc/omid_checks.xml</configLocation>
-                </configuration>
             </plugin>
 
             <plugin>

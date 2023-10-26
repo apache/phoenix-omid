@@ -8,7 +8,7 @@
     from Google Java Style: https://google.github.io/styleguide/javaguide.html.
 
     Omid's style main modifications in Modules below:
-     - LineLength & LeftCurly.maxLineLength: 120 chars instead of 100
+     - LineLength: 120 chars instead of 100
      - Indentation params: 4 spaces instead of 2
      - AbbreviationAsWordInName.allowedAbbreviationLength: 4 instead of 1
  -->
@@ -25,7 +25,10 @@
 	<module name="FileTabCharacter">
 		<property name="eachLine" value="true"/>
 	</module>
-
+	<module name="LineLength">
+		<property name="max" value="120"/>
+		<property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+	</module>
 	<module name="TreeWalker">
 		<module name="OuterTypeFilename"/>
 		<module name="IllegalTokenText">
@@ -38,11 +41,6 @@
 			<property name="allowByTailComment" value="true"/>
 			<property name="allowNonPrintableEscapes" value="true"/>
 		</module>
-		<module name="LineLength">
-			<property name="max" value="120"/>
-			<property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
-		</module>
-		<module name="AvoidStarImport"/>
 		<module name="OneTopLevelClass"/>
 		<module name="NoLineWrap"/>
 		<module name="EmptyBlock">
@@ -50,10 +48,7 @@
 			<property name="tokens" value="LITERAL_TRY, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH"/>
 		</module>
 		<module name="NeedBraces"/>
-		<module name="LeftCurly">
-			<property name="maxLineLength" value="120"/>
-		</module>
-		<module name="RightCurly"/>
+		<module name="LeftCurly"/>
 		<module name="RightCurly">
 			<property name="option" value="alone"/>
 			<property name="tokens" value="CLASS_DEF, METHOD_DEF, CTOR_DEF, LITERAL_FOR, LITERAL_WHILE, LITERAL_DO, STATIC_INIT, INSTANCE_INIT"/>
@@ -158,11 +153,6 @@
 		</module>
 		<module name="OverloadMethodsDeclarationOrder"/>
 		<module name="VariableDeclarationUsageDistance"/>
-		<module name="CustomImportOrder">
-			<property name="specialImportsRegExp" value="com.google"/>
-			<property name="sortImportsInGroupAlphabetically" value="true"/>
-			<property name="customImportOrderRules" value="STATIC###SPECIAL_IMPORTS###THIRD_PARTY_PACKAGE###STANDARD_JAVA_PACKAGE"/>
-		</module>
 		<module name="MethodParamPad"/>
 		<module name="OperatorWrap">
 			<property name="option" value="NL"/>
@@ -188,11 +178,8 @@
 		<module name="JavadocMethod">
 			<property name="scope" value="public"/>
 			<property name="allowMissingParamTags" value="true"/>
-			<property name="allowMissingThrowsTags" value="true"/>
 			<property name="allowMissingReturnTag" value="true"/>
-			<property name="minLineCount" value="2"/>
 			<property name="allowedAnnotations" value="Override, Test"/>
-			<property name="allowThrowsTagsForSubclasses" value="true"/>
 		</module>
 		<module name="MethodName">
 			<property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9_]*$"/>
@@ -206,6 +193,21 @@
 			<property name="exceptionVariableName" value="expected"/>
 		</module>
 		<module name="CommentsIndentation"/>
+        <!-- see https://omid.incubator.apache.org/coding-guide-and-style.html for Import ordering -->
+		<module name="AvoidStarImport"/>
+		<module name="ImportOrder">
+			<property name="groups" value="*,javax,java"/>
+			<property name="ordered" value="true"/>
+			<property name="separated" value="true"/>
+			<property name="option" value="bottom"/>
+			<property name="separatedStaticGroups" value="true"/>
+			<property name="sortStaticImportsAlphabetically" value="true"/>
+		</module>
+		<module name="RedundantImport"/>
+		<module name="UnusedImports">
+			<property name="processJavadoc" value="true"/>
+		</module>
+		<module name="IllegalImport"/>
 	</module>
 
 </module>
