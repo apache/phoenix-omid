@@ -202,7 +202,7 @@
         <maven-sonar-plugin.version>3.10.0.2594</maven-sonar-plugin.version>
 
         <!-- Licensing properties (for license-maven-plugins) -->
-        <license.header>misc/header.txt</license.header>
+        <LicenseSet.header>misc/header.txt</LicenseSet.header>
 
         <!-- Harmless extension default-->
         <harmless.groupId>org.apache.hbase</harmless.groupId>
@@ -367,54 +367,58 @@
                 <version>${maven-license-plugin.version}</version>
                 <inherited>true</inherited> <!-- for multi-module config -->
                 <configuration>
-                    <header>${license.header}</header>
                     <aggregate>true</aggregate> <!-- for multi-module config -->
                     <skipExistingHeaders>false</skipExistingHeaders>
-                    <includes>
-                        <!-- Add files where to include licensing -->
-                        <include>src/**/*.java</include>
-                        <include>src/**/*.xml</include>
-                        <include>src/**/*.proto</include>
-                        <include>**/*.css</include>
-                        <include>**/*.sh</include>
-                    </includes>
-                    <excludes>
-                        <!-- Add files to exclude from licensing -->
-
-                        <!-- Exclude pom -->
-                        <exclude>**/pom.xml</exclude>
-
-                        <!-- Exclude config and scripts -->
-                        <exclude>**/dev-utils/*</exclude>
-                        <exclude>dev-support/artifacts/**</exclude>
-                        <exclude>dev-support/work/**</exclude>
-
-
-                        <!-- Exclude assembly -->
-                        <exclude>**/maven/assembly/*</exclude>
-
-                        <!-- Project specific exclusions (e.g. they've been copied/modified from other open-source projects -->
-
-                        <!-- Protocol buffers generated classes -->
-                        <exclude>**/src/main/java/org/apache/omid/proto/TSOProto.java</exclude>
-
-                        <!-- Taken from https://github.com/brianfrankcooper/YCSB -->
-                        <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/Generator.java</exclude>
-                        <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/IntegerGenerator.java</exclude>
-                        <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ZipfianGenerator.java</exclude>
-                        <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ScrambledZipfianGenerator.java
-                        </exclude>
-
-
-                        <!-- Taken from https://github.com/apache/hbase -->
-                        <exclude>**/src/main/java/org/apache/omid/committable/hbase/RegionSplitter.java</exclude>
-
-                    </excludes>
                     <!-- Add comment style for protocol buffers -->
                     <mapping>
                         <java>SLASHSTAR_STYLE</java>
                         <proto>DOUBLESLASH_STYLE</proto>
                     </mapping>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${LicenseSet.header}</header>
+                            <includes>
+                                <!-- Add files where to include licensing -->
+                                <include>src/**/*.java</include>
+                                <include>src/**/*.xml</include>
+                                <include>src/**/*.proto</include>
+                                <include>**/*.css</include>
+                                <include>**/*.sh</include>
+                            </includes>
+                            <excludes>
+                                <!-- Add files to exclude from licensing -->
+
+                                <!-- Exclude pom -->
+                                <exclude>**/pom.xml</exclude>
+
+                                <!-- Exclude config and scripts -->
+                                <exclude>**/dev-utils/*</exclude>
+                                <exclude>dev-support/artifacts/**</exclude>
+                                <exclude>dev-support/work/**</exclude>
+
+
+                                <!-- Exclude assembly -->
+                                <exclude>**/maven/assembly/*</exclude>
+
+                                <!-- Project specific exclusions (e.g. they've been copied/modified from other open-source projects -->
+
+                                <!-- Protocol buffers generated classes -->
+                                <exclude>**/src/main/java/org/apache/omid/proto/TSOProto.java</exclude>
+
+                                <!-- Taken from https://github.com/brianfrankcooper/YCSB -->
+                                <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/Generator.java</exclude>
+                                <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/IntegerGenerator.java</exclude>
+                                <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ZipfianGenerator.java</exclude>
+                                <exclude>**/src/main/java/org/apache/omid/benchmarks/utils/ScrambledZipfianGenerator.java
+                                </exclude>
+
+
+                                <!-- Taken from https://github.com/apache/hbase -->
+                                <exclude>**/src/main/java/org/apache/omid/committable/hbase/RegionSplitter.java</exclude>
+
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
                 </configuration>
                 <executions>
                     <execution>
