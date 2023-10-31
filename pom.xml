@@ -37,7 +37,7 @@
     <parent>
         <groupId>org.apache</groupId>
         <artifactId>apache</artifactId>
-        <version>23</version>
+        <version>30</version>
     </parent>
 
     <licenses>
@@ -165,7 +165,6 @@
         <protobuf-java.version>2.5.0</protobuf-java.version>
         <protoc.version>2.5.0</protoc.version>
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
-        <os.plugin.version>1.6.2</os.plugin.version>
         <junit.version>4.13.1</junit.version>
         <mockito.version>2.28.2</mockito.version>
         <disruptor.version>3.2.0</disruptor.version>
@@ -180,25 +179,27 @@
         <snakeyaml.version>2.0</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.11.0</commons-io.version>
-        <google.findbugs.version>3.0.1</google.findbugs.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <bouncycastle.version>1.76</bouncycastle.version>
 
+        <!-- Build related plugins -->
+        <os.plugin.version>1.7.1</os.plugin.version>
+        <google.findbugs.version>3.0.2</google.findbugs.version>
+
         <!-- Maven Plugin Versioning -->
-        <maven-assembly-plugin-version>3.1.1</maven-assembly-plugin-version>
         <maven-coveralls-plugin.version>4.1.0</maven-coveralls-plugin.version>
         <maven-cobertura-plugin.version>2.7</maven-cobertura-plugin.version>
         <maven-license-plugin.version>4.3</maven-license-plugin.version>
-        <maven-pmd-plugin.version>3.4</maven-pmd-plugin.version>
-        <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
-        <maven-jxr-plugin.version>2.3</maven-jxr-plugin.version>
-        <maven-findbugs-maven-plugin.version>3.0.1</maven-findbugs-maven-plugin.version>
-        <maven-owasp-plugin.version>6.5.3</maven-owasp-plugin.version>
-        <surefire.version>3.0.0</surefire.version>
+        <maven-pmd-plugin.version>3.21.0</maven-pmd-plugin.version>
+        <maven-checkstyle-plugin.version>3.3.0</maven-checkstyle-plugin.version>
+        <maven-jxr-plugin.version>3.3.0</maven-jxr-plugin.version>
+        <maven-findbugs-maven-plugin.version>3.0.5</maven-findbugs-maven-plugin.version>
+        <maven-owasp-plugin.version>8.4.0</maven-owasp-plugin.version>
+
         <!-- Code coverage properties -->
-        <maven-clover-plugin.version>4.4.1</maven-clover-plugin.version>
-        <maven-sonar-plugin.version>3.9.1.2184</maven-sonar-plugin.version>
+        <maven-clover-plugin.version>4.5.0</maven-clover-plugin.version>
+        <maven-sonar-plugin.version>3.10.0.2594</maven-sonar-plugin.version>
 
         <!-- Licensing properties (for license-maven-plugins) -->
         <license.header>misc/header.txt</license.header>
@@ -243,7 +244,6 @@
 
                 <plugin>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>${maven-assembly-plugin-version}</version>
                     <configuration>
                         <skipAssembly>true</skipAssembly>
                         <descriptors>
