@@ -24,12 +24,16 @@
 
 if [ -z ${HADOOP_CONF_DIR+x} ];
   then echo "WARNING: HADOOP_CONF_DIR is unset";
-  HADOOP_CONF_DIR=/etc/hadoop/conf
-  echo "Setting to ${HADOOP_CONF_DIR}"
+  if [ -d "/etc/hadoop/conf" ]; then
+    HADOOP_CONF_DIR=/etc/hadoop/conf
+    echo "Setting to ${HADOOP_CONF_DIR}"
+  fi
 else echo "HADOOP_CONF_DIR is set to '$HADOOP_CONF_DIR'"; fi
 if [ -z ${HBASE_CONF_DIR+x} ];
   then echo "WARNING: HBASE_CONF_DIR is unset";
-  HBASE_CONF_DIR=/etc/hbase/conf
-  echo "Setting to ${HBASE_CONF_DIR}"
+  if [ -f "/etc/hbase/conf/hbase-site.xml" ]; then
+    HBASE_CONF_DIR=/etc/hbase/conf
+    echo "Setting to ${HBASE_CONF_DIR}"
+  fi
 else echo "HBASE_CONF_DIR is set to '$HBASE_CONF_DIR'"; fi
 
