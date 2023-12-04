@@ -47,7 +47,7 @@ timestampType: WORLD_TIME
 lowLatency: false
 # Default module configuration (No TSO High Availability & in-memory storage for timestamp and commit tables)
 timestampStoreModule: !!org.apache.omid.tso.InMemoryTimestampStorageModule [ ]
-commitTableStoreModule: !!org.apache.omid.tso.InMemoryCommitTableStorageModule [ ]
+commitTableStoreModule: !!org.apache.omid.committable.hbase.DefaultHBaseCommitTableStorageModule [ ]
 leaseModule: !!org.apache.omid.tso.VoidLeaseManagementModule [ ]
 
 # Default stats/metrics configuration
