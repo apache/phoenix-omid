@@ -18,6 +18,56 @@
 -->
 # OMID Changelog
 
+## Release 1.1.1 - Unreleased (as of 2024-01-09)
+
+
+
+### IMPROVEMENTS:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-258](https://issues.apache.org/jira/browse/OMID-258) | Bump maven plugins/dependencies to latest |  Major | . |
+| [OMID-264](https://issues.apache.org/jira/browse/OMID-264) | Fix deprecated WARNING in check-license stage |  Minor | . |
+
+
+### BUG FIXES:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-250](https://issues.apache.org/jira/browse/OMID-250) | Remove duplicate declarations of hadoop-hdfs-client dependency in pom.xml |  Trivial | . |
+| [OMID-240](https://issues.apache.org/jira/browse/OMID-240) | Transactional visibility is broken |  Critical | . |
+| [OMID-248](https://issues.apache.org/jira/browse/OMID-248) | Transactional Phoenix tests fail on Java 17  in getDefaultNetworkInterface |  Major | . |
+| [OMID-237](https://issues.apache.org/jira/browse/OMID-237) | TestHBaseTransactionClient.testReadCommitTimestampFromCommitTable fails |  Major | . |
+| [OMID-247](https://issues.apache.org/jira/browse/OMID-247) | Change TSO default port to be outside the ephemeral range |  Critical | . |
+| [OMID-246](https://issues.apache.org/jira/browse/OMID-246) | Update Surefire plugin to 3.0.0 and switch to TCP forkNode implementation |  Major | . |
+| [OMID-236](https://issues.apache.org/jira/browse/OMID-236) | Upgrade Netty to 4.1.86.Final |  Major | . |
+
+
+### SUB-TASKS:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-254](https://issues.apache.org/jira/browse/OMID-254) | Upgrade to phoenix-thirdparty 2.1.0 |  Major | . |
+| [OMID-256](https://issues.apache.org/jira/browse/OMID-256) | Bump hbase and other dependencies to latest version |  Major | . |
+| [OMID-253](https://issues.apache.org/jira/browse/OMID-253) | Upgrade Netty to 4.1.100.Final |  Major | . |
+| [OMID-255](https://issues.apache.org/jira/browse/OMID-255) | Upgrade guava to 32.1.3-jre |  Major | . |
+| [OMID-257](https://issues.apache.org/jira/browse/OMID-257) | Upgrade bouncycastle and move from jdk15on to latest jdk18on |  Major | . |
+
+
+### OTHER:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-251](https://issues.apache.org/jira/browse/OMID-251) | Bump license-maven-plugin to latest version |  Major | . |
+| [OMID-245](https://issues.apache.org/jira/browse/OMID-245) | Add dependency management for Guava to use 32.1.1 |  Major | . |
+| [OMID-244](https://issues.apache.org/jira/browse/OMID-244) | Upgrade SnakeYaml version to 2.0 |  Major | . |
+| [OMID-242](https://issues.apache.org/jira/browse/OMID-242) | Bump guice version to 5.1.0 to support JDK 17 |  Major | . |
+| [OMID-241](https://issues.apache.org/jira/browse/OMID-241) | Add logging to TSO server crash |  Major | . |
+| [OMID-239](https://issues.apache.org/jira/browse/OMID-239) | OMID TLS support |  Major | . |
+| [OMID-234](https://issues.apache.org/jira/browse/OMID-234) | Bump SnakeYaml version to 1.33 |  Major | . |
+
+
+
 ## Release 1.1.0 - Unreleased (as of 2022-10-06)
 
 

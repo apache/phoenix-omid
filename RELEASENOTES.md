@@ -16,6 +16,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 -->
+# OMID  1.1.1 Release Notes
+
+These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
+
+
+---
+
+* [OMID-247](https://issues.apache.org/jira/browse/OMID-247) | *Critical* | **Change TSO default port to be outside the ephemeral range**
+
+The default port for the TSO server has been changed from 54758 to 24758 to avoid random TSO server startup failures due to conflicts with ephemeral TCP ports in use at the host.
+When updating existing installations make sure that the port is the same in the omid client and server config files: either update the port in the omid client config files for all clients, or revert to the old port on the server side.
+
+
+
 # OMID  1.1.0 Release Notes
 
 These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
