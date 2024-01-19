@@ -209,6 +209,37 @@
         <harmless.artifactId>hbase-client</harmless.artifactId>
         <harmless.version>${hbase.version}</harmless.version>
         <additionalparam>-Xdoclint:none</additionalparam>
+
+        <!-- JDK module options, copied from HBase. Not all of these are strictly necessary for Omid -->
+        <surefire.Xmx>2200m</surefire.Xmx>
+        <surefire.Xms>1000m</surefire.Xms>
+        <omid-surefire.argLine>-enableassertions -Xmx${surefire.Xmx}
+          -Xms${surefire.Xms} -Djava.security.egd=file:/dev/./urandom -Djava.net.preferIPv4Stack=true
+          -Djava.awt.headless=true -Djdk.net.URLClassPath.disableClassPathURLCheck=true
+          -Dorg.apache.hbase.thirdparty.io.netty.leakDetection.level=advanced
+          -Dio.netty.eventLoopThreads=3 -Dio.opentelemetry.context.enableStrictContext=true</omid-surefire.argLine>
+        <!-- Keep these options in sync with add_jdk11_jvm_flags() in bin/omid.sh.
+        Currently, all of these options are known to be required by HBase, and not the test cases -->
+        <omid-surefire.jdk11.flags>-Dorg.apache.hbase.thirdparty.io.netty.tryReflectionSetAccessible=true
+          --add-modules jdk.unsupported
+          --add-opens java.base/java.io=ALL-UNNAMED
+          --add-opens java.base/java.nio=ALL-UNNAMED
+          --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+          --add-opens java.base/java.lang=ALL-UNNAMED
+          --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
+          --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+          --add-opens java.base/java.util=ALL-UNNAMED
+          --add-opens java.base/java.util.concurrent=ALL-UNNAMED
+          --add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+          --add-exports java.security.jgss/sun.security.krb5=ALL-UNNAMED
+          --add-exports java.base/sun.net.dns=ALL-UNNAMED
+          --add-exports java.base/sun.net.util=ALL-UNNAMED</omid-surefire.jdk11.flags>
+        <!-- java.base/jdk.internal.util.random=ALL-UNNAMED is required by the HBase test code, so we do
+        not need this in bin/ -->
+        <!-- We probably do not need this at all for Omid, but it's easier to keep in sync with
+        HBase this way -->
+        <omid-surefire.jdk17.flags>--add-opens java.base/jdk.internal.util.random=ALL-UNNAMED</omid-surefire.jdk17.flags>
+        <argLine>${omid-surefire.argLine}</argLine>
     </properties>
 
     <build>
@@ -481,6 +512,30 @@
 
 
     <profiles>
+        <profile>
+            <id>build-with-jdk11</id>
+            <activation>
+                <jdk>[11,)</jdk>
+            </activation>
+            <properties>
+                <maven.compiler.release>${releaseTarget}</maven.compiler.release>
+                <!-- TODO: replicate logic for windows support -->
+                <argLine>${omid-surefire.jdk11.flags}
+                    ${omid-surefire.argLine}</argLine>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>build-with-jdk17</id>
+            <activation>
+                <jdk>[17,)</jdk>
+            </activation>
+            <properties>
+                <argLine>${omid-surefire.jdk11.flags}
+                    ${omid-surefire.jdk17.flags}
+                    ${omid-surefire.argLine}</argLine>
+            </properties>
+        </profile>
 
         <profile>
             <id>site-deploy</id>
