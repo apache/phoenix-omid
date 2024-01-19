@@ -21,8 +21,11 @@ import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Module;
+
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
@@ -106,6 +109,16 @@ final public class NetworkInterfaceUtils {
     }
 
     public static String getTSOHostAndPort(TSOServerConfig config) throws SocketException, UnknownHostException {
+        try {
+            return getTSOHostAndPortRelativeToZK(config);
+        } catch (Exception e) {
+            LOG.info("Could not determine local address relative to ZK server", e);
+            // Fall back to interface guessing
+        }
+        return getTSOHostAndPortFallback(config);
+    }
+
+    public static String getTSOHostAndPortFallback(TSOServerConfig config) throws SocketException, UnknownHostException {
 
         // Build TSO host:port string and validate it
         final String tsoNetIfaceName = config.getNetworkIfaceName();
@@ -120,7 +133,26 @@ final public class NetworkInterfaceUtils {
             throw e;
         }
         return tsoHostAndPortAsString;
+    }
 
+    public static String getTSOHostAndPortRelativeToZK(TSOServerConfig config) throws Exception {
+        Module leaseModule = config.getLeaseModule();
+        String zkQuorum;
+        if (leaseModule instanceof HALeaseManagementModule) {
+            LOG.info("HA is configured. Trying to determine local address facing ZK server");
+            zkQuorum = ((HALeaseManagementModule) leaseModule).getZkCluster();
+            // Zookeeper doesn't expose its socket, so we have to try and parse the quorum.
+            String firstHost = zkQuorum.split(",")[0];
+            LOG.info("ZK quorum is {}, first server is {}", zkQuorum, firstHost);
+            HostAndPort hostAndPort = HostAndPort.fromString(firstHost);
+            Socket socket = new Socket(hostAndPort.getHost(), hostAndPort.getPort());
+            InetAddress addr = socket.getLocalAddress();
+            socket.close();
+            LOG.info("Local address facing ZK server is {}", addr);
+            return HostAndPort.fromParts(addr.getHostAddress(), config.getPort()).toString();
+        } else {
+            throw new Exception("HA is not configured");
+        }
     }
 
 }
