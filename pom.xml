@@ -167,15 +167,17 @@
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
         <junit.version>4.13.2</junit.version>
         <mockito.version>2.28.2</mockito.version>
-        <disruptor.version>3.2.0</disruptor.version>
+        <disruptor.version>3.3.6</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
         <jcommander.version>1.82</jcommander.version>
         <commons.conf.version>1.10</commons.conf.version>
         <hamcrest.version>1.3</hamcrest.version>
         <guava.version>32.1.3-jre</guava.version>
         <!-- 2.12+ shades guava -->
+        <!-- While 4.2 seems to support ZK 3.8 in general, it cannot start a ZK 3.8 test
+        minicluster -->
+        <!-- When using ZK 3.8, you need to use ZK 5.3-->
         <curator.version>4.2.0</curator.version>
-        <zookeeper.version>3.5.9</zookeeper.version>
         <snakeyaml.version>2.0</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.11.0</commons-io.version>
@@ -535,6 +537,35 @@
                     ${omid-surefire.jdk17.flags}
                     ${omid-surefire.argLine}</argLine>
             </properties>
+        </profile>
+
+        <profile>
+            <!-- When building with a HBase version that depends on ZK 3.8 (or later)
+            the default Curator 4.2.0 TestServer cannot start the test mini cluster.
+            
+            This profile is only necessary to run the tests.
+            Omid artifacts built with curator 4.2.0 should work with HBase versions using ZK 3.8 -->
+            <id>zk38</id>
+
+            <properties>
+                <curator.version>5.3.0</curator.version>
+            </properties>
+
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.curator</groupId>
+                        <artifactId>curator-test</artifactId>
+                        <version>${curator.version}</version>
+                        <exclusions>
+                            <exclusion>
+                                <groupId>org.junit.jupiter</groupId>
+                                <artifactId>junit-jupiter-api</artifactId>
+                            </exclusion>
+                        </exclusions>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
         </profile>
 
         <profile>
@@ -1085,6 +1116,11 @@
                   <exclusion>
                     <groupId>org.apache.zookeeper</groupId>
                     <artifactId>zookeeper</artifactId>
+                  </exclusion>
+                  <exclusion>
+                    <!-- from Curator 5 -->
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter-api</artifactId>
                   </exclusion>
                 </exclusions>
                 <version>${curator.version}</version>

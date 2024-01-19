@@ -100,7 +100,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
+    @Override
     public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
         if (snapshotFilter != null) {
@@ -109,7 +109,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
+    @Override
     public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
             throws IOException {
 
