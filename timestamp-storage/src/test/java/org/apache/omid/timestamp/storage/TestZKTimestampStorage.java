@@ -69,7 +69,7 @@ public class TestZKTimestampStorage {
             try {
                 zkServer = new TestingServer(ZK_PORT);
             } catch (BindException e) {
-                System.err.println("Getting bind exception - retrying to allocate server");
+                LOG.info("Getting bind exception - retrying to allocate server", e);
                 zkServer = null;
             }
         }

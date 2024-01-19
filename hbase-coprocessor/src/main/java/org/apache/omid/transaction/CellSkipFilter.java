@@ -22,8 +22,13 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.PrivateCellUtil;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.List;
 
 /**
@@ -34,13 +39,31 @@ import java.util.List;
  * Please see TEPHRA-169 for more details.
  */
 
-public class CellSkipFilterBase extends FilterBase {
+public class CellSkipFilter extends FilterBase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CellSkipFilter.class);
+
     private final Filter filter;
     // remember the previous cell processed by filter when the return code was NEXT_COL or INCLUDE_AND_NEXT_COL
     private Cell skipColumn = null;
 
-    public CellSkipFilterBase(Filter filter) {
+    // Using reflection to avoid adding compatibility modules.
+    private final MethodHandle removedFilterRowKeyMethod;
+
+    public CellSkipFilter(Filter filter) {
         this.filter = filter;
+        MethodHandle tmpFilterRowKeyMethod;
+        try {
+            tmpFilterRowKeyMethod =
+                    MethodHandles.lookup().findVirtual(filter.getClass(), "filterRowKey",
+                        MethodType.methodType(boolean.class, byte[].class, int.class, int.class));
+        } catch (Exception e) {
+            LOG.info(
+                "Could not get filterRowKey method handle by reflection. This is normal for HBase 3.x",
+                e);
+            tmpFilterRowKeyMethod = null;
+        }
+        removedFilterRowKeyMethod = tmpFilterRowKeyMethod;
     }
 
     /**
@@ -59,9 +82,10 @@ public class CellSkipFilterBase extends FilterBase {
 
     /**
      * This deprecated method is implemented for backwards compatibility reasons.
-     * use {@link CellSkipFilterBase#filterKeyValue(Cell)}
+     * use {@link CellSkipFilter#filterKeyValue(Cell)}
+     *
+     * No @Override because HBase 3 completely removes this method
      */
-    @Override
     public ReturnCode filterKeyValue(Cell cell) throws IOException {
         return filterCell(cell);
     }
@@ -75,7 +99,7 @@ public class CellSkipFilterBase extends FilterBase {
         ReturnCode code = filter.filterCell(cell);
         if (code == ReturnCode.NEXT_COL || code == ReturnCode.INCLUDE_AND_NEXT_COL) {
             // only store the reference to the keyvalue if we are returning NEXT_COL or INCLUDE_AND_NEXT_COL
-            skipColumn = PrivateCellUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
+            skipColumn = OmidCellUtil.createFirstOnRow(cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
                     cell.getFamilyArray(), cell.getFamilyOffset(),
                     cell.getFamilyLength(), cell.getQualifierArray(),
                     cell.getQualifierOffset(), cell.getQualifierLength());
@@ -102,11 +126,21 @@ public class CellSkipFilterBase extends FilterBase {
 
     /**
      * This deprecated method is implemented for backwards compatibility reasons.
-     * use {@link CellSkipFilterBase#filterRowKey(Cell)}
+     * use {@link CellSkipFilter#filterRowKey(Cell)}
+     *
+     * No @Override so that this compiles with HBase 3
      */
-    @Override
     public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
-        return filter.filterRowKey(buffer, offset, length);
+        // Even though this is deprecated, this is the actual implementation that filterRowKey(Cell)
+        // calls in FilterBase in HBase 2, so we cannot call filterRowKey(Cell), because that would
+        // cause infinite recursion
+        try {
+            return (boolean) (removedFilterRowKeyMethod.invokeExact(filter, buffer, offset, length));
+        } catch (IOException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new UnsupportedOperationException(t);
+        }
     }
 
     @Override

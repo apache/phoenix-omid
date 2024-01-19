@@ -30,10 +30,9 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.ExtendedCell;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.KeyValueUtil;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Delete;
@@ -51,6 +50,7 @@ import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
+import org.apache.omid.transaction.OmidCellUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -368,7 +368,8 @@ public class TTable implements Closeable {
         Map<byte[], List<Cell>> kvs = put.getFamilyCellMap();
         for (List<Cell> kvl : kvs.values()) {
             for (Cell c : kvl) {
-                KeyValue kv = KeyValueUtil.ensureKeyValue(c);
+                //Cast needed for HBase 3+
+                KeyValue kv = OmidCellUtil.ensureKeyValue((ExtendedCell)c);
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), timestamp);
                 try {
                     tsput.add(kv);
@@ -417,7 +418,8 @@ public class TTable implements Closeable {
                 // Reach into keyvalue to update timestamp.
                 // It's not nice to reach into keyvalue internals,
                 // but we want to avoid having to copy the whole thing
-                KeyValue kv = KeyValueUtil.ensureKeyValue(c);
+                // Cast needed for HBase 3+
+                KeyValue kv = OmidCellUtil.ensureKeyValue((ExtendedCell)c);
                 Bytes.putLong(kv.getValueArray(), kv.getTimestampOffset(), writeTimestamp);
                 tsput.add(kv);
 
@@ -525,19 +527,6 @@ public class TTable implements Closeable {
      */
     public Configuration getConfiguration() {
         return table.getConfiguration();
-    }
-
-    /**
-     * Delegates to {@link Table#getTableDescriptor()}
-     *
-     * This deprecated method is implemented for backwards compatibility reasons.
-     * use {@link TTable#getDescriptor()}
-     *
-     * @return HTableDescriptor an instance of HTableDescriptor
-     * @throws IOException if a remote or network exception occurs.
-     */
-    public HTableDescriptor getTableDescriptor() throws IOException {
-        return table.getTableDescriptor();
     }
 
     /**
