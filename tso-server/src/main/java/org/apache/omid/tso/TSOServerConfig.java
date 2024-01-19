@@ -87,7 +87,7 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     private String waitStrategy;
 
-    private String networkIfaceName = NetworkUtils.getDefaultNetworkInterface();
+    private String networkIfaceName;
 
     private String timestampType;
 
