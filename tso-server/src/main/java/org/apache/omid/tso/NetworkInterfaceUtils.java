@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import org.apache.omid.NetworkUtils;
 import org.apache.phoenix.thirdparty.com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,19 +110,24 @@ final public class NetworkInterfaceUtils {
     }
 
     public static String getTSOHostAndPort(TSOServerConfig config) throws SocketException, UnknownHostException {
-        try {
-            return getTSOHostAndPortRelativeToZK(config);
-        } catch (Exception e) {
-            LOG.info("Could not determine local address relative to ZK server", e);
-            // Fall back to interface guessing
-        }
-        return getTSOHostAndPortFallback(config);
+        if (config.getNetworkIfaceName() == null) {
+            try {
+                return getTSOHostAndPortRelativeToZK(config);
+            } catch (Exception e) {
+                LOG.info("Could not determine local address relative to ZK server", e);
+                // Fall back to interface guessing
+            }
+        };
+        return getTSOHostAndPortFromInterface(config);
     }
 
-    public static String getTSOHostAndPortFallback(TSOServerConfig config) throws SocketException, UnknownHostException {
+    public static String getTSOHostAndPortFromInterface(TSOServerConfig config) throws SocketException, UnknownHostException {
 
         // Build TSO host:port string and validate it
-        final String tsoNetIfaceName = config.getNetworkIfaceName();
+        String tsoNetIfaceName = config.getNetworkIfaceName();
+        if (tsoNetIfaceName == null) {
+            tsoNetIfaceName = NetworkUtils.getDefaultNetworkInterface();
+        }
         InetAddress addr = getIPAddressFromNetworkInterface(tsoNetIfaceName);
         final int tsoPort = config.getPort();
 
