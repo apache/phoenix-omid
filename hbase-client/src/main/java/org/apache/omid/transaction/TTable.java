@@ -500,6 +500,17 @@ public class TTable implements Closeable {
     }
 
     /**
+    * Return the raw HBase table
+    *
+    * This is needed to resolve API incompatibilities between HBase 2 and 3 in Phoenix.
+    *
+    * @return the backing table
+    */
+    public Table getHBaseTable() {
+       return table;
+    }
+
+    /**
      *
      * @return array of byte
      */
