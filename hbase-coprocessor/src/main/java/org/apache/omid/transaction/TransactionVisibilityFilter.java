@@ -62,9 +62,6 @@ public class TransactionVisibilityFilter extends FilterBase {
     // Using reflection to avoid adding compatibility modules.
     private final MethodHandle removedFilterRowKeyMethod;
     private final MethodHandle removedSuperFilterRowKeyMethod;
-    static {
-       
-    }
 
     public TransactionVisibilityFilter(Filter cellFilter,
                                            SnapshotFilterImpl snapshotFilter,
