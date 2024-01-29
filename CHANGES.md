@@ -18,7 +18,7 @@
 -->
 # OMID Changelog
 
-## Release 1.1.1 - Unreleased (as of 2024-01-09)
+## Release 1.1.1 - Unreleased (as of 2024-01-29)
 
 
 
@@ -26,6 +26,9 @@
 
 | JIRA | Summary | Priority | Component |
 |:---- |:---- | :--- |:---- |
+| [OMID-275](https://issues.apache.org/jira/browse/OMID-275) | Expose backing HBase Table from TTable |  Major | . |
+| [OMID-249](https://issues.apache.org/jira/browse/OMID-249) | Improve default network address logic |  Major | . |
+| [OMID-272](https://issues.apache.org/jira/browse/OMID-272) | Support JDK17 |  Major | . |
 | [OMID-258](https://issues.apache.org/jira/browse/OMID-258) | Bump maven plugins/dependencies to latest |  Major | . |
 | [OMID-264](https://issues.apache.org/jira/browse/OMID-264) | Fix deprecated WARNING in check-license stage |  Minor | . |
 
