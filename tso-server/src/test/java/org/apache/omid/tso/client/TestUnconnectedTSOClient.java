@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.collect.Sets.newHashSet;
+import static org.apache.phoenix.thirdparty.com.google.common.collect.Sets.newHashSet;
 import static org.slf4j.LoggerFactory.getLogger;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;

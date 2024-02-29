@@ -196,6 +196,7 @@
         <maven-jxr-plugin.version>3.3.0</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.5</maven-findbugs-maven-plugin.version>
         <maven-owasp-plugin.version>8.4.0</maven-owasp-plugin.version>
+        <restrict-imports.enforcer.version>2.4.0</restrict-imports.enforcer.version>
 
         <!-- Code coverage properties -->
         <maven-clover-plugin.version>4.5.0</maven-clover-plugin.version>
@@ -293,6 +294,67 @@
                     </configuration>
                 </plugin>
 
+                <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-enforcer-plugin</artifactId>
+                  <dependencies>
+                    <dependency>
+                      <groupId>de.skuzzle.enforcer</groupId>
+                      <artifactId>restrict-imports-enforcer-rule</artifactId>
+                      <version>${restrict-imports.enforcer.version}</version>
+                    </dependency>
+                  </dependencies>
+                  <executions>
+                    <execution>
+                      <id>banned-illegal-imports</id>
+                      <phase>process-sources</phase>
+                      <goals>
+                        <goal>enforce</goal>
+                      </goals>
+                      <configuration>
+                        <rules>
+                          <RestrictImports>
+                            <includeTestCode>true</includeTestCode>
+                            <reason>Use SLF4j for logging</reason>
+                            <bannedImports>
+                              <bannedImport>org.apache.commons.logging.Log</bannedImport>
+                              <bannedImport>org.apache.commons.logging.LogFactory</bannedImport>
+                            </bannedImports>
+                          </RestrictImports>
+                          <RestrictImports>
+                            <includeTestCode>true</includeTestCode>
+                            <reason>Use shaded version in phoenix-thirdparty</reason>
+                            <bannedImports>
+                              <bannedImport>com.google.common.**</bannedImport>
+                            </bannedImports>
+                          </RestrictImports>
+                          <RestrictImports>
+                            <includeTestCode>true</includeTestCode>
+                            <reason>Use shaded version in phoenix-thirdparty</reason>
+                            <bannedImports>
+                              <bannedImport>org.apache.commons.cli.**</bannedImport>
+                            </bannedImports>
+                          </RestrictImports>
+                          <RestrictImports>
+                            <includeTestCode>true</includeTestCode>
+                            <reason>Use commons lang 3</reason>
+                            <bannedImports>
+                              <bannedImport>org.apache.commons.lang.**</bannedImport>
+                            </bannedImports>
+                          </RestrictImports>
+                          <RestrictImports>
+                            <includeTestCode>true</includeTestCode>
+                            <reason>Use edu.umd.cs.findbugs.annotations</reason>
+                            <bannedImports>
+                              <bannedImport>com.sun.istack.**</bannedImport>
+                            </bannedImports>
+                          </RestrictImports>
+                        </rules>
+                      </configuration>
+                    </execution>
+                  </executions>
+                </plugin>
+
                 <!-- ============================================================================================== -->
                 <!-- Code coverage plugins                                                                          -->
                 <!-- ============================================================================================== -->
@@ -387,6 +449,11 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>cobertura-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
             </plugin>
 
             <!-- ============================================================================================== -->

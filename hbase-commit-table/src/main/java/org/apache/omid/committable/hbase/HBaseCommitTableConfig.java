@@ -21,7 +21,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.apache.hadoop.hbase.util.Bytes;
 
-import static com.google.common.base.Charsets.UTF_8;
+import static org.apache.phoenix.thirdparty.com.google.common.base.Charsets.UTF_8;
 
 public class HBaseCommitTableConfig {
 

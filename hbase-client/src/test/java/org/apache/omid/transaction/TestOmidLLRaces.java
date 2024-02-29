@@ -18,7 +18,7 @@
 package org.apache.omid.transaction;
 
 
-import static com.google.common.base.Charsets.UTF_8;
+import static org.apache.phoenix.thirdparty.com.google.common.base.Charsets.UTF_8;
 import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import static org.apache.omid.committable.hbase.HBaseCommitTableConfig.DEFAULT_COMMIT_TABLE_CF_NAME;
 import static org.mockito.Mockito.spy;
