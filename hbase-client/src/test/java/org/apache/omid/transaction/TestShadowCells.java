@@ -536,7 +536,7 @@ public class TestShadowCells extends OmidTestBase {
     private static final byte[] LEGACY_SHADOW_CELL_SUFFIX = ":OMID_CTS".getBytes(Charsets.UTF_8);
 
     private static byte[] addLegacyShadowCellSuffix(byte[] qualifier) {
-        return com.google.common.primitives.Bytes.concat(qualifier, LEGACY_SHADOW_CELL_SUFFIX);
+        return org.apache.phoenix.thirdparty.com.google.common.primitives.Bytes.concat(qualifier, LEGACY_SHADOW_CELL_SUFFIX);
     }
 
 }

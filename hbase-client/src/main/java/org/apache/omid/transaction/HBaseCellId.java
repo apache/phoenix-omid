@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import static com.google.common.base.Charsets.UTF_8;
+import static org.apache.phoenix.thirdparty.com.google.common.base.Charsets.UTF_8;
 
 import org.apache.omid.tso.client.CellId;
 
