@@ -16,6 +16,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 -->
+# OMID  1.1.2 Release Notes
+
+These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
+
+
+---
+
+* [OMID-280](https://issues.apache.org/jira/browse/OMID-280) | *Critical* | **Use Hbase 2.5 for building OMID**
+
+The Omid TSO server binary assembly now includes HBase 2.5 and Hadoop 3.2 libraries.
+
+
+---
+
+* [OMID-278](https://issues.apache.org/jira/browse/OMID-278) | *Major* | **Change default waitStrategy to LOW\_CPU**
+
+TSO server now uses LOW\_CPU waitStrategy by default.
+
+
+
 # OMID  1.1.1 Release Notes
 
 These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.

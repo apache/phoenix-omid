@@ -18,6 +18,21 @@
 -->
 # OMID Changelog
 
+## Release 1.1.2 - Unreleased (as of 2024-03-13)
+
+
+
+### BUG FIXES:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-280](https://issues.apache.org/jira/browse/OMID-280) | Use Hbase 2.5 for building OMID |  Critical | . |
+| [OMID-278](https://issues.apache.org/jira/browse/OMID-278) | Change default waitStrategy to LOW\_CPU |  Major | . |
+| [OMID-266](https://issues.apache.org/jira/browse/OMID-266) | Remove and ban unrelocated Guava from Omid |  Major | . |
+| [OMID-277](https://issues.apache.org/jira/browse/OMID-277) | Omid 1.1.2 fails with Phoenix 5.2 |  Major | . |
+
+
+
 ## Release 1.1.1 - Unreleased (as of 2024-01-29)
 
 
