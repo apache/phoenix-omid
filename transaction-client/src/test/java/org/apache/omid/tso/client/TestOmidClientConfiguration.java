@@ -19,14 +19,16 @@ package org.apache.omid.tso.client;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.apache.omid.tso.client.OmidClientConfiguration.ConnType;
+import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 
 public class TestOmidClientConfiguration {
 
     @Test(timeOut = 10_000)
     public void testYamlReading() {
         OmidClientConfiguration configuration = new OmidClientConfiguration();
-        Assert.assertNotNull(configuration.getConnectionString());
-        Assert.assertNotNull(configuration.getConnectionType());
+        Assert.assertEquals(configuration.getConnectionString(), "localhost:24758");
+        Assert.assertEquals(configuration.getConnectionType(), ConnType.DIRECT);
         Assert.assertEquals(configuration.getEnabledProtocols(), null);
         Assert.assertEquals(configuration.getTsConfigProtocols(), "TLSv1.2");
         Assert.assertEquals(configuration.getTlsEnabled(), false);
@@ -41,13 +43,26 @@ public class TestOmidClientConfiguration {
     @Test(timeOut = 10_000)
     public void testCustomYamlReading() {
         OmidClientConfiguration configuration = new OmidClientConfiguration("tlstest-omid-client-config.yml");
-        Assert.assertNotNull(configuration.getConnectionString());
-        Assert.assertNotNull(configuration.getConnectionType());
+        Assert.assertEquals(configuration.getConnectionString(), "localhost:24758");
+        Assert.assertEquals(configuration.getConnectionType(), ConnType.DIRECT);
         Assert.assertEquals(configuration.getEnabledProtocols(), "TLSv1.2");
         Assert.assertEquals(configuration.getTsConfigProtocols(), "TLSv1.2");
         Assert.assertEquals(configuration.getTlsEnabled(), true);
         Assert.assertEquals(configuration.getKeyStoreLocation(), "/asd");
         Assert.assertEquals(configuration.getKeyStorePassword(), "pass");
+
+        Assert.assertEquals(configuration.getZkConnectionTimeoutInSecs(), 10);
+        Assert.assertEquals(configuration.getZkNamespace(), "omid");
+        Assert.assertEquals(configuration.getZkCurrentTsoPath(), "/current-tso");
+
+        Assert.assertEquals(configuration.getRequestMaxRetries(), 5);
+        Assert.assertEquals(configuration.getRequestTimeoutInMs(), 5000);
+        Assert.assertEquals(configuration.getReconnectionDelayInSecs(), 10);
+        Assert.assertEquals(configuration.getRetryDelayInMs(), 1000);
+        Assert.assertEquals(configuration.getExecutorThreads(), 3);
+
+        Assert.assertEquals(configuration.getPostCommitMode(), OmidClientConfiguration.PostCommitMode.SYNC);
+        Assert.assertEquals(configuration.getConflictAnalysisLevel(), OmidClientConfiguration.ConflictDetectionLevel.CELL);
 
         Assert.assertEquals(configuration.getKeyStoreType(), "JKS");
         Assert.assertEquals(configuration.getTrustStoreLocation(), "/tasd");
