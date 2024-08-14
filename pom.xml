@@ -170,7 +170,6 @@
         <disruptor.version>3.2.0</disruptor.version>
         <metrics.version>3.0.1</metrics.version>
         <jcommander.version>1.82</jcommander.version>
-        <commons.conf.version>1.10</commons.conf.version>
         <hamcrest.version>1.3</hamcrest.version>
         <guava.version>32.1.3-jre</guava.version>
         <!-- 2.12+ shades guava -->
