@@ -153,7 +153,7 @@
 
         <!-- 3rd-Party Library Versioning -->
         <hbase.version>2.5.7-hadoop3</hbase.version>
-        <hadoop.version>3.2.4</hadoop.version>
+        <hadoop.version>3.4.0</hadoop.version>
         <phoenix.thirdparty.version>2.1.0</phoenix.thirdparty.version>
         <guice.version>5.1.0</guice.version>
         <testng.version>6.10</testng.version>
