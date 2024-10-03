@@ -21,7 +21,6 @@ on:
 
 jobs:
   build:
-    # upgrade to ubuntu-latest after removing Phoenix 4 support
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v1
