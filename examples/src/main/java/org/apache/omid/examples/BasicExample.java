@@ -29,6 +29,8 @@ import org.apache.omid.transaction.TransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+//Random change for CI testing
+
 /**
  * ****************************************************************************************************
  *
