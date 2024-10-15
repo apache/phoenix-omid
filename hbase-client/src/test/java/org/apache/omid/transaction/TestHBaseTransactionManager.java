@@ -17,8 +17,8 @@
  */
 package org.apache.omid.transaction;
 
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anySetOf;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -84,7 +84,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
             txTable.put(tx1, put);
             tm.commit(tx1);
 
-            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
+            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySet(), anySet());
 
             // Create a read-only tx and verify that commit has not been invoked again in the TSOClient
             AbstractTransaction readOnlyTx = (AbstractTransaction) tm.begin();
@@ -94,7 +94,7 @@ public class TestHBaseTransactionManager extends OmidTestBase {
             assertTrue(readOnlyTx.getWriteSet().isEmpty());
             tm.commit(readOnlyTx);
 
-            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
+            verify(tsoClient, times(EXPECTED_INVOCATIONS_FOR_COMMIT)).commit(anyLong(), anySet(), anySet());
             assertEquals(readOnlyTx.getStatus(), Transaction.Status.COMMITTED_RO);
         }
 

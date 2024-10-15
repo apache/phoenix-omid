@@ -19,9 +19,9 @@ package org.apache.omid.transaction;
 
 import static org.apache.omid.transaction.CellUtils.hasCell;
 import static org.apache.omid.transaction.CellUtils.hasShadowCell;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -53,7 +53,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
 import org.apache.omid.metrics.NullMetricsProvider;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -378,8 +378,8 @@ public class TestShadowCells extends OmidTestBase {
                             postCommitEnd.await();
                             return (List<KeyValue>) invocation.callRealMethod();
                         }
-                    }).when(snapshotFilter).filterCellsForSnapshot(Matchers.<List<Cell>>any(),
-                            any(HBaseTransaction.class), anyInt(), Matchers.<Map<String, Long>>any(), Matchers.<Map<String,byte[]>>any());
+                    }).when(snapshotFilter).filterCellsForSnapshot(ArgumentMatchers.<List<Cell>>any(),
+                            any(HBaseTransaction.class), anyInt(), ArgumentMatchers.<Map<String, Long>>any(), ArgumentMatchers.<Map<String,byte[]>>any());
 
                     TransactionManager tm = newTransactionManager(context);
                     if (hasShadowCell(row,
