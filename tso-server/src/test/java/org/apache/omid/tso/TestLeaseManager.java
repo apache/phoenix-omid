@@ -18,8 +18,8 @@
 package org.apache.omid.tso;
 
 import static org.apache.omid.tso.client.TSOClient.DEFAULT_ZK_CLUSTER;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;

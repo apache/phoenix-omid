@@ -55,11 +55,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyCollectionOf;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -283,7 +283,7 @@ public class TestTSOChannelHandlerNetty {
         channel.writeAndFlush(tsBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(1)).timestampRequest(any(), any(MonitoringContext.class));
         verify(requestProcessor, timeout(100).times(0))
-                .commitRequest(anyLong(), anyCollectionOf(Long.class), anyCollectionOf(Long.class), anyBoolean(), any(), any(MonitoringContext.class));
+                .commitRequest(anyLong(), anyCollection(), anyCollection(), anyBoolean(), any(), any(MonitoringContext.class));
     }
 
     private void testWritingCommitRequest(Channel channel) throws InterruptedException {
@@ -300,7 +300,7 @@ public class TestTSOChannelHandlerNetty {
         channel.writeAndFlush(commitBuilder.build()).await();
         verify(requestProcessor, timeout(100).times(0)).timestampRequest(any(), any(MonitoringContext.class));
         verify(requestProcessor, timeout(100).times(1))
-                .commitRequest(eq(666L), anyCollectionOf(Long.class), anyCollectionOf(Long.class), eq(false), any(), any(MonitoringContext.class));
+                .commitRequest(eq(666L), anyCollection(), anyCollection(), eq(false), any(), any(MonitoringContext.class));
     }
 
     private void testWritingFenceRequest(Channel channel) throws InterruptedException {

@@ -17,8 +17,8 @@
  */
 package org.apache.omid.transaction;
 
-import static org.mockito.Matchers.anySetOf;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -78,7 +78,7 @@ public class TestTransactionCleanup extends OmidTestBase {
                 .when(mockedTSOClient).getNewStartTimestamp();
 
         doReturn(abortingFF)
-                .when(mockedTSOClient).commit(eq(START_TS), anySetOf(HBaseCellId.class), anySetOf(HBaseCellId.class));
+                .when(mockedTSOClient).commit(eq(START_TS), anySet(), anySet());
 
         try (TransactionManager tm = newTransactionManager(context, mockedTSOClient);
              TTable txTable = new TTable(connection, TEST_TABLE)) {

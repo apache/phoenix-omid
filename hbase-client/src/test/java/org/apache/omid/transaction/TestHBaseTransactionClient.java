@@ -21,7 +21,7 @@ import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.C
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.COMMIT_TABLE;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.NOT_PRESENT;
 import static org.apache.omid.committable.CommitTable.CommitTimestamp.Location.SHADOW_CELL;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
