@@ -119,13 +119,6 @@
         <module>examples</module>
     </modules>
 
-    <repositories>
-        <repository>
-            <id>apache release</id>
-            <url>https://repository.apache.org/content/repositories/releases/</url>
-        </repository>
-    </repositories>
-
     <scm>
         <connection>scm:git:https://gitbox.apache.org/repos/asf/phoenix-omid.git</connection>
         <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/phoenix-omid.git</developerConnection>
