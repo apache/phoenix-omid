@@ -168,7 +168,7 @@
         <curator.version>5.6.0</curator.version>
         <snakeyaml.version>2.2</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
-        <commons-io.version>2.11.0</commons-io.version>
+        <commons-io.version>2.18.0</commons-io.version>
         <commons-pool2.version>2.4.2</commons-pool2.version>
         <commons-lang3.version>3.13.0</commons-lang3.version>
         <bouncycastle.version>1.78</bouncycastle.version>
