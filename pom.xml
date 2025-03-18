@@ -187,7 +187,7 @@
         <maven-checkstyle-plugin.version>3.3.0</maven-checkstyle-plugin.version>
         <maven-jxr-plugin.version>3.3.0</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.5</maven-findbugs-maven-plugin.version>
-        <maven-owasp-plugin.version>10.0.2</maven-owasp-plugin.version>
+        <maven-owasp-plugin.version>12.1.0</maven-owasp-plugin.version>
         <restrict-imports.enforcer.version>2.4.0</restrict-imports.enforcer.version>
 
         <!-- Code coverage properties -->
@@ -735,6 +735,7 @@
         </profile>
 
         <profile>
+            <!-- The dependency-check-maven plugin requires Java 11+ -->
             <id>owasp-dependency-check</id>
             <build>
                 <plugins>
