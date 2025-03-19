@@ -15,43 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.statemachine;
 
 import org.apache.statemachine.StateMachine.Fsm;
 import org.apache.statemachine.StateMachine.FsmImpl;
 import org.apache.statemachine.StateMachine.State;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 
+
 public class TestStateMachine {
-    private final static Logger LOG = LoggerFactory.getLogger(TestStateMachine.class);
 
     static class TestEvent implements StateMachine.DeferrableEvent {
         CountDownLatch latch = new CountDownLatch(1);
-        Throwable t = null;
-        int i = 0;
+        Throwable throwable = null;
+        int count = 0;
 
-        public void error(Throwable t) {
-            this.t = t;
+        public void error(Throwable throwable) {
+            this.throwable = throwable;
             latch.countDown();
         }
 
-        public void success(int i) {
-            this.i = i;
+        public void success(int count) {
+            this.count = count;
             latch.countDown();
         }
 
         public int get() throws Throwable {
             latch.await();
-            if (t != null) {
-                throw t;
+            if (throwable != null) {
+                throw throwable;
             }
-            return i;
+            return count;
         }
     }
 
@@ -62,8 +61,8 @@ public class TestStateMachine {
             super(fsm);
         }
 
-        public State handleEvent(TestEvent e) {
-            e.success(completed++);
+        public State handleEvent(TestEvent event) {
+            event.success(completed++);
             return this;
         }
     }
@@ -75,12 +74,12 @@ public class TestStateMachine {
             super(fsm);
         }
 
-        public State handleEvent(TestEvent e) {
+        public State handleEvent(TestEvent event) {
             if (count++ < 5) {
-                fsm.deferEvent(e);
+                fsm.deferEvent(event);
                 return this;
             } else {
-                fsm.deferEvent(e);
+                fsm.deferEvent(event);
                 return new CompletingState(fsm);
             }
         }
