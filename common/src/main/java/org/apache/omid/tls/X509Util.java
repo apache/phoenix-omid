@@ -20,11 +20,9 @@ package org.apache.omid.tls;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import org.apache.omid.tls.X509Exception;
 import org.apache.omid.tls.X509Exception.KeyManagerException;
 import org.apache.omid.tls.X509Exception.SSLContextException;
 import org.apache.omid.tls.X509Exception.TrustManagerException;
-import org.apache.phoenix.thirdparty.com.google.common.collect.ObjectArrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +37,6 @@ import java.security.Security;
 import java.security.cert.PKIXBuilderParameters;
 import java.security.cert.X509CertSelector;
 import java.util.Arrays;
-import java.util.Objects;
 
 
 /**
@@ -62,51 +59,8 @@ public final class X509Util {
 
     public static final String DEFAULT_PROTOCOL = "TLSv1.2";
 
-    private static String[] getGCMCiphers() {
-        return new String[] { "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384" };
-    }
-
-    private static String[] getCBCCiphers() {
-        return new String[] { "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
-                "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-                "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
-                "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-                "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA" };
-    }
-
-    // On Java 8, prefer CBC ciphers since AES-NI support is lacking and GCM is slower than CBC.
-    private static final String[] DEFAULT_CIPHERS_JAVA8 =
-            ObjectArrays.concat(getCBCCiphers(), getGCMCiphers(), String.class);
-    // On Java 9 and later, prefer GCM ciphers due to improved AES-NI support.
-    // Note that this performance assumption might not hold true for architectures other than x86_64.
-    private static final String[] DEFAULT_CIPHERS_JAVA9 =
-            ObjectArrays.concat(getGCMCiphers(), getCBCCiphers(), String.class);
-
     private X509Util() {
         // disabled
-    }
-
-    static String[] getDefaultCipherSuites() {
-        return getDefaultCipherSuitesForJavaVersion(System.getProperty("java.specification.version"));
-    }
-
-    static String[] getDefaultCipherSuitesForJavaVersion(String javaVersion) {
-        Objects.requireNonNull(javaVersion);
-        if (javaVersion.matches("\\d+")) {
-            // Must be Java 9 or later
-            LOG.debug("Using Java9+ optimized cipher suites for Java version {}", javaVersion);
-            return DEFAULT_CIPHERS_JAVA9;
-        } else if (javaVersion.startsWith("1.")) {
-            // Must be Java 1.8 or earlier
-            LOG.debug("Using Java8 optimized cipher suites for Java version {}", javaVersion);
-            return DEFAULT_CIPHERS_JAVA8;
-        } else {
-            LOG.debug("Could not parse java version {}, using Java8 optimized cipher suites",
-                    javaVersion);
-            return DEFAULT_CIPHERS_JAVA8;
-        }
     }
 
     public static SslContext createSslContextForClient(String keyStoreLocation, char[] keyStorePassword,
@@ -132,7 +86,9 @@ public final class X509Util {
 
         sslContextBuilder.enableOcsp(sslOcspEnabled);
         sslContextBuilder.protocols(getEnabledProtocols(enabledProtocols, tlsConfigProtocols));
-        sslContextBuilder.ciphers(Arrays.asList(getCipherSuites(cipherSuites)));
+        if (cipherSuites != null && !cipherSuites.isEmpty()) {
+            sslContextBuilder.ciphers(Arrays.asList(cipherSuites.split(",")));
+        }
 
         return sslContextBuilder.build();
     }
@@ -161,7 +117,9 @@ public final class X509Util {
 
         sslContextBuilder.enableOcsp(sslOcspEnabled);
         sslContextBuilder.protocols(getEnabledProtocols(enabledProtocols, tlsConfigProtocols));
-        sslContextBuilder.ciphers(Arrays.asList(getCipherSuites(cipherSuites)));
+        if (cipherSuites != null && !cipherSuites.isEmpty()) {
+            sslContextBuilder.ciphers(Arrays.asList(cipherSuites.split(",")));
+        }
 
         return sslContextBuilder.build();
     }
@@ -276,11 +234,4 @@ public final class X509Util {
         return enabledProtocolsInput.split(",");
     }
 
-    private static String[] getCipherSuites(String cipherSuitesInput) {
-        if (cipherSuitesInput == null) {
-            return getDefaultCipherSuites();
-        } else {
-            return cipherSuitesInput.split(",");
-        }
-    }
 }

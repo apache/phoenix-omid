@@ -21,8 +21,6 @@ package org.apache.omid.tls;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
-import org.apache.omid.tls.KeyStoreFileType;
-import org.apache.omid.tls.X509Exception;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -328,51 +326,4 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
         });
     }
 
-    @Test
-    public void testGetDefaultCipherSuitesJava8() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        String[] cipherSuites = X509Util.getDefaultCipherSuitesForJavaVersion("1.8");
-        // Java 8 default should have the CBC suites first
-        assertTrue(cipherSuites[0].contains("CBC"));
-    }
-
-    @Test
-    public void testGetDefaultCipherSuitesJava9() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        String[] cipherSuites = X509Util.getDefaultCipherSuitesForJavaVersion("9");
-        // Java 9+ default should have the GCM suites first
-        assertTrue(cipherSuites[0].contains("GCM"));
-    }
-
-    @Test
-    public void testGetDefaultCipherSuitesJava10() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        String[] cipherSuites = X509Util.getDefaultCipherSuitesForJavaVersion("10");
-        // Java 9+ default should have the GCM suites first
-        assertTrue(cipherSuites[0].contains("GCM"));
-    }
-
-    @Test
-    public void testGetDefaultCipherSuitesJava11() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        String[] cipherSuites = X509Util.getDefaultCipherSuitesForJavaVersion("11");
-        // Java 9+ default should have the GCM suites first
-        assertTrue(cipherSuites[0].contains("GCM"));
-    }
-
-    @Test
-    public void testGetDefaultCipherSuitesUnknownVersion() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        String[] cipherSuites = X509Util.getDefaultCipherSuitesForJavaVersion("notaversion");
-        // If version can't be parsed, use the more conservative Java 8 default
-        assertTrue(cipherSuites[0].contains("CBC"));
-    }
-
-    @Test
-    public void testGetDefaultCipherSuitesNullVersion() throws Exception {
-        init(caKeyType, certKeyType, keyPassword, paramIndex);
-        assertThrows(NullPointerException.class, () -> {
-            X509Util.getDefaultCipherSuitesForJavaVersion(null);
-        });
-    }
 }
