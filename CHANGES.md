@@ -18,6 +18,55 @@
 -->
 # OMID Changelog
 
+## Release 1.1.3 - Unreleased (as of 2025-03-25)
+
+
+
+### IMPROVEMENTS:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-305](https://issues.apache.org/jira/browse/OMID-305) | Support TLS 1.3 |  Major | . |
+| [OMID-259](https://issues.apache.org/jira/browse/OMID-259) | Update commons-pool2 to 2.12.1 |  Major | . |
+| [OMID-260](https://issues.apache.org/jira/browse/OMID-260) | Align mockito version with Hadoop and HBase |  Major | . |
+| [OMID-283](https://issues.apache.org/jira/browse/OMID-283) | Support for build on mac M1 |  Major | . |
+| [OMID-290](https://issues.apache.org/jira/browse/OMID-290) | fix CVE-2024-29025 in netty package |  Major | . |
+| [OMID-263](https://issues.apache.org/jira/browse/OMID-263) | Remove usage of TrustedPrefixesTagInspector as this will be dropped in Snakeyaml 2.2 |  Major | . |
+| [OMID-262](https://issues.apache.org/jira/browse/OMID-262) | Move from commons-configuration:commons-configuration to org.apache.commons:commons-configuration2 |  Major | . |
+
+
+### BUG FIXES:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-308](https://issues.apache.org/jira/browse/OMID-308) | Fix release maven profile |  Blocker | . |
+| [OMID-307](https://issues.apache.org/jira/browse/OMID-307) | Set javadoc source version to 1.8 |  Blocker | . |
+| [OMID-302](https://issues.apache.org/jira/browse/OMID-302) | Use Netty BOM |  Major | . |
+| [OMID-303](https://issues.apache.org/jira/browse/OMID-303) | Update OWASP plugin to 12.1.0 |  Major | . |
+| [OMID-300](https://issues.apache.org/jira/browse/OMID-300) | Update HBase to 2.5.11-hadoop3 |  Major | . |
+| [OMID-299](https://issues.apache.org/jira/browse/OMID-299) | Update commons-io to 2.18.0 |  Major | . |
+| [OMID-301](https://issues.apache.org/jira/browse/OMID-301) | Update Netty to 4.1.119 |  Major | . |
+| [OMID-298](https://issues.apache.org/jira/browse/OMID-298) | Remove Travis config from repo |  Trivial | . |
+| [OMID-294](https://issues.apache.org/jira/browse/OMID-294) | Bump BouncyCastle version to 1.78 |  Major | . |
+
+
+### TESTS:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-289](https://issues.apache.org/jira/browse/OMID-289) | Add additional asserts in TestOmidClientConfiguration.java |  Minor | . |
+
+
+### OTHER:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [OMID-297](https://issues.apache.org/jira/browse/OMID-297) | Bump TestNG version to 7.5.1 |  Major | . |
+| [OMID-296](https://issues.apache.org/jira/browse/OMID-296) | Set up a Github actions CI pipeline for omid |  Major | . |
+| [OMID-293](https://issues.apache.org/jira/browse/OMID-293) | Update owasp plugin to 10.0.2 |  Major | . |
+
+
+
 ## Release 1.1.2 - Unreleased (as of 2024-03-13)
 
 

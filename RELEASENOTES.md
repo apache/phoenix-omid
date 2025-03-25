@@ -16,6 +16,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 -->
+# OMID  1.1.3 Release Notes
+
+These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
+
+
+---
+
+* [OMID-305](https://issues.apache.org/jira/browse/OMID-305) | *Major* | **Support TLS 1.3**
+
+Previously Omid hardcoded the list of SSL ciphers.
+This has been removed, and Phoenix defaults to the JVM default ciphers.
+
+
+---
+
+* [OMID-300](https://issues.apache.org/jira/browse/OMID-300) | *Major* | **Update HBase to 2.5.11-hadoop3**
+
+Omid is not built with HBase 2.5.11.
+
+
+
 # OMID  1.1.2 Release Notes
 
 These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
