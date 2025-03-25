@@ -616,11 +616,11 @@
 
         <profile>
 
-            <id>release_profile</id>
+            <id>release</id>
 
             <activation>
                 <property>
-                    <name>release_profile</name>
+                    <name>release</name>
                 </property>
             </activation>
 
@@ -671,18 +671,6 @@
                         <configuration>
                             <skip>true</skip>
                         </configuration>
-                    </plugin>
-
-                    <plugin>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
 
                     <plugin>
