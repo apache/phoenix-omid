@@ -23,7 +23,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 import org.apache.omid.tls.X509Exception.KeyManagerException;
 import org.apache.omid.tls.X509Exception.SSLContextException;
 import org.apache.omid.tls.X509Exception.TrustManagerException;
-import org.apache.phoenix.thirdparty.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
