@@ -23,6 +23,13 @@ cd $SCRIPTDIR;
 # Load Omid environment variables
 source omid-env.sh
 
+# Load HBase environent variables
+if [ -r "${HBASE_CONF_DIR}/hbase-env.sh" ]; then
+    echo Loading "${HBASE_CONF_DIR}/hbase-env.sh"
+    # The main thing here is HBASE_OPTS
+    source "${HBASE_CONF_DIR}/hbase-env.sh"
+fi
+
 # Configure classpath...
 CLASSPATH=../conf:${HBASE_CONF_DIR}:${HADOOP_CONF_DIR}
 
@@ -126,7 +133,7 @@ setup_jdk_options()  {
 }
 
 tso() {
-    exec java $JVM_FLAGS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
+    exec java $JVM_FLAGS $HBASE_OPTS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
 }
 
 tsoRelauncher() {
@@ -137,11 +144,11 @@ tsoRelauncher() {
 }
 
 createHBaseCommitTable() {
-    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
+    exec java $JVM_FLAGS $HBASE_OPTS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
 }
 
 createHBaseTimestampTable() {
-    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
+    exec java $JVM_FLAGS $HBASE_OPTS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
 }
 
 usage() {
