@@ -25,15 +25,19 @@ import org.apache.omid.zk.ZKUtils;
 import javax.inject.Singleton;
 import java.io.IOException;
 
-//TODO:IK: move to common?
+// TODO:IK: move to common?
+// The problem is that common doesn't depend on Guice, and we want to keep that that way.
+// Ideally, this would be in a new module, something like omid-server-common
 public class ZKModule extends AbstractModule {
 
     private final String zkCluster;
     private final String namespace;
+    private final String zkLoginContextName;
 
-    public ZKModule(String zkCluster, String namespace) {
+    public ZKModule(String zkCluster, String namespace, String zkLoginContextName) {
         this.zkCluster = zkCluster;
         this.namespace = namespace;
+        this.zkLoginContextName = zkLoginContextName;
     }
 
     @Override
@@ -43,7 +47,7 @@ public class ZKModule extends AbstractModule {
     @Provides
     @Singleton
     CuratorFramework provideInitializedZookeeperClient() throws IOException {
-        return ZKUtils.initZKClient(zkCluster, namespace, 10);
+        return ZKUtils.initZKClient(zkCluster, namespace, 10, zkLoginContextName);
     }
 
     // ----------------------------------------------------------------------------------------------------------------
