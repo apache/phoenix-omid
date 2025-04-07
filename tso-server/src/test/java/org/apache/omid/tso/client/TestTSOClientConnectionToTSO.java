@@ -589,7 +589,7 @@ public class TestTSOClientConnectionToTSO {
         TSOServerConfig config = new TSOServerConfig();
         config.setConflictMapSize(1000);
         config.setPort(tsoPortForTest);
-        config.setLeaseModule(new HALeaseManagementModule(1000, TSO_LEASE_PATH, CURRENT_TSO_PATH, zkClusterForTest, "omid"));
+        config.setLeaseModule(new HALeaseManagementModule(1000, TSO_LEASE_PATH, CURRENT_TSO_PATH, zkClusterForTest, "omid", null));
         injector = Guice.createInjector(new TSOMockModule(config));
         LOG.info("Starting TSO");
         tsoServer = injector.getInstance(TSOServer.class);
@@ -629,7 +629,7 @@ public class TestTSOClientConnectionToTSO {
         TSOServerConfig config = new TSOServerConfig();
         config.setConflictMapSize(1000);
         config.setPort(tsoPortForTest);
-        config.setLeaseModule(new HALeaseManagementModule(1000, TSO_LEASE_PATH, CURRENT_TSO_PATH, zkClusterForTest, "omid"));
+        config.setLeaseModule(new HALeaseManagementModule(1000, TSO_LEASE_PATH, CURRENT_TSO_PATH, zkClusterForTest, "omid", null));
         injector = Guice.createInjector(new TSOMockModule(config));
         LOG.info("Starting Initial TSO");
         tsoServer = injector.getInstance(TSOServer.class);

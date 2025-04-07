@@ -21,6 +21,7 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.zookeeper.client.ZKClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,16 +32,25 @@ public class ZKUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZKUtils.class);
 
-    public static CuratorFramework initZKClient(String zkCluster, String namespace, int zkConnectionTimeoutInSec)
+    public static CuratorFramework initZKClient(String zkCluster, String namespace, int zkConnectionTimeoutInSec, String zkLoginContextName)
             throws IOException {
 
         LOG.info("Creating Zookeeper Client connecting to {}", zkCluster);
+
+        ZKClientConfig zkConfig = new ZKClientConfig();
+        if (zkLoginContextName != null) {
+            // TODO should we check if this exists ?
+            // Or just error out with an unsuccessful connection, as we do now ?
+            LOG.info("Using Login Context {} for Zookeeper", zkCluster);
+            zkConfig.setProperty(ZKClientConfig.LOGIN_CONTEXT_NAME_KEY, zkLoginContextName);
+        }
 
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
         CuratorFramework zkClient = CuratorFrameworkFactory.builder()
                 .namespace(namespace)
                 .connectString(zkCluster)
                 .retryPolicy(retryPolicy)
+                .zkClientConfig(zkConfig)
                 .build();
 
         zkClient.start();
