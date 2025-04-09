@@ -40,6 +40,7 @@ public class HALeaseManagementModule extends AbstractModule {
     private String currentTsoPath = "/current-tso";
     private String zkCluster = "localhost:2181";
     private String zkNamespace = "omid";
+    private String zkLoginContextName;
 
     // ----------------------------------------------------------------------------------------------------------------
     // WARNING: Do not remove empty constructor, needed by snake_yaml!
@@ -51,20 +52,20 @@ public class HALeaseManagementModule extends AbstractModule {
 
     @VisibleForTesting
     public HALeaseManagementModule(long leasePeriodInMs, String tsoLeasePath, String currentTsoPath,
-                                   String zkCluster, String zkNamespace) {
+                                   String zkCluster, String zkNamespace, String zkLoginContextName) {
 
         this.leasePeriodInMs = leasePeriodInMs;
         this.tsoLeasePath = tsoLeasePath;
         this.currentTsoPath = currentTsoPath;
         this.zkCluster = zkCluster;
         this.zkNamespace = zkNamespace;
+        this.zkLoginContextName = zkLoginContextName;
 
     }
 
     @Override
     protected void configure() {
-
-        install(new ZKModule(zkCluster, zkNamespace));
+        install(new ZKModule(zkCluster, zkNamespace, zkLoginContextName));
 
     }
 
@@ -131,6 +132,14 @@ public class HALeaseManagementModule extends AbstractModule {
 
     public void setZkNamespace(String zkNamespace) {
         this.zkNamespace = zkNamespace;
+    }
+
+    public String getZkLoginContextName() {
+        return zkLoginContextName;
+    }
+
+    public void setZkLoginContextName(String zkLoginContextName) {
+        this.zkLoginContextName = zkLoginContextName;
     }
 
 }
