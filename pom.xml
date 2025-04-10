@@ -172,7 +172,7 @@
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.18.0</commons-io.version>
         <commons-pool2.version>2.12.1</commons-pool2.version>
-        <commons-lang3.version>3.13.0</commons-lang3.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
         <bouncycastle.version>1.78</bouncycastle.version>
 
         <!-- Build related plugins -->
