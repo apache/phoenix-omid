@@ -135,7 +135,8 @@ public class TSOClient implements TSOProtocol, NodeCacheListener {
             case HA:
                 zkClient = ZKUtils.initZKClient(omidConf.getConnectionString(),
                                                 omidConf.getZkNamespace(),
-                                                omidConf.getZkConnectionTimeoutInSecs());
+                                                omidConf.getZkConnectionTimeoutInSecs(),
+                                                omidConf.getZkLoginContextName());
                 zkCurrentTsoPath = omidConf.getZkCurrentTsoPath();
                 configureCurrentTSOServerZNodeCache(zkCurrentTsoPath);
                 String tsoInfo = getCurrentTSOInfoFoundInZK(zkCurrentTsoPath);
