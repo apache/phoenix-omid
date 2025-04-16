@@ -17,17 +17,10 @@
  */
 package org.apache.omid.metrics;
 
-import com.google.inject.Inject;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
-@Singleton
 public abstract class AbstractMetricsConfig {
 
     private static final int DEFAULT_OUTPUT_FREQ_IN_SECS = 60;
-
-    private static final String OUTPUT_FREQ_IN_SECS_KEY = "metrics.output.frequency.secs";
 
     private int outputFreqInSecs = DEFAULT_OUTPUT_FREQ_IN_SECS;
 
@@ -35,8 +28,7 @@ public abstract class AbstractMetricsConfig {
         return outputFreqInSecs;
     }
 
-    @Inject(optional = true)
-    public void setOutputFreqInSecs(@Named(OUTPUT_FREQ_IN_SECS_KEY) int outputFreqInSecs) {
+    public void setOutputFreqInSecs(int outputFreqInSecs) {
         this.outputFreqInSecs = outputFreqInSecs;
     }
 

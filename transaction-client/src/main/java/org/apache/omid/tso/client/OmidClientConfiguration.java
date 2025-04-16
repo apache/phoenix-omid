@@ -17,8 +17,6 @@
  */
 package org.apache.omid.tso.client;
 
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import org.apache.omid.YAMLUtils;
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 
@@ -106,8 +104,6 @@ public class OmidClientConfiguration {
         return connectionType;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.connectionType")
     public void setConnectionType(ConnType connectionType) {
         this.connectionType = connectionType;
     }
@@ -116,8 +112,6 @@ public class OmidClientConfiguration {
         return connectionString;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.connectionString")
     public void setConnectionString(String connectionString) {
         this.connectionString = connectionString;
     }
@@ -126,8 +120,6 @@ public class OmidClientConfiguration {
         return zkConnectionTimeoutInSecs;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.zkConnectionTimeoutInSecs")
     public void setZkConnectionTimeoutInSecs(int zkConnectionTimeoutInSecs) {
         this.zkConnectionTimeoutInSecs = zkConnectionTimeoutInSecs;
     }
@@ -136,8 +128,6 @@ public class OmidClientConfiguration {
         return requestMaxRetries;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.requestMaxRetries")
     public void setRequestMaxRetries(int requestMaxRetries) {
         this.requestMaxRetries = requestMaxRetries;
     }
@@ -146,8 +136,6 @@ public class OmidClientConfiguration {
         return requestTimeoutInMs;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.requestTimeoutInMs")
     public void setRequestTimeoutInMs(int requestTimeoutInMs) {
         this.requestTimeoutInMs = requestTimeoutInMs;
     }
@@ -156,8 +144,6 @@ public class OmidClientConfiguration {
         return reconnectionDelayInSecs;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.reconnectionDelayInSecs")
     public void setReconnectionDelayInSecs(int reconnectionDelayInSecs) {
         this.reconnectionDelayInSecs = reconnectionDelayInSecs;
     }
@@ -166,8 +152,6 @@ public class OmidClientConfiguration {
         return retryDelayInMs;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.retryDelayInMs")
     public void setRetryDelayInMs(int retryDelayInMs) {
         this.retryDelayInMs = retryDelayInMs;
     }
@@ -176,8 +160,6 @@ public class OmidClientConfiguration {
         return executorThreads;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.executorThreads")
     public void setExecutorThreads(int executorThreads) {
         this.executorThreads = executorThreads;
     }
@@ -186,8 +168,6 @@ public class OmidClientConfiguration {
         return zkCurrentTsoPath;
     }
 
-    @Inject(optional = true)
-    @Named("omid.ha.zkCurrentTsoPath")
     public void setZkCurrentTsoPath(String zkCurrentTsoPath) {
         this.zkCurrentTsoPath = zkCurrentTsoPath;
     }
@@ -196,8 +176,6 @@ public class OmidClientConfiguration {
         return zkNamespace;
     }
 
-    @Inject(optional = true)
-    @Named("omid.ha.zkNamespace")
     public void setZkNamespace(String zkNamespace) {
         this.zkNamespace = zkNamespace;
     }
@@ -206,8 +184,6 @@ public class OmidClientConfiguration {
         return postCommitMode;
     }
 
-    @Inject(optional = true)
-    @Named("omid.tm.postCommitMode")
     public void setPostCommitMode(PostCommitMode postCommitMode) {
         this.postCommitMode = postCommitMode;
     }
@@ -216,8 +192,6 @@ public class OmidClientConfiguration {
         return conflictAnalysisLevel;
     }
 
-    @Inject(optional = true)
-    @Named("omid.tm.conflictAnalysisLevel")
     public void setConflictAnalysisLevel(ConflictDetectionLevel conflictAnalysisLevel) {
         this.conflictAnalysisLevel = conflictAnalysisLevel;
     }
@@ -226,8 +200,6 @@ public class OmidClientConfiguration {
         return tlsEnabled;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.tlsEnabled")
     public void setTlsEnabled(boolean tlsEnabled) {
         this.tlsEnabled = tlsEnabled;
     }
@@ -236,8 +208,6 @@ public class OmidClientConfiguration {
         return clientNettyTlsHandshakeTimeout;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.clientNettyTlsHandshakeTimeout")
     public void setClientNettyTlsHandshakeTimeout(int clientNettyTlsHandshakeTimeout) {
         this.clientNettyTlsHandshakeTimeout = clientNettyTlsHandshakeTimeout;
     }
@@ -246,8 +216,6 @@ public class OmidClientConfiguration {
         return keyStoreLocation;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.keyStoreLocation")
     public void setKeyStoreLocation(String keyStoreLocation) {
         this.keyStoreLocation = keyStoreLocation;
     }
@@ -256,8 +224,6 @@ public class OmidClientConfiguration {
         return keyStorePassword;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.keyStorePassword")
     public void setKeyStorePassword(String keyStorePassword) {
         this.keyStorePassword = keyStorePassword;
     }
@@ -265,9 +231,6 @@ public class OmidClientConfiguration {
     public String getKeyStoreType() {
         return keyStoreType;
     }
-
-    @Inject(optional = true)
-    @Named("omid.client.keyStoreType")
 
     public void setKeyStoreType(String keyStoreType) {
         this.keyStoreType = keyStoreType;
@@ -277,8 +240,6 @@ public class OmidClientConfiguration {
         return trustStoreLocation;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.trustStoreLocation")
     public void setTrustStoreLocation(String trustStoreLocation) {
         this.trustStoreLocation = trustStoreLocation;
     }
@@ -287,8 +248,6 @@ public class OmidClientConfiguration {
         return trustStorePassword;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.trustStorePassword")
     public void setTrustStorePassword(String trustStorePassword) {
         this.trustStorePassword = trustStorePassword;
     }
@@ -297,8 +256,6 @@ public class OmidClientConfiguration {
         return trustStoreType;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.trustStoreType")
     public void setTrustStoreType(String trustStoreType) {
         this.trustStoreType = trustStoreType;
     }
@@ -307,8 +264,6 @@ public class OmidClientConfiguration {
         return sslCrlEnabled;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.sslCrlEnabled")
     public void setSslCrlEnabled(boolean sslCrlEnabled) {
         this.sslCrlEnabled = sslCrlEnabled;
     }
@@ -317,8 +272,6 @@ public class OmidClientConfiguration {
         return sslOcspEnabled;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.sslCrlEnabled")
     public void setSslOcspEnabled(boolean sslOcspEnabled) {
         this.sslOcspEnabled = sslOcspEnabled;
     }
@@ -327,8 +280,6 @@ public class OmidClientConfiguration {
         return enabledProtocols;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.enabledProtocols")
     public void setEnabledProtocols(String enabledProtocols) {
         this.enabledProtocols = enabledProtocols;
     }
@@ -337,8 +288,6 @@ public class OmidClientConfiguration {
         return cipherSuites;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.cipherSuites")
     public void setCipherSuites(String cipherSuites) {
         this.cipherSuites = cipherSuites;
     }
@@ -347,12 +296,8 @@ public class OmidClientConfiguration {
         return tlsConfigProtocols;
     }
 
-    @Inject(optional = true)
-    @Named("omid.client.tlsConfigProtocols")
     public void setTsConfigProtocols(String tlsConfigProtocols) {
         this.tlsConfigProtocols = tlsConfigProtocols;
     }
-
-
 
 }
