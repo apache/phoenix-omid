@@ -17,14 +17,9 @@
  */
 package org.apache.omid.metrics;
 
-import com.google.inject.Inject;
-
-import javax.inject.Named;
-import javax.inject.Singleton;
 import java.util.HashSet;
 import java.util.Set;
 
-@Singleton
 public class CodahaleMetricsConfig extends AbstractMetricsConfig {
 
     public enum Reporter {
@@ -52,8 +47,7 @@ public class CodahaleMetricsConfig extends AbstractMetricsConfig {
         return prefix;
     }
 
-    @Inject(optional = true)
-    public void setPrefix(@Named(METRICS_CODAHALE_PREFIX_KEY) String prefix) {
+    public void setPrefix(String prefix) {
         this.prefix = prefix;
     }
 
@@ -61,8 +55,7 @@ public class CodahaleMetricsConfig extends AbstractMetricsConfig {
         return reporters;
     }
 
-    @Inject(optional = true)
-    public void setReporters(@Named(METRICS_CODAHALE_REPORTERS_KEY) Set<Reporter> reporters) {
+    public void setReporters(Set<Reporter> reporters) {
         this.reporters = reporters;
     }
 
@@ -74,8 +67,7 @@ public class CodahaleMetricsConfig extends AbstractMetricsConfig {
         return graphiteHostConfig;
     }
 
-    @Inject(optional = true)
-    public void setGraphiteHostConfig(@Named(METRICS_CODAHALE_GRAPHITE_HOST_CONFIG) String graphiteHostConfig) {
+    public void setGraphiteHostConfig(String graphiteHostConfig) {
         this.graphiteHostConfig = graphiteHostConfig;
     }
 
@@ -83,8 +75,7 @@ public class CodahaleMetricsConfig extends AbstractMetricsConfig {
         return csvDir;
     }
 
-    @Inject(optional = true)
-    public void setCsvDir(@Named(METRICS_CODAHALE_CSV_DIR) String csvDir) {
+    public void setCsvDir(String csvDir) {
         this.csvDir = csvDir;
     }
 
@@ -92,8 +83,7 @@ public class CodahaleMetricsConfig extends AbstractMetricsConfig {
         return slf4jLogger;
     }
 
-    @Inject(optional = true)
-    public void setSlf4jLogger(@Named(METRICS_CODAHALE_SLF4J_LOGGER) String slf4jLogger) {
+    public void setSlf4jLogger(String slf4jLogger) {
         this.slf4jLogger = slf4jLogger;
     }
 
