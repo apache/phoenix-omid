@@ -37,7 +37,7 @@
     <parent>
         <groupId>org.apache</groupId>
         <artifactId>apache</artifactId>
-        <version>30</version>
+        <version>31</version>
     </parent>
 
     <licenses>
@@ -184,7 +184,6 @@
         <maven-cobertura-plugin.version>2.7</maven-cobertura-plugin.version>
         <maven-license-plugin.version>4.3</maven-license-plugin.version>
         <maven-pmd-plugin.version>3.21.0</maven-pmd-plugin.version>
-        <maven-checkstyle-plugin.version>3.3.0</maven-checkstyle-plugin.version>
         <maven-jxr-plugin.version>3.3.0</maven-jxr-plugin.version>
         <maven-findbugs-maven-plugin.version>3.0.5</maven-findbugs-maven-plugin.version>
         <maven-owasp-plugin.version>12.1.0</maven-owasp-plugin.version>
@@ -1329,7 +1328,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin.version}</version>
                 <configuration>
                     <configLocation>misc/omid_checks.xml</configLocation>
                 </configuration>
