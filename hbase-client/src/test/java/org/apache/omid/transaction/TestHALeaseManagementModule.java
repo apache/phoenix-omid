@@ -54,7 +54,7 @@ class TestHALeaseManagementModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        install(new ZKModule(zkCluster, zkNamespace));
+        install(new ZKModule(zkCluster, zkNamespace, null));
     }
 
     @Provides

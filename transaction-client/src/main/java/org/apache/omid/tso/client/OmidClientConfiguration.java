@@ -45,6 +45,7 @@ public class OmidClientConfiguration {
     private String zkCurrentTsoPath;
     private String zkNamespace;
     private int zkConnectionTimeoutInSecs;
+    private String zkLoginContextName;
 
     // Communication protocol related params
 
@@ -202,6 +203,16 @@ public class OmidClientConfiguration {
         this.zkNamespace = zkNamespace;
     }
 
+    public String getZkLoginContextName() {
+        return zkLoginContextName;
+    }
+
+    @Inject(optional = true)
+    @Named("omid.ha.zkLoginContextName")
+    public void setZkLoginContextName(String zkLoginContextName) {
+        this.zkLoginContextName = zkLoginContextName;
+    }
+
     public PostCommitMode getPostCommitMode() {
         return postCommitMode;
     }
@@ -352,7 +363,5 @@ public class OmidClientConfiguration {
     public void setTsConfigProtocols(String tlsConfigProtocols) {
         this.tlsConfigProtocols = tlsConfigProtocols;
     }
-
-
 
 }

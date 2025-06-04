@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
+import javax.security.auth.login.Configuration;
+
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
@@ -32,6 +34,7 @@ import org.apache.omid.committable.CommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTable;
 import org.apache.omid.committable.hbase.HBaseCommitTableConfig;
 import org.apache.omid.tools.hbase.HBaseLogin;
+import org.apache.omid.tools.hbase.OmidKerberosTicketCacheConfiguration;
 import org.apache.omid.tso.client.CellId;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 import org.apache.omid.tso.client.TSOClient;
@@ -73,6 +76,11 @@ public class HBaseTransactionManager extends AbstractTransactionManager implemen
             throws IOException, InterruptedException {
         //Logging in to Secure HBase if required
         HBaseLogin.loginIfNeeded(configuration);
+        //Installing Jaas Configuration if magic app name is configured
+        if (OmidKerberosTicketCacheConfiguration.APP_NAME.equals(configuration.getOmidClientConfiguration().getZkLoginContextName())) {
+            LOG.info("Installing OmidKerberosTicketCacheConfiguration");
+            Configuration.setConfiguration(new OmidKerberosTicketCacheConfiguration());
+        }
         return builder(configuration).build();
     }
 
