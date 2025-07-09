@@ -68,7 +68,7 @@ public class TestGetSslContext {
         SslContext sslContext = tsoClient.getSslContext(tsoClientConf);
 
         ByteBufAllocator byteBufAllocatorMock = mock(ByteBufAllocator.class);
-        Assert.assertEquals(new String[] { X509Util.DEFAULT_PROTOCOL },
+        Assert.assertEquals(X509Util.DEFAULT_PROTOCOLS.split(","),
                 sslContext.newEngine(byteBufAllocatorMock).getEnabledProtocols());
 
         Assert.assertEquals(new String[] { cipherSuite },

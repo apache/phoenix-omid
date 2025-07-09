@@ -17,6 +17,7 @@
  */
 package org.apache.omid.tso;
 
+import org.apache.omid.tls.X509Util;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -28,7 +29,7 @@ public class TSOServerConfigTest {
         Assert.assertEquals(tsoServerConfig.getTlsEnabled(), false);
         Assert.assertEquals(tsoServerConfig.getSupportPlainText(), true);
         Assert.assertEquals(tsoServerConfig.getEnabledProtocols(), null);
-        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), "TLSv1.2");
+        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), X509Util.DEFAULT_PROTOCOLS);
         Assert.assertEquals(tsoServerConfig.getKeyStoreLocation(), "");
         Assert.assertEquals(tsoServerConfig.getKeyStorePassword(), "");
         Assert.assertEquals(tsoServerConfig.getKeyStoreType(), "");
@@ -45,7 +46,7 @@ public class TSOServerConfigTest {
         Assert.assertEquals(tsoServerConfig.getSupportPlainText(), false);
 
         Assert.assertEquals(tsoServerConfig.getEnabledProtocols(), "TLSv1.2");
-        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), "TLSv1.2");
+        Assert.assertEquals(tsoServerConfig.getTsConfigProtocols(), X509Util.DEFAULT_PROTOCOLS);
 
         Assert.assertEquals(tsoServerConfig.getKeyStoreLocation(), "/asd");
         Assert.assertEquals(tsoServerConfig.getKeyStorePassword(), "pass");

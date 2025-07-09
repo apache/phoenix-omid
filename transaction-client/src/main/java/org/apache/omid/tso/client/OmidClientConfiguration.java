@@ -23,7 +23,7 @@ import org.apache.omid.YAMLUtils;
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 
 import static org.apache.omid.tls.X509Util.DEFAULT_HANDSHAKE_DETECTION_TIMEOUT_MILLIS;
-import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOL;
+import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOLS;
 
 /**
  * Configuration for Omid client side
@@ -83,7 +83,7 @@ public class OmidClientConfiguration {
 
     private String cipherSuites;
 
-    private String tlsConfigProtocols = DEFAULT_PROTOCOL;
+    private String tlsConfigProtocols = DEFAULT_PROTOCOLS;
 
     // ----------------------------------------------------------------------------------------------------------------
     // Instantiation
