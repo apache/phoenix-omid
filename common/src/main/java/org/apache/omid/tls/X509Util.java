@@ -67,6 +67,10 @@ public final class X509Util {
         // disabled
     }
 
+    // For recent JDKs we could have just used the JVM defaults.
+    // This is only needed for pre JDK-8202343 Java 8 and 11 to avoid a regression of allowing
+    // pre TLSv1.2 protocols by default.
+    // As Omid only supports the JRE provider, we don't need to worry about tcnative stuff.
     private static String defaultTlsProtocols() {
         String defaultProtocol = TLS_1_2;
         List<String> supported = new ArrayList<>();
