@@ -33,18 +33,19 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 import java.security.cert.PKIXBuilderParameters;
 import java.security.cert.X509CertSelector;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 
 /**
- * Utility code for X509 handling Default cipher suites: Performance testing done by Facebook
- * engineers shows that on Intel x86_64 machines, Java9 performs better with GCM and Java8 performs
- * better with CBC, so these seem like reasonable defaults.
+ * Utility code for X509 handling Default cipher suites.
  * <p/>
- * This file has is based on the one in HBase project.
+ * This file has is based on the one in HBase project, which is based on the one in Zookeeper.
  * @see <a href=
  *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/main/java/org/apache/hadoop/hbase/io/crypto/tls/X509Util.java">Base
  *      revision</a>
@@ -54,13 +55,35 @@ public final class X509Util {
     private static final Logger LOG = LoggerFactory.getLogger(X509Util.class);
     private static final char[] EMPTY_CHAR_ARRAY = new char[0];
 
+    public static final String TLS_1_2 = "TLSv1.2";
+    public static final String TLS_1_3 = "TLSv1.3";
+
     // Config
     public static final int DEFAULT_HANDSHAKE_DETECTION_TIMEOUT_MILLIS = 5000;
 
-    public static final String DEFAULT_PROTOCOL = "TLSv1.2";
+    public static final String DEFAULT_PROTOCOLS = defaultTlsProtocols();
 
     private X509Util() {
         // disabled
+    }
+
+    // For recent JDKs we could have just used the JVM defaults.
+    // This is only needed for pre JDK-8202343 Java 8 and 11 to avoid a regression of allowing
+    // pre TLSv1.2 protocols by default.
+    // As Omid only supports the JRE provider, we don't need to worry about tcnative stuff.
+    private static String defaultTlsProtocols() {
+        String defaultProtocol = TLS_1_2;
+        List<String> supported = new ArrayList<>();
+        try {
+            supported = Arrays.asList(SSLContext.getDefault().getSupportedSSLParameters().getProtocols());
+            if (supported.contains(TLS_1_3)) {
+                defaultProtocol = TLS_1_3 + "," + TLS_1_2;
+            }
+        } catch (NoSuchAlgorithmException e) {
+            // Ignore.
+        }
+        LOG.info("Default TLS protocols are {}, supported TLS protocols are {}", defaultProtocol, supported);
+        return defaultProtocol;
     }
 
     public static SslContext createSslContextForClient(String keyStoreLocation, char[] keyStorePassword,
@@ -229,7 +252,7 @@ public final class X509Util {
 
     private static String[] getEnabledProtocols(String enabledProtocolsInput, String tlsConfigProtocols) {
         if (enabledProtocolsInput == null) {
-            return new String[] {tlsConfigProtocols};
+            return tlsConfigProtocols.split(",");
         }
         return enabledProtocolsInput.split(",");
     }

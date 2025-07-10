@@ -27,7 +27,7 @@ import org.apache.omid.tools.hbase.SecureHBaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOL;
+import static org.apache.omid.tls.X509Util.DEFAULT_PROTOCOLS;
 
 /**
  * Reads the configuration parameters of a TSO server instance from CONFIG_FILE_NAME.
@@ -118,7 +118,7 @@ public class TSOServerConfig extends SecureHBaseConfig {
 
     private String cipherSuites;
 
-    private String tlsConfigProtocols = DEFAULT_PROTOCOL;
+    private String tlsConfigProtocols = DEFAULT_PROTOCOLS;
 
     public boolean getMonitorContext() {
         return monitorContext;

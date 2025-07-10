@@ -20,6 +20,7 @@ package org.apache.omid.tso.client;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConnType;
+import org.apache.omid.tls.X509Util;
 import org.apache.omid.tso.client.OmidClientConfiguration.ConflictDetectionLevel;
 
 public class TestOmidClientConfiguration {
@@ -30,7 +31,7 @@ public class TestOmidClientConfiguration {
         Assert.assertEquals(configuration.getConnectionString(), "localhost:24758");
         Assert.assertEquals(configuration.getConnectionType(), ConnType.DIRECT);
         Assert.assertEquals(configuration.getEnabledProtocols(), null);
-        Assert.assertEquals(configuration.getTsConfigProtocols(), "TLSv1.2");
+        Assert.assertEquals(configuration.getTsConfigProtocols(), X509Util.DEFAULT_PROTOCOLS);
         Assert.assertEquals(configuration.getTlsEnabled(), false);
         Assert.assertEquals(configuration.getKeyStoreLocation(), "");
         Assert.assertEquals(configuration.getKeyStorePassword(), "");
@@ -46,7 +47,7 @@ public class TestOmidClientConfiguration {
         Assert.assertEquals(configuration.getConnectionString(), "localhost:24758");
         Assert.assertEquals(configuration.getConnectionType(), ConnType.DIRECT);
         Assert.assertEquals(configuration.getEnabledProtocols(), "TLSv1.2");
-        Assert.assertEquals(configuration.getTsConfigProtocols(), "TLSv1.2");
+        Assert.assertEquals(configuration.getTsConfigProtocols(), X509Util.DEFAULT_PROTOCOLS);
         Assert.assertEquals(configuration.getTlsEnabled(), true);
         Assert.assertEquals(configuration.getKeyStoreLocation(), "/asd");
         Assert.assertEquals(configuration.getKeyStorePassword(), "pass");

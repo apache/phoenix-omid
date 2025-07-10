@@ -101,9 +101,9 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
     @Test
     public void testCreateSSLContextWithoutCustomProtocol() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
-        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
         ByteBufAllocator byteBufAllocatorMock = mock(ByteBufAllocator.class);
-        assertEquals(new String[] { X509Util.DEFAULT_PROTOCOL },
+        assertEquals(X509Util.DEFAULT_PROTOCOLS.split(","),
                 sslContext.newEngine(byteBufAllocatorMock).getEnabledProtocols());
     }
 
@@ -113,7 +113,7 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
 
         ByteBufAllocator byteBufAllocatorMock = mock(ByteBufAllocator.class);
-        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, protocol, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, protocol, null, X509Util.DEFAULT_PROTOCOLS);
         assertEquals(Collections.singletonList(protocol),
                 Arrays.asList(sslContext.newEngine(byteBufAllocatorMock).getEnabledProtocols()));
     }
@@ -122,14 +122,14 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
     public void testCreateSSLContextWithoutKeyStoreLocationServer() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
         tlsConfigKeystoreLocation = "";
-        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
     }
 
     @Test
     public void testCreateSSLContextWithoutKeyStoreLocationClient() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
         tlsConfigKeystoreLocation = "";
-        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
     }
 
     @Test(expected = X509Exception.class)
@@ -139,21 +139,21 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
             throw new X509Exception.SSLContextException("");
         }
         tlsConfigKeystorePassword = "";
-        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
     }
 
     @Test
     public void testCreateSSLContextWithoutTrustStoreLocationClient() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
         tlsConfigTrustLocation = "";
-        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForClient(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
     }
 
     @Test
     public void testCreateSSLContextWithoutTrustStoreLocationServer() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
         tlsConfigTrustLocation = "";
-        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
     }
 
     // It would be great to test the value of PKIXBuilderParameters#setRevocationEnabled,
@@ -161,7 +161,7 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
     @Test
     public void testCRLEnabled() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
-        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, true, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, true, false, null, null, X509Util.DEFAULT_PROTOCOLS);
         assertTrue(Boolean.valueOf(System.getProperty("com.sun.net.ssl.checkRevocation")));
         assertTrue(Boolean.valueOf(System.getProperty("com.sun.security.enableCRLDP")));
         assertFalse(Boolean.valueOf(Security.getProperty("ocsp.enable")));
@@ -170,7 +170,7 @@ public class TestX509Util extends BaseX509ParameterizedTestCase {
     @Test
     public void testCRLDisabled() throws Exception {
         init(caKeyType, certKeyType, keyPassword, paramIndex);
-        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOL);
+        SslContext sslContext = X509Util.createSslContextForServer(tlsConfigKeystoreLocation, tlsConfigKeystorePassword.toCharArray(), tlsConfigKeystoreType, tlsConfigTrustLocation, tlsConfigTrustPassword.toCharArray(), tlsConfigTrustType, false, false, null, null, X509Util.DEFAULT_PROTOCOLS);
         assertFalse(Boolean.valueOf(System.getProperty("com.sun.net.ssl.checkRevocation")));
         assertFalse(Boolean.valueOf(System.getProperty("com.sun.security.enableCRLDP")));
         assertFalse(Boolean.valueOf(Security.getProperty("ocsp.enable")));
