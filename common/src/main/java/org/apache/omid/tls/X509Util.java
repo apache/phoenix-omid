@@ -45,7 +45,7 @@ import java.util.List;
 /**
  * Utility code for X509 handling Default cipher suites.
  * <p/>
- * This file has is based on the one in HBase project, which is based in the one in Zookeeper.
+ * This file has is based on the one in HBase project, which is based on the one in Zookeeper.
  * @see <a href=
  *      "https://github.com/apache/hbase/blob/d2b0074f7ad4c43d31a1a511a0d74feda72451d1/hbase-common/src/main/java/org/apache/hadoop/hbase/io/crypto/tls/X509Util.java">Base
  *      revision</a>
