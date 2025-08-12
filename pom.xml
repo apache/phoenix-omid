@@ -152,8 +152,8 @@
         <phoenix.thirdparty.version>2.1.0</phoenix.thirdparty.version>
         <guice.version>5.1.0</guice.version>
         <testng.version>7.5.1</testng.version>
-        <slf4j.version>1.7.36</slf4j.version>
-        <log4j2.version>2.21.0</log4j2.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <log4j2.version>2.25.1</log4j2.version>
         <netty4.version>4.1.119.Final</netty4.version>
         <!-- com.google repo will be used except on Aarch64 platform. -->
         <protobuf.group>com.google.protobuf</protobuf.group>
@@ -1291,7 +1291,7 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
+                <artifactId>log4j-slf4j2-impl</artifactId>
                 <version>${log4j2.version}</version>
             </dependency>
             <dependency>
