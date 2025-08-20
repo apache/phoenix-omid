@@ -22,6 +22,7 @@ import static org.apache.hadoop.hbase.HConstants.HBASE_CLIENT_RETRIES_NUMBER;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
@@ -128,7 +129,7 @@ public abstract class OmidTestBase {
         hbaseConf.setInt("hbase.regionserver.nbreservationblocks", 1);
         hbaseConf.setInt(HBASE_CLIENT_RETRIES_NUMBER, 3);
 
-        File tempFile = File.createTempFile("OmidTest", "");
+        File tempFile = Files.createTempFile("OmidTest", "").toFile();
         tempFile.deleteOnExit();
         hbaseConf.set("hbase.rootdir", tempFile.getAbsolutePath());
         hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
