@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.statemachine;
 
 import org.slf4j.Logger;
@@ -37,13 +38,13 @@ public class StateMachine {
 
     private static final String HANDLER_METHOD_NAME = "handleEvent";
 
-    private static ConcurrentHashMap<Class<?>, ConcurrentHashMap<Class<?>, Method>> stateCaches;
+    private static final ConcurrentHashMap<Class<?>, ConcurrentHashMap<Class<?>, Method>> stateCaches;
 
     static {
         stateCaches = new ConcurrentHashMap<>();
     }
 
-    public static abstract class State {
+    public abstract static class State {
 
         protected final Fsm fsm;
         private final ConcurrentHashMap<Class<?>, Method> handlerCache;
@@ -62,7 +63,7 @@ public class StateMachine {
             this.handlerCache = handlerCache;
         }
 
-        private Method findHandlerInternal(Class<?> state, Class<?> e) throws NoSuchMethodException {
+        private Method findHandlerInternal(Class<?> state, Class<?> exception) throws NoSuchMethodException {
             Method[] methods = state.getMethods();
             List<Method> candidates = new ArrayList<>();
             for (Method m : methods) {
@@ -75,7 +76,7 @@ public class StateMachine {
 
             Method best = null;
             for (Method m : candidates) {
-                if (m.getParameterTypes()[0].isAssignableFrom(e)) {
+                if (m.getParameterTypes()[0].isAssignableFrom(exception)) {
                     if (best == null) {
                         best = m;
                     } else if (best.getParameterTypes()[0]
@@ -92,19 +93,19 @@ public class StateMachine {
         }
 
         private Method findHandler(Class<?> event) throws NoSuchMethodException {
-            Method m = handlerCache.get(event);
-            if (m == null) {
-                m = findHandlerInternal(getClass(), event);
-                Method m2 = handlerCache.putIfAbsent(event, m);
+            Method method = handlerCache.get(event);
+            if (method == null) {
+                method = findHandlerInternal(getClass(), event);
+                Method m2 = handlerCache.putIfAbsent(event, method);
                 if (m2 != null) {
-                    m = m2;
+                    method = m2;
                 }
             }
-            return m;
+            return method;
         }
 
-        State dispatch(Event e) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-            return (State) findHandler(e.getClass()).invoke(this, e);
+        State dispatch(Event event) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+            return (State) findHandler(event.getClass()).invoke(this, event);
         }
 
     }
@@ -117,11 +118,11 @@ public class StateMachine {
 
         void setInitState(State initState);
 
-        void sendEvent(Event e);
+        void sendEvent(Event event);
 
-        Future<?> sendEvent(Event e, long delay, TimeUnit unit);
+        Future<?> sendEvent(Event event, long delay, TimeUnit unit);
 
-        void deferEvent(DeferrableEvent e);
+        void deferEvent(DeferrableEvent deferrableEvent);
     }
 
     public static class FsmImpl implements Fsm {
@@ -135,12 +136,12 @@ public class StateMachine {
             deferred = new ArrayDeque<>();
         }
 
-        private void errorDeferredEvents(Throwable t) {
+        private void errorDeferredEvents(Throwable exception) {
             Queue<DeferrableEvent> oldDeferred = deferred;
             deferred = new ArrayDeque<>();
 
             for (DeferrableEvent e : oldDeferred) {
-                e.error(new IllegalStateException(t));
+                e.error(new IllegalStateException(exception));
             }
         }
 
@@ -172,16 +173,16 @@ public class StateMachine {
             }
         }
 
-        boolean processEvent(Event e) {
+        boolean processEvent(Event event) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("FSM-{}: Received event {}@{} in state {}@{}",
-                          getFsmId(), e.getClass().getSimpleName(),
-                          System.identityHashCode(e),
+                          getFsmId(), event.getClass().getSimpleName(),
+                          System.identityHashCode(event),
                           state.getClass().getSimpleName(),
                           System.identityHashCode(state));
             }
             try {
-                State newState = state.dispatch(e);
+                State newState = state.dispatch(event);
 
                 if (newState != state) {
                     setState(state, newState);
@@ -195,15 +196,15 @@ public class StateMachine {
         }
 
         class FSMRunnable implements Runnable {
-            final Event e;
+            final Event event;
 
-            FSMRunnable(Event e) {
-                this.e = e;
+            FSMRunnable(Event event) {
+                this.event = event;
             }
 
             @Override
             public void run() {
-                boolean stateChanged = processEvent(e);
+                boolean stateChanged = processEvent(event);
                 while (stateChanged) {
                     stateChanged = false;
                     Queue<DeferrableEvent> prevDeferred = deferred;
@@ -220,33 +221,29 @@ public class StateMachine {
         }
 
         @Override
-        public void sendEvent(final Event e) {
-            executor.submit(new FSMRunnable(e));
+        public void sendEvent(final Event event) {
+            executor.submit(new FSMRunnable(event));
         }
 
         @Override
-        public Future<?> sendEvent(final Event e, final long delay, final TimeUnit unit) {
-            return executor.schedule(new FSMRunnable(e), delay, unit);
+        public Future<?> sendEvent(final Event event, final long delay, final TimeUnit unit) {
+            return executor.schedule(new FSMRunnable(event), delay, unit);
         }
 
         @Override
-        public void deferEvent(DeferrableEvent e) {
+        public void deferEvent(DeferrableEvent deferrableEvent) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("FSM-{}: deferred {}@{}",
-                          getFsmId(), e.getClass().getSimpleName(), System.identityHashCode(e));
+                LOG.debug("FSM-{}: deferred {}@{}", getFsmId(),
+                    deferrableEvent.getClass().getSimpleName(),
+                    System.identityHashCode(deferrableEvent));
             }
-            deferred.add(e);
+            deferred.add(deferrableEvent);
         }
 
         int getFsmId() {
             return System.identityHashCode(this);
         }
 
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-            LOG.debug("FSM-{}: Finalizing", getFsmId());
-        }
     }
 
     public interface DeferrableEvent extends Event {
