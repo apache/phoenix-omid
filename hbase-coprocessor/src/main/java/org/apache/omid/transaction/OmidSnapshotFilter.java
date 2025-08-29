@@ -17,7 +17,7 @@
  */
 package org.apache.omid.transaction;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.phoenix.thirdparty.com.google.protobuf.InvalidProtocolBufferException;
 
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Scan;

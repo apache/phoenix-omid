@@ -27,6 +27,8 @@ import javax.inject.Inject;
 
 import org.apache.omid.metrics.MetricsRegistry;
 import org.apache.omid.proto.TSOProto;
+import org.apache.omid.protobuf.OmidProtobufDecoder;
+import org.apache.omid.protobuf.OmidProtobufEncoder;
 import org.apache.phoenix.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -47,8 +49,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
-import io.netty.handler.codec.protobuf.ProtobufDecoder;
-import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.ssl.OptionalSslHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.AttributeKey;
@@ -114,8 +114,8 @@ public class TSOChannelHandler extends ChannelInboundHandlerAdapter implements C
                 }
                 pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(10 * 1024 * 1024, 0, 4, 0, 4));
                 pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Request.getDefaultInstance()));
-                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("protobufdecoder", new OmidProtobufDecoder(TSOProto.Request.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new OmidProtobufEncoder());
                 pipeline.addLast("handler", TSOChannelHandler.this);
             }
         });

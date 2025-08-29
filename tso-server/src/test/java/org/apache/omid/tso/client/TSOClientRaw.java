@@ -17,6 +17,8 @@
  */
 package org.apache.omid.tso.client;
 
+import org.apache.omid.protobuf.OmidProtobufDecoder;
+import org.apache.omid.protobuf.OmidProtobufEncoder;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.omid.proto.TSOProto;
@@ -37,8 +39,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
-import io.netty.handler.codec.protobuf.ProtobufDecoder;
-import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,8 +78,8 @@ public class TSOClientRaw {
                 ChannelPipeline pipeline = channel.pipeline();
                 pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(8 * 1024, 0, 4, 0, 4));
                 pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
-                pipeline.addLast("protobufdecoder", new ProtobufDecoder(TSOProto.Response.getDefaultInstance()));
-                pipeline.addLast("protobufencoder", new ProtobufEncoder());
+                pipeline.addLast("protobufdecoder", new OmidProtobufDecoder(TSOProto.Response.getDefaultInstance()));
+                pipeline.addLast("protobufencoder", new OmidProtobufEncoder());
                 pipeline.addLast("rawHandler", new RawHandler());
             }
         });

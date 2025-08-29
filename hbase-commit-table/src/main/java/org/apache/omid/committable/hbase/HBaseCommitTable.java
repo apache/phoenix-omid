@@ -48,8 +48,8 @@ import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.AbstractFuture;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.phoenix.thirdparty.com.google.common.util.concurrent.SettableFuture;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.CodedOutputStream;
+import org.apache.phoenix.thirdparty.com.google.protobuf.CodedInputStream;
+import org.apache.phoenix.thirdparty.com.google.protobuf.CodedOutputStream;
 
 public class HBaseCommitTable implements CommitTable {
 

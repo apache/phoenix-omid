@@ -123,7 +123,7 @@ public class TestTSOLL {
         long ts1 = client.getNewStartTimestamp().get();
 
         TSOProto.Response response1 = clientOneShot.makeRequest(createCommitRequest(ts1, false, testWriteSet));
-        assertTrue(response1.getCommitResponse().hasCommitTimestamp());
+        assertTrue(response1.getCommitResponse().getCommitTimestamp() != 0);
         Optional<CommitTable.CommitTimestamp> cts = commitTable.getClient().getCommitTimestamp(ts1).get();
 
         assertTrue(cts.isPresent() == false);

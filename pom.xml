@@ -147,16 +147,14 @@
         <!-- 3rd-Party Library Versioning -->
         <hbase.version>2.5.12-hadoop3</hbase.version>
         <hadoop.version>3.4.2</hadoop.version>
-        <phoenix.thirdparty.version>2.1.0</phoenix.thirdparty.version>
+        <phoenix.thirdparty.version>2.2.0</phoenix.thirdparty.version>
         <guice.version>5.1.0</guice.version>
         <testng.version>7.5.1</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
         <log4j2.version>2.21.0</log4j2.version>
         <netty4.version>4.1.119.Final</netty4.version>
-        <!-- com.google repo will be used except on Aarch64 platform. -->
-        <protobuf.group>com.google.protobuf</protobuf.group>
-        <protobuf-java.version>2.5.0</protobuf-java.version>
-        <protoc.version>2.5.0</protoc.version>
+        <!-- Protoc has to be the same version as protobuf in the phoenix thirdpary shaded protobuf-->
+        <protoc.version>4.32.0</protoc.version>
         <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
         <junit.version>4.13.2</junit.version>
         <mockito.version>4.11.0</mockito.version>
@@ -310,6 +308,13 @@
                               <bannedImport>org.apache.commons.logging.LogFactory</bannedImport>
                             </bannedImports>
                           </RestrictImports>
+                            <RestrictImports>
+                                <includeTestCode>true</includeTestCode>
+                                <reason>Use shaded version in phoenix-thirdparty</reason>
+                                <bannedImports>
+                                    <bannedImport>com.google.protobuf.**</bannedImport>
+                                </bannedImports>
+                            </RestrictImports>
                           <RestrictImports>
                             <includeTestCode>true</includeTestCode>
                             <reason>Use shaded version in phoenix-thirdparty</reason>
@@ -747,34 +752,6 @@
                 </plugins>
             </build>
         </profile>
-        <profile>
-            <id>linux-aarch64</id>
-            <activation>
-                <os>
-                <family>linux</family>
-                <arch>aarch64</arch>
-                </os>
-            </activation>
-            <properties>
-                <!-- PHOENIX-6475 Use custom protoc for Linux ARM64 -->
-                <protobuf.group>org.openlabtesting.protobuf</protobuf.group>
-                <protoc.version>2.5.0.2</protoc.version>
-            </properties>
-        </profile>
-        <profile>
-            <!-- Use Mac x64 version of protoc for Apple Silicon (aarch64) Macs -->
-            <id>osx-aarch64</id>
-            <activation>
-                <os>
-                    <family>mac</family>
-                    <arch>aarch64</arch>
-                </os>
-            </activation>
-            <properties>
-                <os.detected.classifier>osx-x86_64</os.detected.classifier>
-            </properties>
-        </profile>
-
         <profile>
             <id>code-coverage</id>
             <activation>

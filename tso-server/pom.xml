@@ -141,9 +141,9 @@
             <artifactId>netty-codec</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf-java.version}</version>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
+            <artifactId>phoenix-shaded-protobuf</artifactId>
+            <version>${phoenix.thirdparty.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.curator</groupId>
