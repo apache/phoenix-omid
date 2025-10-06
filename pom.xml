@@ -145,10 +145,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 3rd-Party Library Versioning -->
-        <hbase.version>2.5.11-hadoop3</hbase.version>
-        <hadoop.version>3.4.1</hadoop.version>
-        <!-- Temporary workaround for HDFS-17759 in Hadoop 3.4.1, remove on upgrade! -->
-        <jackson-core.version>2.12.7</jackson-core.version>
+        <hbase.version>2.5.12-hadoop3</hbase.version>
+        <hadoop.version>3.4.2</hadoop.version>
         <phoenix.thirdparty.version>2.1.0</phoenix.thirdparty.version>
         <guice.version>5.1.0</guice.version>
         <testng.version>7.5.1</testng.version>
@@ -975,12 +973,6 @@
                         <artifactId>slf4j-reload4j</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-            <!-- Temporary workaround for HDFS-17759 in Hadoop 3.4.1, remove on upgrade! -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>${jackson-core.version}</version>
             </dependency>
 
             <dependency>
