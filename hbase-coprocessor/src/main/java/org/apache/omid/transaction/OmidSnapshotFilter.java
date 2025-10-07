@@ -24,8 +24,6 @@ import org.apache.hadoop.hbase.client.Scan;
 
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.regionserver.RegionScanner;
-
 
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
@@ -100,7 +98,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
+    @Override
     public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
         if (snapshotFilter != null) {
@@ -109,7 +107,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
 
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
+    @Override
     public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
             throws IOException {
 
@@ -137,17 +135,7 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         return snapshotFilter;
     }
 
-
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
-    public RegionScanner preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
-                                        Scan scan,
-                                        RegionScanner s) throws IOException {
-        preScannerOpen(e,scan);
-        return s;
-    }
-
-
-    // Don't add an @Override tag since this method doesn't exist in both hbase-1 and hbase-2
+    @Override
     public void preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
                                Scan scan) throws IOException {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
