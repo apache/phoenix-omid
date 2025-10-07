@@ -27,6 +27,8 @@ import java.util.Optional;
 
 
 public abstract class BaseRegionObserver implements RegionObserver, RegionCoprocessor {
+
+    @Override
     public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> c,
                                       Store store,
                                       InternalScanner scanner,
@@ -36,7 +38,7 @@ public abstract class BaseRegionObserver implements RegionObserver, RegionCoproc
         return preCompact(c,store,scanner,scanType,request);
     }
 
-    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
+    protected InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
                                       Store store,
                                       InternalScanner scanner,
                                       ScanType scanType,

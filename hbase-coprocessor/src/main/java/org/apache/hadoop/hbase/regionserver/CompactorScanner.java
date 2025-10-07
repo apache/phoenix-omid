@@ -66,7 +66,7 @@ public class CompactorScanner implements InternalScanner {
     private List<Cell> currentRowWorthValues = new ArrayList<Cell>();
     private final LRUMap<Long ,Optional<CommitTimestamp>> commitCache;
 
-    public CompactorScanner(ObserverContext<RegionCoprocessorEnvironment> e,
+    public CompactorScanner(ObserverContext<RegionCoprocessorEnvironment> c,
                             InternalScanner internalScanner,
                             Client commitTableClient,
                             boolean isMajorCompaction,
@@ -77,7 +77,7 @@ public class CompactorScanner implements InternalScanner {
         this.retainNonTransactionallyDeletedCells = preserveNonTransactionallyDeletedCells;
         this.lowWatermark = getLowWatermarkFromCommitTable();
         // Obtain the table in which the scanner is going to operate
-        this.hRegion = e.getEnvironment().getRegion();
+        this.hRegion = c.getEnvironment().getRegion();
         commitCache = new LRUMap<>(1000);
         LOG.info("Scanner cleaning up uncommitted txs older than LW [{}] in region [{}]",
                 lowWatermark, hRegion.getRegionInfo());
@@ -94,7 +94,7 @@ public class CompactorScanner implements InternalScanner {
         return next(result, limit);
     }
 
-    public boolean next(List<Cell> result, int limit) throws IOException {
+    protected boolean next(List<Cell> result, int limit) throws IOException {
 
         if (currentRowWorthValues.isEmpty()) {
             // 1) Read next row

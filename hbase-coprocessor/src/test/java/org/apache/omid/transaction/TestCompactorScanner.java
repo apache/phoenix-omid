@@ -28,13 +28,10 @@ import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.omid.committable.CommitTable;
-import org.apache.omid.committable.CommitTable.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.Queue;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
