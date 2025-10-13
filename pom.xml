@@ -166,6 +166,7 @@
         <guava.version>32.1.3-jre</guava.version>
         <!-- 2.12+ shades guava -->
         <curator.version>5.6.0</curator.version>
+        <zookeeper.version>3.8.4</zookeeper.version>
         <snakeyaml.version>2.2</snakeyaml.version>
         <beanutils.version>1.9.4</beanutils.version>
         <commons-io.version>2.18.0</commons-io.version>

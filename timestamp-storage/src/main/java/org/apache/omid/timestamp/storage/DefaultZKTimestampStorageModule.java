@@ -27,10 +27,11 @@ public class DefaultZKTimestampStorageModule extends AbstractModule {
 
     private String zkCluster = "localhost:2181";
     private String namespace = "omid";
+    private String zkLoginContextName;
 
     @Override
     public void configure() {
-        install(new ZKModule(zkCluster, namespace));
+        install(new ZKModule(zkCluster, namespace, zkLoginContextName));
         install(new ZKTimestampStorageModule());
     }
 
@@ -52,6 +53,14 @@ public class DefaultZKTimestampStorageModule extends AbstractModule {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public String getZkLoginContextName() {
+        return zkLoginContextName;
+    }
+
+    public void setZkLoginContextName(String zkLoginContextName) {
+        this.zkLoginContextName = zkLoginContextName;
     }
 
 }
