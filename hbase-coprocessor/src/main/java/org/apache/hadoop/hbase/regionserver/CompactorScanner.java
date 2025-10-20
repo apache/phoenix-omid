@@ -66,35 +66,40 @@ public class CompactorScanner implements InternalScanner {
     private List<Cell> currentRowWorthValues = new ArrayList<Cell>();
     private final LRUMap<Long ,Optional<CommitTimestamp>> commitCache;
 
-    public CompactorScanner(ObserverContext<RegionCoprocessorEnvironment> c,
+
+    public CompactorScanner(ObserverContext c,
                             InternalScanner internalScanner,
                             Client commitTableClient,
                             boolean isMajorCompaction,
                             boolean preserveNonTransactionallyDeletedCells) throws IOException {
+        RegionCoprocessorEnvironment env = (RegionCoprocessorEnvironment)c.getEnvironment();
         this.internalScanner = internalScanner;
         this.commitTableClient = commitTableClient;
         this.isMajorCompaction = isMajorCompaction;
         this.retainNonTransactionallyDeletedCells = preserveNonTransactionallyDeletedCells;
         this.lowWatermark = getLowWatermarkFromCommitTable();
         // Obtain the table in which the scanner is going to operate
-        this.hRegion = c.getEnvironment().getRegion();
+        this.hRegion = env.getRegion();
         commitCache = new LRUMap<>(1000);
         LOG.info("Scanner cleaning up uncommitted txs older than LW [{}] in region [{}]",
                 lowWatermark, hRegion.getRegionInfo());
     }
 
     @Override
-    public boolean next(List<Cell> results) throws IOException {
+    // No generics to work around API change in HBase 3+
+    public boolean next(List results) throws IOException {
         return next(results, -1);
     }
 
     @Override
-    public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
+    // No generics to work around API change in HBase 3+
+    public boolean next(List result, ScannerContext scannerContext) throws IOException {
         int limit = scannerContext.getBatchLimit();
         return next(result, limit);
     }
 
-    protected boolean next(List<Cell> result, int limit) throws IOException {
+    // No generics to work around API change in HBase 3+
+    protected boolean next(List result, int limit) throws IOException {
 
         if (currentRowWorthValues.isEmpty()) {
             // 1) Read next row

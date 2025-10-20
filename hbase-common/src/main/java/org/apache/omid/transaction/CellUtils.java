@@ -28,6 +28,7 @@ import java.util.TreeMap;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparatorImpl;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.ExtendedCell;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
@@ -308,7 +309,7 @@ public final class CellUtils {
                 cell.getRowArray(), cell.getRowOffset(), cell.getRowLength(),
                 cell.getFamilyArray(), cell.getFamilyOffset(), cell.getFamilyLength(),
                 shadowCellQualifier, 0, shadowCellQualifier.length,
-                cell.getTimestamp(), KeyValue.Type.codeToType(cell.getTypeByte()),
+                cell.getTimestamp(), KeyValue.Type.codeToType(cell.getType().getCode()),
                 shadowCellValue, 0, shadowCellValue.length);
     }
 
@@ -337,7 +338,8 @@ public final class CellUtils {
                         // TODO: Should we check also here the MVCC and swap if its greater???
                         // Values are the same, ignore
                     } else {
-                        if (cell.getSequenceId() > storedCell.getSequenceId()) { // Swap values
+                        //Casts needed for HBase 3+
+                        if (((ExtendedCell)cell).getSequenceId() > ((ExtendedCell)storedCell).getSequenceId()) { // Swap values
                             Optional<Cell> previousValue = cellToShadowCellMap.remove(storedCell);
                             Preconditions.checkNotNull(previousValue, "Should contain an Optional<Cell> value");
                             cellIdToCellMap.put(key, cell);

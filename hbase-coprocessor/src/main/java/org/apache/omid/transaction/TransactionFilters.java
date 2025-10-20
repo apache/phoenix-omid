@@ -26,6 +26,6 @@ public class TransactionFilters {
     public static Filter getVisibilityFilter(Filter cellFilter,
                                              SnapshotFilterImpl regionAccessWrapper,
                                              HBaseTransaction hbaseTransaction) {
-        return new CellSkipFilterBase(new TransactionVisibilityFilterBase(cellFilter, regionAccessWrapper, hbaseTransaction));
+        return new CellSkipFilter(new TransactionVisibilityFilter(cellFilter, regionAccessWrapper, hbaseTransaction));
     }
 }
