@@ -23,6 +23,13 @@ cd $SCRIPTDIR;
 # Load Omid environment variables
 source omid-env.sh
 
+# Load HBase environent variables
+if [ -r "${HBASE_CONF_DIR}/hbase-env.sh" ]; then
+    echo Loading "${HBASE_CONF_DIR}/hbase-env.sh"
+    # The main thing here is HBASE_OPTS
+    source "${HBASE_CONF_DIR}/hbase-env.sh"
+fi
+
 # Configure classpath...
 CLASSPATH=../conf:${HBASE_CONF_DIR}:${HADOOP_CONF_DIR}
 
@@ -38,6 +45,12 @@ done
 for j in ../lib/*.jar; do
     CLASSPATH=$CLASSPATH:$j
 done
+
+if [ -z ${OMID_OPTS+x} ]; then
+    OPTS="$HBASE_OPTS";
+else
+    OPTS="$OMID_OPTS"
+fi
 
 #JVM detection and list of JDK11 options copied from HBase with slight modifications
 
@@ -70,7 +83,7 @@ function parse_java_major_version() {
 
 add_jdk11_jvm_flags() {
   # Keep in sync with omid-surefire.jdk11.flags in the root pom.xml
-  OMID_OPTS="$OMID_OPTS -Dorg.apache.hbase.thirdparty.io.netty.tryReflectionSetAccessible=true --add-modules jdk.unsupported --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED --add-exports java.security.jgss/sun.security.krb5=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED"
+  OPTS="$OPTS -Dorg.apache.hbase.thirdparty.io.netty.tryReflectionSetAccessible=true --add-modules jdk.unsupported --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-exports java.base/jdk.internal.misc=ALL-UNNAMED --add-exports java.security.jgss/sun.security.krb5=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED"
 }
 
 setup_jdk_options()  {
@@ -126,7 +139,7 @@ setup_jdk_options()  {
 }
 
 tso() {
-    exec java $JVM_FLAGS $OMID_OPTS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
+    exec java $JVM_FLAGS $OPTS -cp $CLASSPATH org.apache.omid.tso.TSOServer $@
 }
 
 tsoRelauncher() {
@@ -137,11 +150,11 @@ tsoRelauncher() {
 }
 
 createHBaseCommitTable() {
-    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
+    exec java $JVM_FLAGS $OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager commit-table $@
 }
 
 createHBaseTimestampTable() {
-    exec java $OMID_OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
+    exec java $JVM_FLAGS $OPTS -cp $CLASSPATH org.apache.omid.tools.hbase.OmidTableManager timestamp-table $@
 }
 
 usage() {
