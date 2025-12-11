@@ -53,6 +53,12 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.phoenix.thirdparty</groupId>
+            <artifactId>phoenix-shaded-protobuf</artifactId>
+            <version>${phoenix.thirdparty.version}</version>
+        </dependency>
+
 
         <!-- end distributed comm -->
 

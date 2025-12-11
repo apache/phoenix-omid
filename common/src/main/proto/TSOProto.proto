@@ -16,6 +16,7 @@
 // limitations under the License.
 //
 
+syntax = "proto3";
 option java_package = "org.apache.omid.proto";
 
 option optimize_for = SPEED;
@@ -32,7 +33,7 @@ message TimestampRequest {
 
 message CommitRequest {
     optional int64 startTimestamp = 1;
-    optional bool isRetry = 2 [default = false];
+    optional bool isRetry = 2;
     repeated int64 cellId = 3;
     repeated int64 TableId = 4;
 }
@@ -75,7 +76,7 @@ message HandshakeRequest {
 message HandshakeResponse {
     optional bool clientCompatible = 1;
     optional Capabilities serverCapabilities = 2;
-    optional bool lowLatency = 3[default= false];
+    optional bool lowLatency = 3;
 }
 
 message Transaction {

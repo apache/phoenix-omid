@@ -17,8 +17,8 @@
  */
 package org.apache.omid.committable.hbase;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.CodedOutputStream;
+import org.apache.phoenix.thirdparty.com.google.protobuf.CodedInputStream;
+import org.apache.phoenix.thirdparty.com.google.protobuf.CodedOutputStream;
 
 import java.io.IOException;
 
