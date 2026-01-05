@@ -151,7 +151,7 @@
         <guice.version>5.1.0</guice.version>
         <testng.version>7.5.1</testng.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <log4j2.version>2.21.0</log4j2.version>
+        <log4j2.version>2.25.3</log4j2.version>
         <netty4.version>4.1.119.Final</netty4.version>
         <!-- Protoc has to be the same version as protobuf in the phoenix thirdpary shaded protobuf-->
         <protoc.version>4.32.0</protoc.version>
