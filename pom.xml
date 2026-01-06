@@ -165,7 +165,7 @@
         <!-- 2.12+ shades guava -->
         <curator.version>5.6.0</curator.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <beanutils.version>1.9.4</beanutils.version>
+        <beanutils.version>1.11.0</beanutils.version>
         <commons-io.version>2.18.0</commons-io.version>
         <commons-pool2.version>2.12.1</commons-pool2.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
