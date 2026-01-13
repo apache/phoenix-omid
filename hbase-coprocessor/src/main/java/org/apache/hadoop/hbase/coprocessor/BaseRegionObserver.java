@@ -27,9 +27,9 @@ import java.util.Optional;
 
 
 public abstract class BaseRegionObserver implements RegionObserver, RegionCoprocessor {
-
     @Override
-    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> c,
+    // No generics to work around API change in HBase 3+
+    public InternalScanner preCompact(ObserverContext c,
                                       Store store,
                                       InternalScanner scanner,
                                       ScanType scanType,
@@ -38,7 +38,7 @@ public abstract class BaseRegionObserver implements RegionObserver, RegionCoproc
         return preCompact(c,store,scanner,scanType,request);
     }
 
-    protected InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
+    protected InternalScanner preCompact(ObserverContext env,
                                       Store store,
                                       InternalScanner scanner,
                                       ScanType scanType,

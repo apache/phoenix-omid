@@ -18,11 +18,14 @@
 package org.apache.omid.transaction;
 
 import org.apache.phoenix.thirdparty.com.google.common.base.Optional;
-
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.commons.collections4.map.LRUMap;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.KeyValueUtil;
+import org.apache.hadoop.hbase.Cell.Type;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.filter.Filter;
@@ -31,15 +34,20 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 
 import org.apache.hadoop.hbase.util.Bytes;
 
-
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 
 import java.util.List;
 import java.util.Map;
 
 
-public class TransactionVisibilityFilterBase extends FilterBase {
+public class TransactionVisibilityFilter extends FilterBase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TransactionVisibilityFilter.class);
 
     // optional sub-filter to apply to visible cells
     private final Filter userFilter;
@@ -51,7 +59,11 @@ public class TransactionVisibilityFilterBase extends FilterBase {
     // So no need to keep row name
     private final Map<ImmutableBytesWritable, Long> familyDeletionCache;
 
-    public TransactionVisibilityFilterBase(Filter cellFilter,
+    // Using reflection to avoid adding compatibility modules.
+    private final MethodHandle removedFilterRowKeyMethod;
+    private final MethodHandle removedSuperFilterRowKeyMethod;
+
+    public TransactionVisibilityFilter(Filter cellFilter,
                                            SnapshotFilterImpl snapshotFilter,
                                            HBaseTransaction hbaseTransaction) {
         this.userFilter = cellFilter;
@@ -60,13 +72,37 @@ public class TransactionVisibilityFilterBase extends FilterBase {
         this.hbaseTransaction = hbaseTransaction;
         familyDeletionCache = new HashMap<>();
 
+        MethodHandle tmpFilterRowKeyMethod;
+        try {
+            tmpFilterRowKeyMethod = MethodHandles.lookup().findVirtual(userFilter.getClass(), "filterRowKey", MethodType.methodType(boolean.class, byte[].class, int.class, int.class));
+            //tmpFilterRowKeyMethod = FilterBase.class.getMethod("filterRowKey", byte[].class, int.class, int.class);
+        } catch (Exception e) {
+            if(userFilter != null) {
+                LOG.info("Could not get filterRowKey method handle by reflection. This is normal for HBase 3.x", e);
+            }
+            tmpFilterRowKeyMethod = null;
+        }
+        removedFilterRowKeyMethod = tmpFilterRowKeyMethod;
+        
+        MethodHandle tmpRemovedSuperFilterRowKeyMethod;
+        try {
+            tmpRemovedSuperFilterRowKeyMethod = MethodHandles.lookup().findSpecial(FilterBase.class, "filterRowKey",
+                MethodType.methodType(boolean.class, byte[].class, int.class, int.class),
+                TransactionVisibilityFilter.class);
+        } catch (Exception e) {
+            LOG.info("Could not get super.filterRowKey method handle by reflection. This is normal for HBase 3.x", e);
+            tmpRemovedSuperFilterRowKeyMethod = null;
+        }
+        removedSuperFilterRowKeyMethod = tmpRemovedSuperFilterRowKeyMethod;
+        
     }
 
     /**
      * This deprecated method is implemented for backwards compatibility reasons.
-     * use {@link TransactionVisibilityFilterBase#filterCell(Cell)}
+     * use {@link TransactionVisibilityFilter#filterCell(Cell)}
+     *
+     * No @Override so that it compiles with HBase 3.x
     */
-    @Override
     public ReturnCode filterKeyValue(Cell cell) throws IOException {
         return filterCell(cell);
     }
@@ -204,14 +240,30 @@ public class TransactionVisibilityFilterBase extends FilterBase {
 
     /**
      * This deprecated method is implemented for backwards compatibility reasons.
-     * use {@link TransactionVisibilityFilterBase#filterRowKey(Cell)}
+     * use {@link TransactionVisibilityFilter#filterRowKey(Cell)}
+     *
+     * No @Override so that it compiles with HBase 3.x
      */
-    @Override
     public boolean filterRowKey(byte[] buffer, int offset, int length) throws IOException {
+        // Even though this is deprecated, this is the actual implementation that filterRowKey(Cell)
+        // calls in FilterBase in HBase 2, so we cannot call filterRowKey(Cell), because that would
+        // cause infinite recursion
         if (userFilter != null) {
-            return userFilter.filterRowKey(buffer, offset, length);
+            try {
+                return (boolean) (removedFilterRowKeyMethod.invoke(userFilter, buffer, offset, length));
+            } catch (IOException e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new UnsupportedOperationException(t);
+            }
         }
-        return super.filterRowKey(buffer, offset, length);
+        try {
+            return (boolean) (removedSuperFilterRowKeyMethod.invokeExact(this, buffer, offset, length));
+        } catch (IOException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new UnsupportedOperationException(t);
+        }
     }
 
     @Override
@@ -271,4 +323,5 @@ public class TransactionVisibilityFilterBase extends FilterBase {
     public Filter getInnerFilter() {
         return userFilter;
     }
+
 }

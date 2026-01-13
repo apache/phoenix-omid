@@ -111,17 +111,19 @@ public class OmidCompactor extends BaseRegionObserver {
 
 
     @Override
-    public InternalScanner preCompact(ObserverContext<RegionCoprocessorEnvironment> env,
+   // No generics to work around API change in HBase 3+
+    public InternalScanner preCompact(ObserverContext c,
                                       Store store,
                                       InternalScanner scanner,
                                       ScanType scanType,
                                       CompactionRequest request) throws IOException {
         boolean omidCompactable;
+        RegionCoprocessorEnvironment env = (RegionCoprocessorEnvironment)c.getEnvironment();
         try {
             if (enableCompactorForAllFamilies) {
                 omidCompactable = true;
             } else {
-                TableDescriptor desc = env.getEnvironment().getRegion().getTableDescriptor();
+                TableDescriptor desc = env.getRegion().getTableDescriptor();
                 ColumnFamilyDescriptor famDesc = desc.getColumnFamily(Bytes.toBytes(store.getColumnFamilyName()));
                 omidCompactable =Boolean.valueOf(Bytes.toString(famDesc.getValue(Bytes.toBytes(OMID_COMPACTABLE_CF_FLAG))));
             }
@@ -132,7 +134,7 @@ public class OmidCompactor extends BaseRegionObserver {
                 return scanner;
             } else {
                 boolean isMajorCompaction = request.isMajor();
-                return new CompactorScanner(env,
+                return new CompactorScanner(c,
                         scanner,
                         commitTableClient,
                         isMajorCompaction,

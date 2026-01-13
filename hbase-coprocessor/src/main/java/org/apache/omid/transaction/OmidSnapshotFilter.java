@@ -97,9 +97,9 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
         LOG.info("Snapshot filter stopped");
     }
 
-
     @Override
-    public void postGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results) {
+    // No generics to work around API change in HBase 3+
+    public void postGetOp(ObserverContext e, Get get, List results) {
         SnapshotFilterImpl snapshotFilter = snapshotFilterMap.get(get);
         if (snapshotFilter != null) {
             snapshotFilterQueue.add(snapshotFilter);
@@ -108,7 +108,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
 
 
     @Override
-    public void preGetOp(ObserverContext<RegionCoprocessorEnvironment> e, Get get, List<Cell> results)
+    // No generics to work around API change in HBase 3+
+    public void preGetOp(ObserverContext e, Get get, List results)
             throws IOException {
 
         if (get.getAttribute(CellUtils.CLIENT_GET_ATTRIBUTE) == null) return;
@@ -136,7 +137,8 @@ public class OmidSnapshotFilter extends BaseRegionObserver {
     }
 
     @Override
-    public void preScannerOpen(ObserverContext<RegionCoprocessorEnvironment> e,
+    // No generics to work around API change in HBase 3+
+    public void preScannerOpen(ObserverContext e,
                                Scan scan) throws IOException {
         byte[] byteTransaction = scan.getAttribute(CellUtils.TRANSACTION_ATTRIBUTE);
 
