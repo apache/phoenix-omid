@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.statemachine;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,19 +36,19 @@ public class StateMachineLogParser {
 
     static Pattern fsmPattern = Pattern.compile("FSM-(\\d+):");
 
-    static Map<String, List<String>> getFsmEventMap(BufferedReader f) throws IOException {
-        String s = f.readLine();
-        Map<String, List<String>> map = new HashMap<String, List<String>>();
-        while (s != null) {
-            Matcher m = fsmPattern.matcher(s);
-            if (m.find()) {
-                String key = m.group(1);
+    static Map<String, List<String>> getFsmEventMap(BufferedReader reader) throws IOException {
+        String line = reader.readLine();
+        Map<String, List<String>> map = new HashMap<>();
+        while (line != null) {
+            Matcher matcher = fsmPattern.matcher(line);
+            if (matcher.find()) {
+                String key = matcher.group(1);
                 if (!map.containsKey(key)) {
                     map.put(key, new ArrayList<String>());
                 }
-                map.get(key).add(s);
+                map.get(key).add(line);
             }
-            s = f.readLine();
+            line = reader.readLine();
         }
         return map;
     }
@@ -64,12 +65,12 @@ public class StateMachineLogParser {
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (o instanceof Tuple) {
-                Tuple t = (Tuple) o;
-                return state1.equals(t.state1)
-                        && state2.equals(t.state2)
-                        && event.equals(t.event);
+        public boolean equals(Object obj) {
+            if (obj instanceof Tuple) {
+                Tuple tuple = (Tuple) obj;
+                return state1.equals(tuple.state1)
+                        && state2.equals(tuple.state2)
+                        && event.equals(tuple.event);
             }
             return false;
         }
@@ -89,13 +90,13 @@ public class StateMachineLogParser {
     static Pattern subclassPattern = Pattern.compile("(.+)\\$(.+)");
 
     static String cleanupState(String state) {
-        Matcher m = hashcodePattern.matcher(state);
-        if (m.find()) {
-            state = m.group(1);
+        Matcher matcher = hashcodePattern.matcher(state);
+        if (matcher.find()) {
+            state = matcher.group(1);
         }
-        m = subclassPattern.matcher(state);
-        if (m.find()) {
-            state = m.group(2);
+        matcher = subclassPattern.matcher(state);
+        if (matcher.find()) {
+            state = matcher.group(2);
         }
         return state;
     }
@@ -104,23 +105,23 @@ public class StateMachineLogParser {
     static Pattern transitionPattern = Pattern.compile("State transition (.+) -> (.+)");
 
     static Set<Tuple> getStateTuples(Map<String, List<String>> fsms) {
-        Set<Tuple> tuples = new HashSet<Tuple>();
+        Set<Tuple> tuples = new HashSet<>();
         for (List<String> transitions : fsms.values()) {
             String currentEvent = null;
             for (String s : transitions) {
                 //System.err.println(s);
-                Matcher m = eventPattern.matcher(s);
-                if (m.find()) {
-                    currentEvent = m.group(1);
+                Matcher matcher = eventPattern.matcher(s);
+                if (matcher.find()) {
+                    currentEvent = matcher.group(1);
                     continue;
                 }
-                m = transitionPattern.matcher(s);
-                if (m.find()) {
+                matcher = transitionPattern.matcher(s);
+                if (matcher.find()) {
                     if (currentEvent == null) {
                         System.err.println("event is null");
                     }
-                    String state1 = m.group(1);
-                    String state2 = m.group(2);
+                    String state1 = matcher.group(1);
+                    String state2 = matcher.group(2);
                     tuples.add(new Tuple(cleanupState(state1),
                             currentEvent,
                             cleanupState(state2)));
@@ -135,7 +136,7 @@ public class StateMachineLogParser {
     }
 
     static void drawDotGraph(Set<Tuple> tuples) {
-        Set<String> states = new HashSet<String>();
+        Set<String> states = new HashSet<>();
         for (Tuple t : tuples) {
             states.add(t.state1);
             states.add(t.state2);
@@ -156,8 +157,9 @@ public class StateMachineLogParser {
             System.out.println("Usage: StateMachineLogParser <logfile> | dot -Tsvg ");
             System.exit(-1);
         }
-        BufferedReader f = new BufferedReader(new InputStreamReader(new FileInputStream(args[0]), Charset.forName("UTF-8")));
-        Map<String, List<String>> fsms = getFsmEventMap(f);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(args[0]),
+                StandardCharsets.UTF_8));
+        Map<String, List<String>> fsms = getFsmEventMap(reader);
         Set<Tuple> tuples = getStateTuples(fsms);
         drawDotGraph(tuples);
     }
