@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
@@ -126,7 +127,7 @@ public class TestOmidLLRaces {
         hbaseConf.setInt("hbase.regionserver.nbreservationblocks", 1);
         hbaseConf.setInt(HBASE_CLIENT_RETRIES_NUMBER, 3);
 
-        File tempFile = File.createTempFile("OmidTest", "");
+        File tempFile = Files.createTempFile("OmidTest", "").toFile();
         tempFile.deleteOnExit();
         hbaseConf.set("hbase.rootdir", tempFile.getAbsolutePath());
         hbaseConf.setBoolean("hbase.localcluster.assign.random.ports",true);
